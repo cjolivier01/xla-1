@@ -71,8 +71,11 @@ xla::PrimitiveType XlaTypeFromTensorType(at::ScalarType scalar_type,
       return xla::PrimitiveType::F32;
     case at::ScalarType::BFloat16:
       return xla::PrimitiveType::BF16;
+<<<<<<< HEAD
     case at::ScalarType::Half:
       return xla::PrimitiveType::F16;
+=======
+>>>>>>> d7b5521a... Link PT BFloat16 to XLA BF16.
     case at::ScalarType::Bool:
       return xla::PrimitiveType::PRED;
     case at::ScalarType::Byte:
@@ -115,6 +118,7 @@ struct Caster<tensorflow::bfloat16> {
     return static_cast<D>(static_cast<float>(value));
   }
 };
+<<<<<<< HEAD
 template <>
 struct Caster<at::Half> {
   template <typename D>
@@ -143,6 +147,8 @@ struct Caster<std::complex<double>> {
     return static_cast<D>(value.real());
   }
 };
+=======
+>>>>>>> d7b5521a... Link PT BFloat16 to XLA BF16.
 
 // Copies n bytes from source to dest, with different stride values for source
 // and destination.
@@ -185,6 +191,7 @@ template <>
 struct NeedCast<at::BFloat16> {
   static constexpr bool value = true;
 };
+<<<<<<< HEAD
 template <>
 struct NeedCast<xla::half> {
   static constexpr bool value = true;
@@ -201,6 +208,8 @@ template <>
 struct NeedCast<std::complex<double>> {
   static constexpr bool value = true;
 };
+=======
+>>>>>>> d7b5521a... Link PT BFloat16 to XLA BF16.
 
 template <bool CAST>
 struct CopyType {
@@ -227,6 +236,23 @@ void CopyData(D* dest, const S* source, xla::int64 n, const CopyCasted&) {
   // Use strided copy with step 1 since it has the static_cast<> required to
   // convert from/to bfloat16.
   StridedCopy(dest, 1, source, 1, n);
+}
+template <>
+void CopyData<at::BFloat16, tensorflow::bfloat16>(
+    at::BFloat16* dest, const tensorflow::bfloat16* source, xla::int64 n,
+    const CopyCasted&) {
+  static_assert(sizeof(at::BFloat16) == sizeof(tensorflow::bfloat16),
+                "Mismatching size for bfloat16 types");
+  std::memcpy(dest, source, n * sizeof(at::BFloat16));
+}
+template <>
+void CopyData<tensorflow::bfloat16, at::BFloat16>(tensorflow::bfloat16* dest,
+                                                  const at::BFloat16* source,
+                                                  xla::int64 n,
+                                                  const CopyCasted&) {
+  static_assert(sizeof(at::BFloat16) == sizeof(tensorflow::bfloat16),
+                "Mismatching size for bfloat16 types");
+  std::memcpy(dest, source, n * sizeof(at::BFloat16));
 }
 
 template <>
@@ -485,10 +511,13 @@ void PopulateTensorBuffer(const at::Tensor& tensor,
       TensorToBufferSType<at::BFloat16>(tensor, dest_shape, dest_buffer,
                                         dest_buffer_size, device);
       break;
+<<<<<<< HEAD
     case at::ScalarType::Half:
       TensorToBufferSType<at::Half>(tensor, dest_shape, dest_buffer,
                                     dest_buffer_size, device);
       break;
+=======
+>>>>>>> d7b5521a... Link PT BFloat16 to XLA BF16.
     case at::ScalarType::Bool:
       TensorToBufferSType<bool>(tensor, dest_shape, dest_buffer,
                                 dest_buffer_size, device);
@@ -586,6 +615,7 @@ at::Tensor XlaLiteralToTensorHelper(const xla::Literal& literal,
     case at::ScalarType::BFloat16:
       return XlaLiteralToTensor<SType, at::BFloat16>(literal,
                                                      dest_element_type);
+<<<<<<< HEAD
     case at::ScalarType::Half:
       return XlaLiteralToTensor<SType, at::Half>(literal, dest_element_type);
     case at::ScalarType::ComplexFloat:
@@ -594,6 +624,8 @@ at::Tensor XlaLiteralToTensorHelper(const xla::Literal& literal,
     case at::ScalarType::ComplexDouble:
       return XlaLiteralToTensor<SType, std::complex<double>>(literal,
                                                              dest_element_type);
+=======
+>>>>>>> d7b5521a... Link PT BFloat16 to XLA BF16.
     default:
       XLA_ERROR() << "Unsupported scalar type: " << dest_element_type;
   }
