@@ -36,8 +36,8 @@ message(STATUS "XLA_SOURCES=${XLA_SOURCES}")
 
 if(NOT TORCH_PATH)
     get_filename_component(TORCH_PATH "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
-    #set(TORCH_PATH ${CMAKE_CURRENT_SOURCE_DIR}/..)
 endif()
+message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -81,7 +81,9 @@ set_target_properties(
 
 message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
 
-target_link_libraries(ptxla "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/libxla_computation_client.so")
+set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/libxla_computation_client.so")
+message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
+target_link_libraries(ptxla "${LIBXLA_COMPUTATION_CLIENT_LIB}")
 
 target_link_libraries(
         ptxla
@@ -103,77 +105,6 @@ add_custom_target(
         DEPENDS ptxla
 )
 
-#if(BUILD_TF_PYWRAP)
-#    set(TF_PYWRAP_TARGET //tensorflow/python:pywrap_tensorflow)
-#endif()
-
 if (BUILD_TENSORFLOW)
     add_dependencies(ptxla libxla_computation_client)
 endif()
-
-#if(BUILD_TENSORFLOW)
-#
-#    execute_process(COMMAND cat ${CMAKE_CURRENT_LIST_DIR}/third_party/tensorflow/.bazelversion OUTPUT_VARIABLE BAZEL_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-#    message(STATUS "Bazel version: ${BAZEL_VERSION}")
-#
-#    if (NOT BAZEL_EXECUTABLE)
-#        set(BAZEL_EXECUTABLE "$ENV{HOME}/bin/bazel-${BAZEL_VERSION}/bazel")
-#        if (NOT EXISTS "${BAZEL_EXECUTABLE}")
-#            message(STATUS "Could not find bazel executable: ${BAZEL_EXECUTABLE}")
-#            set(BAZEL_EXECUTABLE bazel)
-#        endif()
-#        message(STATUS "Using bazel executable: ${BAZEL_EXECUTABLE}")
-#    endif()
-#
-#    add_custom_target(
-#            libxla_computation_client_build
-#            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow"
-#            COMMAND
-#                ${CMAKE_COMMAND} -E env "CC=clang-8" env "CXX=clang++-8"
-#                ${BAZEL_EXECUTABLE}
-#                "--output_user_root=/spare/${CMAKE_BINARY_DIR}/bazel-cache"
-#                "build"
-#                "--cxxopt='-std=c++14'"
-#                "--cxxopt='-Wno-c++11-narrowing'"
-#                "--define"
-#                "framework_shared_object=false"
-#                "--config=mkl"
-#                "--strip=never"
-#                "--copt=-fdiagnostics-color"
-#                "//tensorflow/compiler/xla/xla_client:libxla_computation_client.so"
-#                "${TF_PYWRAP_TARGET}"
-#    )
-#
-#    # Symbolic link to libxla_computation_client.so in torch_xla/lib
-#    add_custom_target(
-#            libxla_computation_client
-#            BYPRODUCTS "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/libxla_computation_client.so"
-#            COMMAND "ln" "-s" "-f"
-#            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-bin/tensorflow/compiler/xla/xla_client/libxla_computation_client.so"
-#            "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/libxla_computation_client.so"
-#            DEPENDS libxla_computation_client_build
-#            )
-#
-#    add_dependencies(ptxla libxla_computation_client)
-#
-#    if(BUILD_INTERACTIVE_GRAPHVIZ)
-#        # interactive_graphviz
-#        add_custom_target(
-#                interactive_graphviz
-#                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow"
-#                COMMAND
-#                ${CMAKE_COMMAND} -E env "CC=clang-8" env "CXX=clang++-8"
-#                ${BAZEL_EXECUTABLE}
-#                "--output_user_root=/spare/${CMAKE_BINARY_DIR}/bazel-cache"
-#                "build"
-#                "--cxxopt='-std=c++14'"
-#                "--cxxopt='-Wno-c++11-narrowing'"
-#                "--define"
-#                "framework_shared_object=false"
-#                "--config=mkl"
-#                "--strip=never"
-#                "--copt=-fdiagnostics-color"
-#                "//tensorflow/compiler/xla/tools:interactive_graphviz")
-#    endif(BUILD_INTERACTIVE_GRAPHVIZ)
-#endif(BUILD_TENSORFLOW)
-
