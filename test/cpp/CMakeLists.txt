@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 set(GTEST_DIR "${CMAKE_BINARY_DIR}/gtest")
 
 get_filename_component(PTXLA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+message(STATUS "PTXLA_DIR: ${PTXLA_DIR}")
 get_filename_component(PT_DIR "${PTXLA_DIR}/.." ABSOLUTE)
 set(TFDIR "${PTXLA_DIR}/third_party/tensorflow")
 
@@ -13,7 +14,10 @@ message("Selected PT/XLA library folder ${PTXLA_LIBDIR}")
 project(ptxla_test)
 
 find_package(PythonLibs)
-set(Torch_DIR "${PT_DIR}/torch/share/cmake/Torch")
+if (NOT Torch_DIR OR Torch_DIR STREQUAL "")
+  set(Torch_DIR "${PT_DIR}/torch/share/cmake/Torch")
+endif()
+message(STATUS "Torch_DIR: ${Torch_DIR}")
 find_package(Torch REQUIRED)
 
 include(ExternalProject)
