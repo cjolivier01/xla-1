@@ -70,7 +70,7 @@ set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 
 add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
 
-add_dependencies(ptxla link_torch link_torch_python link_c10 link_shm)
+add_dependencies(ptxla link_torch link_torch_python link_c10 link_shm link_torch_global_deps)
 
 set_target_properties(
         ptxla
