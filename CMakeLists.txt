@@ -81,7 +81,7 @@ set_target_properties(
 
 message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
 
-target_link_libraries(ptxla "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/libxla_computation_client.so")
+target_link_libraries(ptxla "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/libxla_computation_client.so")
 
 target_link_libraries(
         ptxla
@@ -103,9 +103,9 @@ add_custom_target(
         DEPENDS ptxla
 )
 
-if(BUILD_TF_PYWRAP)
-    set(TF_PYWRAP_TARGET //tensorflow/python:pywrap_tensorflow)
-endif()
+#if(BUILD_TF_PYWRAP)
+#    set(TF_PYWRAP_TARGET //tensorflow/python:pywrap_tensorflow)
+#endif()
 
 if (BUILD_TENSORFLOW)
     add_dependencies(ptxla libxla_computation_client)
