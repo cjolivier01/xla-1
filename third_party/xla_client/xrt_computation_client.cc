@@ -960,7 +960,7 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
 tensorflow::Tensor XrtComputationClient::GetArgumentsInputs(
     absl::Span<const DataPtr> arguments, const std::string& device) {
   tensorflow::Tensor inputs_tensor(tensorflow::DT_INT64,
-                                   tensorflow::TensorShape({arguments.size()}));
+                                   tensorflow::TensorShape({(long)arguments.size()}));
   for (size_t i = 0; i < arguments.size(); ++i) {
     const XrtData& xrt_data = dynamic_cast<const XrtData&>(*arguments[i]);
     XLA_CHECK_EQ(device, xrt_data.device());
@@ -1062,7 +1062,7 @@ void XrtComputationClient::ReleaseHandles(
           session_and_handles.second;
       tensorflow::Tensor handles_tensor(
           tensorflow::DT_INT64,
-          tensorflow::TensorShape({session_handles.size()}));
+          tensorflow::TensorShape({(long)session_handles.size()}));
       auto flat_handles_tensor = handles_tensor.flat<tensorflow::int64>();
       for (size_t i = 0; i < session_handles.size(); ++i) {
         flat_handles_tensor(i) = session_handles[i].handle;
