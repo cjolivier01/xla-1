@@ -58,6 +58,8 @@ tf_cc_shared_object(
         "//tensorflow/compiler/xla/client:xla_builder",
         "//tensorflow/compiler/xla/client:xla_computation",
         "//tensorflow/compiler/xla/client/lib:svd",
+        "//tensorflow/tools/xla_extract:wse_hlo",
+        "//tensorflow/stream_executor:wse_platform",
         "//tensorflow/compiler/xla/rpc:grpc_stub",
         "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
         "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
