@@ -6,6 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
+#include "tensorflow/core/util/util.h"
 #include "torch_xla/csrc/python_util.h"
 
 namespace torch_xla {

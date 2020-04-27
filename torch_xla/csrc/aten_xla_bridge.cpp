@@ -10,6 +10,14 @@
 #include "torch_xla/csrc/device.h"
 #include "torch_xla/csrc/tensor_impl.h"
 #include "torch_xla/csrc/torch_util.h"
+#include "tensorflow/core/util/util.h"
+
+#ifdef WSE_DEBUG_LOGGING
+__thread int EnterLeave::depth_ = 0;
+const std::string EnterLeave::library_ = "ptxla";
+const Color::Code EnterLeave::library_color_ = Color::FG_BLUE;
+std::mutex EnterLeave::mtx_;
+#endif
 
 namespace torch_xla {
 namespace bridge {
