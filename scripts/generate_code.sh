@@ -2,7 +2,7 @@
 
 CDIR="$(cd "$(dirname "$0")" ; pwd -P)"
 XDIR="$CDIR/.."
-PTDIR="$XDIR/.."
+PTDIR="$XDIR/../pytorch"
 if [ -z "$PT_INC_DIR" ]; then
   PT_INC_DIR="$PTDIR/build/aten/src/ATen"
 fi

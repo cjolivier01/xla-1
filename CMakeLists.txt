@@ -35,7 +35,8 @@ message(STATUS "XLA_SOURCES=${XLA_SOURCES}")
 #message(STATUS "XLA_HEADERS=${XLA_HEADERS}")
 
 if(NOT TORCH_PATH)
-    get_filename_component(TORCH_PATH "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+    #get_filename_component(TORCH_PATH "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+    message(ERROR "TORCH_DIR needs to point to the pytorch source directory")
 endif()
 message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
