@@ -208,6 +208,12 @@ struct CopyType<true> {
 };
 
 template <typename D, typename S>
+void CheckedMemcpy(D* dest, const S* source, xla::int64 n) {
+  static_assert(sizeof(S) == sizeof(D), "Types size mismatch");
+  std::memcpy(dest, source, n * sizeof(S));
+}
+
+template <typename D, typename S>
 void CopyData(D* dest, const S* source, xla::int64 n, const CopyDirect&) {
   std::copy(source, source + n, dest);
 }
@@ -218,22 +224,19 @@ void CopyData(D* dest, const S* source, xla::int64 n, const CopyCasted&) {
   // convert from/to bfloat16.
   StridedCopy(dest, 1, source, 1, n);
 }
+
 template <>
 void CopyData<at::BFloat16, tensorflow::bfloat16>(
     at::BFloat16* dest, const tensorflow::bfloat16* source, xla::int64 n,
     const CopyCasted&) {
-  static_assert(sizeof(at::BFloat16) == sizeof(tensorflow::bfloat16),
-                "Mismatching size for bfloat16 types");
-  std::memcpy(dest, source, n * sizeof(at::BFloat16));
+  CheckedMemcpy<at::BFloat16, tensorflow::bfloat16>(dest, source, n);
 }
 template <>
 void CopyData<tensorflow::bfloat16, at::BFloat16>(tensorflow::bfloat16* dest,
                                                   const at::BFloat16* source,
                                                   xla::int64 n,
                                                   const CopyCasted&) {
-  static_assert(sizeof(at::BFloat16) == sizeof(tensorflow::bfloat16),
-                "Mismatching size for bfloat16 types");
-  std::memcpy(dest, source, n * sizeof(at::BFloat16));
+  CheckedMemcpy<tensorflow::bfloat16, at::BFloat16>(dest, source, n);
 }
 
 std::vector<xla::int64> GetIterationDimensions(const xla::Shape& shape) {
@@ -603,9 +606,16 @@ at::Tensor MakeTensorFromXlaLiteral(const xla::Literal& literal,
 }
 
 bool TensorCompare(const at::Tensor& t1, const at::Tensor& t2) {
-  // Use TensorMemoryCompare until pytorch equal resolve the issue of
-  // non-deterministic ATEN compare of NAN.
-  return TensorMemoryCompare(t1, t2);
+  if (t1.scalar_type() != t2.scalar_type() || t1.sizes() != t2.sizes()) {
+    return false;
+  }
+  // PyTorch currently has an issue comparing tensors which have NaN values in
+  // it. The compare is not deterministic. So we do memory compare here until
+  // the PyTorch equal() API is fixed.
+  at::Tensor contiguous_t1 = t1.contiguous();
+  at::Tensor contiguous_t2 = t2.contiguous();
+  return std::memcmp(contiguous_t1.data_ptr(), contiguous_t2.data_ptr(),
+                     contiguous_t1.numel() * contiguous_t1.itemsize()) == 0;
 }
 
 xla::ComputationClient::DataPtr TensorToXlaData(const at::Tensor& tensor,
