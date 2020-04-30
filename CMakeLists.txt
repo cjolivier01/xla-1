@@ -110,4 +110,6 @@ add_custom_target(
 
 if (BUILD_TENSORFLOW)
     add_dependencies(ptxla libxla_computation_client)
+else()
+    message(STATUS "Not building TensorFlow -- assuming the library exists: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 endif()
