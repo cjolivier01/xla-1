@@ -162,7 +162,8 @@ class ParallelLoader(object):
       batch = self._get_batch(dqueue)
       if not batch:
         break
-      batch = xm.send_cpu_data_to_device(batch, device)
+      with xm.in_data_batch():
+        batch = xm.send_cpu_data_to_device(batch, device)
       for data in batch:
         dqueue.queue.put(data)
     dqueue.queue.close_write()

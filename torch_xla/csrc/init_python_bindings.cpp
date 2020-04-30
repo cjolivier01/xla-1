@@ -6,6 +6,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <stack>
 
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/mesh_service.h"
@@ -33,6 +34,7 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
+#include "torch_xla/csrc/tensor_util_cer.h"
 
 namespace torch_xla {
 namespace {
@@ -165,6 +167,19 @@ void StepMarker(const std::string& device_str,
 std::string GetTensorsHloGraph(const std::vector<at::Tensor>& tensors) {
   std::vector<XLATensor> xtensors = GetXlaTensors(tensors, /*want_all=*/false);
   return XLATensor::DumpHloComputation(xtensors);
+}
+
+std::string GetTensorsHloProto(const std::vector<at::Tensor>& tensors) {
+  std::vector<XLATensor> xtensors = GetXlaTensors(tensors, /*want_all=*/false);
+  return XLATensor::DumpHloProtoComputation(xtensors);
+}
+
+void SetInputsOutputs(const std::vector<at::Tensor>& input_tensors,
+                      const std::vector<at::Tensor>& output_tensors) {
+  CompileWatcher::SetInputsOutputs(
+      xla::ComputationClient::Get(),
+      input_tensors,
+      output_tensors);
 }
 
 std::string GetLiveTensorsReport(size_t nodes_threshold,
@@ -462,6 +477,18 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::vector<at::Tensor>& tensors) -> std::string {
           return GetTensorsHloGraph(tensors);
         });
+  m.def("_get_xla_tensors_hlo_proto",
+        [](const std::vector<at::Tensor>& tensors) -> std::string {
+          return GetTensorsHloProto(tensors);
+        });
+  m.def("_set_inputs_outputs",
+        [](const std::vector<at::Tensor>& input_tensors,
+             const std::vector<at::Tensor>& output_tensors) {
+          SetInputsOutputs(input_tensors, output_tensors);
+          std::cout << "Set " << input_tensors.size()
+                    << " input tensors and " << output_tensors.size()
+                    << " output tensors" << std::endl;
+        });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;
@@ -661,6 +688,18 @@ void InitXlaModuleBindings(py::module m) {
   m.def("_xla_tffs_remove", [](const std::string& path) {
     NoGilSection nogil;
     RemoveTfFile(path);
+  });
+  m.def("_xla_push_python_state",
+      [](const int state) {
+    PushPythonState((EPythonState)state);
+  });
+  m.def("_xla_pop_python_state",
+        []() {
+    return (int)PopPythonState();
+  });
+  m.def("_xla_get_python_state",
+        []() {
+    return (int)GetPythonState();
   });
 }
 

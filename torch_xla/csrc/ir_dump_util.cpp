@@ -10,6 +10,8 @@
 #include "torch_xla/csrc/ir_util.h"
 #include "torch_xla/csrc/lowering_context.h"
 
+#include <google/protobuf/util/json_util.h>
+
 namespace torch_xla {
 namespace ir {
 namespace {
@@ -245,6 +247,29 @@ std::string DumpUtil::ToHlo(absl::Span<const Value> values) {
   }
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   return ConsumeValue(xla::util::GetComputationHloText(computation));
+}
+
+xla::StatusOr<std::unique_ptr<xla::HloModule>> ToHloModule(absl::Span<const Value> values) {
+  ir::LoweringContext lowering_ctx("IrToHlo");
+  for (auto& ir_value : values) {
+    xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
+    lowering_ctx.AddResult(root);
+  }
+  xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
+  xla::StatusOr<std::unique_ptr<xla::HloModule>> hlo_module =
+      xla::util::CreateModuleFromProto(computation.proto());
+  return hlo_module;
+}
+
+std::string DumpUtil::ToHloModuleProtoJson(absl::Span<const Value> values) {
+  xla::StatusOr<std::unique_ptr<xla::HloModule>> hmod = ToHloModule(values);
+  if (!hmod.ok()) {
+    throw std::runtime_error(hmod.status().error_message());
+  }
+  std::string result;
+  std::unique_ptr<xla::HloModule> hlo_module = std::move(hmod.ValueOrDie());
+  google::protobuf::util::MessageToJsonString(hlo_module->ToProto(), &result);
+  return std::move(result);
 }
 
 }  // namespace ir

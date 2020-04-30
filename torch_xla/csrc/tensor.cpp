@@ -22,6 +22,7 @@
 #include "tensorflow/compiler/xla/xla_client/unique.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
 #include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/util/util.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch_xla/csrc/debug_util.h"
 #include "torch_xla/csrc/helpers.h"
@@ -36,11 +37,21 @@
 #include "torch_xla/csrc/ops/xla_ops.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
+#include "torch_xla/csrc/tensor_util_cer.h"
+
+extern "C" {
+extern int is_autograd_thread();
+}
 
 namespace torch_xla {
 namespace {
 
+bool verbose = false;
+
 struct TlsData {
+  ~TlsData() {
+    std::cout << "dest" << std::endl;
+  }
   void Reset() {
     trim_counter = 0;
     seed_round = 0;
@@ -225,8 +236,8 @@ xla::ComputationClient::DataPtr GetDeviceData(at::Scalar value,
                        device);
 }
 
-// Routing values to device data maximizes the changes for compilation cache
-// hits, but it can prevent the compiler to perform optimizations. So tensor
+// Routing values to device data maximizes the chances for compilation cache
+// hits, but it can prevent the compiler from performing optimizations. So tensor
 // values which are within a given set, are routed to constant scalars if this
 // API returns true.
 bool IsSpecialScalar(at::Scalar value) {
@@ -266,6 +277,13 @@ class XLATensor::DeviceContextArena {
   void RegisterTensor(std::shared_ptr<Data> data) {
     DeviceContext* devctx = GetDeviceContext(data->device);
     std::lock_guard<std::mutex> lock(devctx->lock);
+    //if (verbose) {
+    if (is_autograd_thread()) {
+      //std::cout << "[" << active_parameter_count++ << "] ";
+      //if (data->tensor_data.has_value()) {
+        XLATensor::print_tensor("Autograd Registering", data.get(), true);
+      //}
+    }
     devctx->tensors_data.emplace(data->unique_id, data);
     XLA_COUNTER("CreateXlaTensor", 1);
   }
@@ -273,6 +291,12 @@ class XLATensor::DeviceContextArena {
   void UnregisterTensor(Data* data) {
     DeviceContext* devctx = GetDeviceContext(data->device);
     std::lock_guard<std::mutex> lock(devctx->lock);
+    if (verbose) {
+      if (!data->tensor_type.empty()) {
+        //std::cout << "[" << --active_parameter_count << "] ";
+        XLATensor::print_tensor("Unregistering", data);
+      }
+    }
     devctx->tensors_data.erase(data->unique_id);
     XLA_COUNTER("DestroyXlaTensor", 1);
   }
@@ -304,6 +328,16 @@ class XLATensor::DeviceContextArena {
     DeviceContext* devctx = GetDeviceContext(device);
     std::lock_guard<std::mutex> lock(devctx->lock);
     devctx->sync_hashes.insert(hash);
+  }
+
+  void dump(const std::string& label, const Device* device) {
+    const std::vector<XLATensor> tensors = GetLiveTensors(device);
+    std::for_each(
+        tensors.begin(),
+        tensors.end(),
+        [&](const XLATensor& tensor) {
+          print_tensor(label, tensor.data(), false);
+        });
   }
 
  private:
@@ -388,6 +422,9 @@ XLATensor XLATensor::Create(const at::Tensor& tensor, const Device& device) {
   XLA_CHECK_EQ(tensor.device().type(), at::kCPU);
   XLATensor xtensor(tensor, device);
   DeviceContextArena::Get()->RegisterTensor(xtensor.data_ptr());
+  if (is_autograd_thread()) {
+    print_tensor("Autograd creating XLATensor", xtensor, false);
+  }
   return xtensor;
 }
 
@@ -538,6 +575,18 @@ std::string XLATensor::DumpHloComputation(
     }
   }
   return ir::DumpUtil::ToHlo(ir_values);
+}
+
+std::string XLATensor::DumpHloProtoComputation(
+    const std::vector<XLATensor>& tensors) {
+  std::vector<ir::Value> ir_values;
+  for (auto& tensor : tensors) {
+    ir::Value ir_value = tensor.CurrentIrValue();
+    if (ir_value) {
+      ir_values.push_back(std::move(ir_value));
+    }
+  }
+  return ir::DumpUtil::ToHloModuleProtoJson(ir_values);
 }
 
 void XLATensor::SetXlaData(xla::ComputationClient::DataPtr xla_data) {
@@ -1145,6 +1194,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
     try {
       TF_VLOG(3) << "Executing IR graph hash " << hash << " on device "
                  << async->device << " ...";
+      CompileWatcher::NotifyRun(xla::ComputationClient::Get());
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
           *async->cached_computation->computation, async->parameters_data,
           async->device, options);
@@ -1388,6 +1438,7 @@ XLATensor::CompilationResult XLATensor::Compile(
 
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
+  CompileWatcher::NotifyCompile(xla::ComputationClient::Get());
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
       computations =
           xla::ComputationClient::Get()->Compile(std::move(instances));

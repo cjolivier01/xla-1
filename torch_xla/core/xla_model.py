@@ -6,6 +6,7 @@ import os
 import re
 import threading
 import time
+import contextlib
 import torch
 import torch_xla
 import torch_xla.core.xla_env_vars as xenv
@@ -526,3 +527,37 @@ def rendezvous(tag, payload=b''):
     payload (bytes, optional): The payload to be sent to the rendezvous.
   """
   return torch_xla._XLAC._xla_rendezvous(get_ordinal(), tag, payload)
+
+
+_PY_STATE_IN_TRAIN_LOOP = 1
+_PY_STATE_IN_DATA_BATCH = 2
+
+@contextlib.contextmanager
+def in_train_loop():
+  """
+  Yields:
+      None.
+  """
+  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_TRAIN_LOOP)
+  try:
+    yield
+  finally:
+    state = torch_xla._XLAC._xla_pop_python_state()
+    assert state == _PY_STATE_IN_TRAIN_LOOP
+
+
+@contextlib.contextmanager
+def in_data_batch():
+  """
+  Yields:
+      None.
+  """
+  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_DATA_BATCH)
+  try:
+    yield
+  finally:
+    state = torch_xla._XLAC._xla_pop_python_state()
+    assert state == _PY_STATE_IN_DATA_BATCH
+
+
+

@@ -21,6 +21,8 @@ class DumpUtil {
                                      absl::Span<const Node* const> roots);
 
   static std::string ToHlo(absl::Span<const Value> values);
+
+  static std::string ToHloModuleProtoJson(absl::Span<const Value> values);
 };
 
 }  // namespace ir
