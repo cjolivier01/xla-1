@@ -281,12 +281,12 @@ class XLATensor::DeviceContextArena {
     if (is_autograd_thread()) {
       //std::cout << "[" << active_parameter_count++ << "] ";
       //if (data->tensor_data.has_value()) {
-        XLATensor::print_tensor("Autograd Registering", data.get(), true);
+        //XLATensor::print_tensor("Autograd Registering", data.get(), true);
       //}
     }
-    if (GetPythonState() == EPS_IN_OPTIMIZER_STEP) {
-      XLATensor::print_tensor("EPS_IN_OPTIMIZER_STEP Registering", data.get(), true);
-    }
+//    if (GetPythonState() == EPS_IN_OPTIMIZER_STEP) {
+//      XLATensor::print_tensor("EPS_IN_OPTIMIZER_STEP Registering", data.get(), true);
+//    }
     devctx->tensors_data.emplace(data->unique_id, data);
     XLA_COUNTER("CreateXlaTensor", 1);
   }
@@ -963,6 +963,7 @@ std::vector<XLATensor> XLATensor::MakeOutputTensors(ir::NodePtr node) const {
 
 XLATensor XLATensor::CopyTensorToDevice(const Device& device) {
   // TODO: This can be optimized via proper XRT/XLA computation.
+  HERE();
   return Create(ToTensor(), device);
 }
 
@@ -1053,6 +1054,14 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       }
     }
   }
+#if 1
+  std::cout << "========" << std::endl << std::flush;
+  for (int i : coll.indices) {
+    ColorScope clr(Color::FG_RED);
+    print_tensor_ex("\tCollectSyncTensors: ", tensors[i]);
+  }
+  std::cout << "========" << std::endl << std::flush;
+#endif
   // Mix the hash with the resource domain hashes as compile handles are only
   // valid within a domain (usually a single host).
   coll.hash = xla::util::MHash(
@@ -1104,8 +1113,10 @@ std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
   ComputationCache::TypePtr cached_computation = LookupCachedCompile(
       *tensors, coll->hash, coll->indices, &parameters_data);
   if (cached_computation == nullptr) {
+    CompileWatcher::CompileCacheMiss(coll->hash);
     return nullptr;
   }
+  CompileWatcher::CompileCacheHit(coll->hash);
   return ScheduleSyncTensorsGraph(tensors, coll, std::move(parameters_data),
                                   coll->device, std::move(cached_computation));
 }
@@ -1120,6 +1131,7 @@ XLATensor::ComputationCache* XLATensor::GetComputationCache() {
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
     const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices,
     size_t* graph_size) {
+  //print_all_tensors("FetchParameters", tensors);
   std::vector<const ir::Node*> roots;
   roots.reserve(indices.size());
   for (auto index : indices) {
@@ -1156,6 +1168,7 @@ std::vector<ir::Value> XLATensor::CollectRoots(
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchTensorData(
     std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
     absl::Span<const size_t> indices) {
+  print_all_tensors("FetchTensorData", *tensors);
   std::vector<xla::ComputationClient::DataPtr> tensors_data;
   tensors_data.reserve(indices.size());
   for (auto index : indices) {
@@ -1197,7 +1210,11 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
     try {
       TF_VLOG(3) << "Executing IR graph hash " << hash << " on device "
                  << async->device << " ...";
-      CompileWatcher::NotifyRun(xla::ComputationClient::Get());
+      if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get(), hash)) {
+        CompileWatcher::WseExecute(xla::ComputationClient::Get(), hash, async);
+      } else {
+        CompileWatcher::NotifyExecute(xla::ComputationClient::Get(), hash);
+      }
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
           *async->cached_computation->computation, async->parameters_data,
           async->device, options);
@@ -1441,7 +1458,7 @@ XLATensor::CompilationResult XLATensor::Compile(
 
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
-  CompileWatcher::NotifyCompile(xla::ComputationClient::Get());
+  CompileWatcher::NotifyCompile(xla::ComputationClient::Get(), coll.hash);
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
       computations =
           xla::ComputationClient::Get()->Compile(std::move(instances));

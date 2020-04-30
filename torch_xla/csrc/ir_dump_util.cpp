@@ -150,6 +150,7 @@ std::string GenerateDotNodeSpec(
     const std::unordered_map<const Node*, size_t>& roots_ids) {
   std::stringstream ss;
   ss << "label=\"" << GenerateDotNodeLabel(node, roots_ids) << "\"";
+  std::string str = ss.str();
   return ss.str();
 }
 

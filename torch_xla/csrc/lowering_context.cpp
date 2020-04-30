@@ -38,8 +38,9 @@ class HloMetadataSetter {
     xla::OpMetadata metadata;
     metadata.set_op_type(node->op().ToString());
     const ir::MetaData& nmeta = node->metadata();
+    std::stringstream ss;
     if (!nmeta.scope.empty()) {
-      metadata.set_op_name(nmeta.scope);
+      ss << nmeta.scope << " ";
     }
     if (!nmeta.frame_info.empty()) {
       const SourceLocation& frame = nmeta.frame_info.front();
@@ -49,9 +50,14 @@ class HloMetadataSetter {
       } else {
         ++pos;
       }
-      metadata.set_source_file(frame.function + "@" + frame.file.substr(pos));
+      const std::string src = frame.function + "@" + frame.file.substr(pos);
+      metadata.set_source_file(src);
       metadata.set_source_line(frame.line);
+      if (ss.str().empty()) {
+        ss << src << ":" << frame.line;
+      }
     }
+    metadata.set_op_name(ss.str());
     loctx->builder()->SetOpMetadata(std::move(metadata));
   }
 

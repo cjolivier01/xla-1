@@ -26,6 +26,7 @@ class XLATensor {
   class DeviceContextArena;
   struct Data;
   friend class THelper;
+  friend class CompileWatcher;
  public:
   static XLATensor Create(const at::Tensor& tensor, const Device& device);
   static XLATensor Create(
@@ -170,10 +171,10 @@ class XLATensor {
   static void print_tensor_ex(const std::string& label, const XLATensor& tensor, bool assert = false);
   static void print_tensor_ex(const std::string& label, const XLATensor::Data* data, bool assert = false);
 
-  static void print_all_tensors(const std::vector<XLATensor>& tensors);
+  static void print_all_tensors(const std::string& label, const std::vector<XLATensor>& tensors);
 
   template<typename CB>
-  static void print_tensors(const std::vector<XLATensor>& tensors, CB cb);
+  static void print_tensors(const std::string& label, const std::vector<XLATensor>& tensors, CB cb);
 
   static int get_rank(const XLATensor::Data* data);
 
@@ -1037,6 +1038,12 @@ class XLATensor {
     size_t hash = 0;
     std::vector<xla::util::ExceptionCleanup> unlocker;
     std::string device;
+    SyncTensorCollection() {
+      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
+    }
+//    ~SyncTensorCollection() {
+//      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
+//    }
   };
 
   struct CompilationResult {

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <stack>
-#include "tensor.h"
-#include "aten_xla_bridge.h"
+#include "torch_xla/csrc/tensor.h"
+#include "torch_xla/csrc/aten_xla_bridge.h"
+
+#include "tensorflow/compiler/xla/xla_client/computation_client.h"
 
 namespace torch_xla {
 enum EPythonState {
@@ -22,7 +24,7 @@ extern std::atomic<size_t> active_parameter_count;
 
 template<typename CB>
 
-void XLATensor::print_tensors(const std::vector<XLATensor>& tensors, CB cb) {
+void XLATensor::print_tensors(const std::string& label, const std::vector<XLATensor>& tensors, CB cb) {
   std::vector<XLATensor> ats;
   ats.reserve(tensors.size());
   for (const XLATensor& t : tensors) {
@@ -30,7 +32,7 @@ void XLATensor::print_tensors(const std::vector<XLATensor>& tensors, CB cb) {
       ats.emplace_back(t);
     }
   }
-  print_all_tensors(ats);
+  print_all_tensors(label, ats);
 }
 
 class THelper {
@@ -77,14 +79,20 @@ class THelper {
 class CompileWatcher {
 public:
   typedef void *compiler_t;
-  static void NotifyCompile(compiler_t opaque);
-  static void NotifyRun(compiler_t opaque);
+  typedef size_t hash_t;
+  static void NotifyCompile(compiler_t opaque, hash_t hash);
+  static void NotifyExecute(compiler_t opaque, hash_t hash);
   static void NotifyStepMarker(compiler_t opaque);
-
+  static bool IsWseRunReady(compiler_t opaque, hash_t hash);
+  static void CompileCacheHit(hash_t hash);
+  static void CompileCacheMiss(hash_t hash);
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,
                                const std::vector<at::Tensor>& output_tensors);
-
+  static std::vector<xla::ComputationClient::DataPtr> WseExecute(
+      compiler_t opaque,
+      hash_t hash,
+      std::shared_ptr<XLATensor::Async> async);
 
 private:
   static void Reset(compiler_t opaque);
