@@ -79,7 +79,7 @@ public:
   typedef void *compiler_t;
   static void NotifyCompile(compiler_t opaque);
   static void NotifyRun(compiler_t opaque);
-  static void NotifyMarkStep(compiler_t opaque);
+  static void NotifyStepMarker(compiler_t opaque);
 
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,

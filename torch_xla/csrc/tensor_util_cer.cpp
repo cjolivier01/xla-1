@@ -188,7 +188,7 @@ void CompileWatcher::NotifyRun(compiler_t opaque) {
   }
 }
 
-void CompileWatcher::NotifyMarkStep(compiler_t opaque) {
+void CompileWatcher::NotifyStepMarker(compiler_t opaque) {
   CompileInfo& compile_info = GetCompileInfo(opaque);
   ++compile_info.mark_step_;
 }

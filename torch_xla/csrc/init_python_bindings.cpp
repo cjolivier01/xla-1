@@ -160,6 +160,7 @@ void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
   auto opt_device = GetOptionalDevice(device_str);
   const Device* device = opt_device ? &opt_device.value() : nullptr;
+  CompileWatcher::NotifyStepMarker(xla::ComputationClient::Get());
   XLATensor::SyncLiveTensorsGraph(device, devices, wait);
   XLATensor::MarkStep(device);
 }

@@ -1274,7 +1274,6 @@ void XLATensor::SyncLiveTensorsGraph(const Device* device,
 
 void XLATensor::MarkStep(const Device* device) {
   XLA_COUNTER("MarkStep", 1);
-  CompileWatcher::NotifyMarkStep(xla::ComputationClient::Get());
   DeviceContextArena::Get()->ClearProfileData(device);
   ir::ScopePusher::ResetScopes();
   g_tls_data.Reset();
