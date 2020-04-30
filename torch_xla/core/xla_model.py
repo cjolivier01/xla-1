@@ -454,7 +454,8 @@ def optimizer_step(optimizer, barrier=False, optimizer_args={}):
     The same value returned by the `optimizer.step()` call.
   """
   reduce_gradients(optimizer)
-  loss = optimizer.step(**optimizer_args)
+  with in_optimizer_step():
+    loss = optimizer.step(**optimizer_args)
   if barrier:
     mark_step()
   return loss
@@ -531,6 +532,7 @@ def rendezvous(tag, payload=b''):
 
 _PY_STATE_IN_TRAIN_LOOP = 1
 _PY_STATE_IN_DATA_BATCH = 2
+_PY_STATE_IN_OPTIMIZER_STEP = 3
 
 @contextlib.contextmanager
 def in_train_loop():
@@ -558,6 +560,21 @@ def in_data_batch():
   finally:
     state = torch_xla._XLAC._xla_pop_python_state()
     assert state == _PY_STATE_IN_DATA_BATCH
+
+
+@contextlib.contextmanager
+def in_optimizer_step():
+  """
+  Yields:
+      None.
+  """
+  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_OPTIMIZER_STEP)
+  try:
+    yield
+  finally:
+    state = torch_xla._XLAC._xla_pop_python_state()
+    assert state == _PY_STATE_IN_OPTIMIZER_STEP
+
 
 
 

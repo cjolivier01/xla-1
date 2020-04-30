@@ -284,6 +284,9 @@ class XLATensor::DeviceContextArena {
         XLATensor::print_tensor("Autograd Registering", data.get(), true);
       //}
     }
+    if (GetPythonState() == EPS_IN_OPTIMIZER_STEP) {
+      XLATensor::print_tensor("EPS_IN_OPTIMIZER_STEP Registering", data.get(), true);
+    }
     devctx->tensors_data.emplace(data->unique_id, data);
     XLA_COUNTER("CreateXlaTensor", 1);
   }
@@ -1271,6 +1274,7 @@ void XLATensor::SyncLiveTensorsGraph(const Device* device,
 
 void XLATensor::MarkStep(const Device* device) {
   XLA_COUNTER("MarkStep", 1);
+  CompileWatcher::NotifyMarkStep(xla::ComputationClient::Get());
   DeviceContextArena::Get()->ClearProfileData(device);
   ir::ScopePusher::ResetScopes();
   g_tls_data.Reset();

@@ -8,7 +8,8 @@ namespace torch_xla {
 enum EPythonState {
   EPS_INVALID = 0,
   EPS_IN_TRAIN_LOOP = 1,
-  EPS_IN_DATA_BATCH = 2
+  EPS_IN_DATA_BATCH = 2,
+  EPS_IN_OPTIMIZER_STEP = 3,
 };
 
 //extern std::stack<int> python_state_;
