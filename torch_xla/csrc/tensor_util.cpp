@@ -602,6 +602,12 @@ at::Tensor MakeTensorFromXlaLiteral(const xla::Literal& literal,
   }
 }
 
+bool TensorCompare(const at::Tensor& t1, const at::Tensor& t2) {
+  // Use TensorMemoryCompare until pytorch equal resolve the issue of
+  // non-deterministic ATEN compare of NAN.
+  return TensorMemoryCompare(t1, t2);
+}
+
 xla::ComputationClient::DataPtr TensorToXlaData(const at::Tensor& tensor,
                                                 const Device& device) {
   return TensorToXlaData(
