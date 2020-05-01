@@ -533,6 +533,7 @@ def rendezvous(tag, payload=b''):
 _PY_STATE_IN_TRAIN_LOOP = 1
 _PY_STATE_IN_DATA_BATCH = 2
 _PY_STATE_IN_OPTIMIZER_STEP = 3
+_PY_STATE_IN_DEBUG = 4
 
 @contextlib.contextmanager
 def in_train_loop():
@@ -576,5 +577,15 @@ def in_optimizer_step():
     assert state == _PY_STATE_IN_OPTIMIZER_STEP
 
 
-
-
+@contextlib.contextmanager
+def in_py_debug():
+  """
+  Yields:
+      None.
+  """
+  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_DEBUG)
+  try:
+    yield
+  finally:
+    state = torch_xla._XLAC._xla_pop_python_state()
+    assert state == _PY_STATE_IN_DEBUG

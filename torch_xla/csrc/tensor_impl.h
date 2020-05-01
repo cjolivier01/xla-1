@@ -42,6 +42,9 @@ class XLATensorImpl : public c10::TensorImpl {
 
   static void AtenInitialize();
 
+  void set_at_tensor(const at::Tensor& at_tensor) { at_tensor_ = at_tensor; }
+  const at::Tensor& get_at_tensor() { return at_tensor_; }
+
  private:
   void SetupSizeProperties();
 
@@ -49,6 +52,7 @@ class XLATensorImpl : public c10::TensorImpl {
 
   XLATensor tensor_;
   size_t generation_ = 0;
+  at::Tensor at_tensor_;
 };
 
 }  // namespace torch_xla

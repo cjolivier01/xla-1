@@ -12,7 +12,11 @@ namespace ops {
 DeviceData::DeviceData(std::shared_ptr<xla::ComputationClient::Data> data)
     : Node(xla_device_data, data->shape(), /*num_outputs=*/1,
            /*hash_seed=*/101),
-      data_(std::move(data)) {}
+      data_(std::move(data)) {
+  if (data_->shape().rank() == 0) {
+    std::cout << "Creating device data: " << ToString() << std::endl << std::flush;
+  }
+}
 
 std::string DeviceData::ToString() const {
   std::stringstream ss;

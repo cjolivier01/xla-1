@@ -121,11 +121,17 @@ EPythonState GetPythonState() {
 }
 
 void PushPythonState(EPythonState state) {
+  if (state == EPS_IN_DEBUG) {
+    std::cout << ">>> ENTER DEBUG MODE" << std::endl << std::flush;
+  }
   python_state.states.push(state);
 }
 
 EPythonState PopPythonState() {
   const EPythonState current_state = GetPythonState();
+  if (current_state == EPS_IN_DEBUG) {
+    std::cout << ">>> LEAVE DEBUG MODE" << std::endl << std::flush;
+  }
   python_state.states.pop();
   return current_state;
 }
@@ -140,6 +146,7 @@ struct CompileInfo {
   std::shared_ptr<std::vector<at::Tensor>> input_tensors_;
   std::shared_ptr<std::vector<at::Tensor>> output_tensors_;
   std::unique_ptr<CompileWatcher::hash_t> hash_;
+  std::unordered_set<size_t> output_ids_;
 };
 
 std::mutex compile_info_map_mtx_;
@@ -159,25 +166,33 @@ const size_t RUNS_TILL_COMPILE = 3;
 }  // namespace
 
 void CompileWatcher::NotifyCompile(compiler_t opaque, hash_t hash) {
-  assert(opaque != nullptr);
-  Reset(opaque);
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-  compile_info->python_state_ = GetPythonState();
-  compile_info->hash_ = std::make_unique<CompileWatcher::hash_t>(hash);
+  if (!IsWseRunning(opaque)) {
+    assert(opaque != nullptr);
+    Reset(opaque);
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+    compile_info->python_state_ = GetPythonState();
+    compile_info->hash_ = std::make_unique<CompileWatcher::hash_t>(hash);
+  } else {
+    std::cout << "COMPILING WHILE RUNNING" << std::endl << std::flush;
+  }
 }
 
 void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  if (compile_info->output_ids_.empty()) {
+    return;
+  }
   if (opaque == compile_info->last_opaque_ &&
       compile_info->hash_.get() && hash == *compile_info->hash_) {
-    if (++compile_info->run_count_ == RUNS_TILL_COMPILE
-        && compile_info->python_state_ == EPS_IN_TRAIN_LOOP) {
-      ColorScope clr(Color::FG_RED);
-      // TODO: Should also have a check that everything required is available,
-      //  like grads and whatnot in the live tensors.
-      //  Maybe even inspect the proposed HLO graph for compatibility.
-      std::cout << "**** ELIGIBLE FOR WSE COMPILE ****" << ENDL;
-    }
+    //if (compile_info->python_state_ == EPS_IN_TRAIN_LOOP) {
+      if (compile_info->run_count_++ == RUNS_TILL_COMPILE) {
+        ColorScope clr(Color::FG_RED);
+        // TODO: Should also have a check that everything required is available,
+        //  like grads and whatnot in the live tensors.
+        //  Maybe even inspect the proposed HLO graph for compatibility.
+        std::cout << "**** ELIGIBLE FOR WSE COMPILE ****" << ENDL;
+      }
+    //}
   } else {
     Reset(opaque);
   }
@@ -185,7 +200,9 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
 
 void CompileWatcher::NotifyStepMarker(compiler_t opaque) {
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-  ++compile_info->mark_step_;
+  if (!compile_info->output_ids_.empty()) {
+    ++compile_info->mark_step_;
+  }
 }
 
 void CompileWatcher::Reset(compiler_t opaque) {
@@ -204,9 +221,23 @@ void CompileWatcher::Reset(compiler_t opaque) {
 bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash) {
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
   return compile_info->run_count_ == RUNS_TILL_COMPILE &&
-    compile_info->python_state_ == EPS_IN_TRAIN_LOOP &&
+    //compile_info->python_state_ == EPS_IN_TRAIN_LOOP &&
       compile_info->hash_.get() &&
       *compile_info->hash_ == hash;
+}
+
+bool CompileWatcher::IsWseRunReady(compiler_t opaque) {
+  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  return compile_info->run_count_ == RUNS_TILL_COMPILE //&&
+         //compile_info->python_state_ == EPS_IN_TRAIN_LOOP
+         ;
+}
+
+bool CompileWatcher::IsWseRunning(compiler_t opaque) {
+  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  return compile_info->run_count_ >= RUNS_TILL_COMPILE //&&
+         //compile_info->python_state_ == EPS_IN_TRAIN_LOOP
+         ;
 }
 
 void CompileWatcher::SetInputsOutputs(compiler_t opaque,
@@ -219,12 +250,16 @@ void CompileWatcher::SetInputsOutputs(compiler_t opaque,
   for (const at::Tensor& tensor : *compile_info->input_tensors_) {
     XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
     ColorScope color_scope(Color::FG_YELLOW, true);
-    XLATensor::print_tensor_ex("Input", xla_tensor);
+    //XLATensor::print_tensor_ex("Input", xla_tensor);
   }
+  compile_info->output_ids_.clear();
   for (const at::Tensor& tensor : *compile_info->output_tensors_) {
     XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
     ColorScope color_scope(Color::FG_YELLOW, true);
-    XLATensor::print_tensor("Output", xla_tensor);
+    //XLATensor::print_tensor("Output", xla_tensor);
+    const bool added = compile_info->output_ids_.insert(
+        xla_tensor.data()->unique_id).second;
+    assert(added);
   }
 }
 
@@ -242,6 +277,16 @@ std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
     std::shared_ptr<XLATensor::Async> async) {
   //std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
   HERE();
+}
+
+bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor) {
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  if (!IsWseRunning(opaque)) {
+    return true;
+  }
+  const bool found =  compile_info->output_ids_.find(tensor.data()->unique_id)
+      != compile_info->output_ids_.end();
+  return found;
 }
 
 }  // namespace torch_xla

@@ -63,6 +63,14 @@ struct TlsData {
 
 thread_local TlsData g_tls_data;
 
+bool is_wse_ready() {
+  return CompileWatcher::IsWseRunReady(xla::ComputationClient::Get());
+}
+
+bool is_wse_running() {
+  return CompileWatcher::IsWseRunning(xla::ComputationClient::Get());
+}
+
 // Locking:
 // We perform two kinds of operations of tensors, synchronous and asynchronous.
 // The ApplyPendingGraph() are synchronous, as we need the device data result
@@ -243,7 +251,12 @@ xla::ComputationClient::DataPtr GetDeviceData(at::Scalar value,
 bool IsSpecialScalar(at::Scalar value) {
   static bool no_scalars =
       xla::sys_util::GetEnvBool("XLA_NO_SPECIAL_SCALARS", false);
+  static bool all_scalar_numbers_special =
+      xla::sys_util::GetEnvBool("XLA_ALL_NUMBERS_SPECIAL_SCALARS", false);
   if (!no_scalars && (value.isIntegral() || value.isFloatingPoint())) {
+    if (all_scalar_numbers_special) {
+      return true;
+    }
     double scalar_value = value.toDouble();
     return scalar_value == 0.0 || std::fabs(scalar_value) == 1.0;
   }
@@ -609,6 +622,18 @@ void XLATensor::SetXlaData(xla::ComputationClient::DataPtr xla_data,
 }
 
 void XLATensor::SetIrValue(ir::Value ir_value) {
+  if (is_wse_running()) {
+//    ColorScope clr(Color::FG_GREEN);
+//    print_tensor_ex("SetIrValue() called", *this);
+//    if (data()->unique_id == 22 || data()->unique_id == 23) {
+//      std::cout << GetPythonFrames() << std::endl << std::flush;
+//    }
+//    return;
+//    if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), *this)) {
+//      print_tensor_ex("Skipping not allowed output tensor", *this);
+//      return;
+//    }
+  }
   data()->xla_data = nullptr;
   data()->tensor_data = c10::nullopt;
   if (data()->view != nullptr) {
@@ -1008,6 +1033,9 @@ void XLATensor::ApplyPendingGraph() {
 
 XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
     const std::vector<XLATensor>& tensors, const SyncTensorsConfig& config) {
+//  if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
+//    std::cout << "IsWseRunReady: CollectSyncTensors()" << std::endl << std::flush;
+//  }
   xla::util::Unique<Device> unique_device;
   for (size_t i = 0; i < tensors.size(); ++i) {
     unique_device.set(tensors[i].GetDevice());
@@ -1039,6 +1067,12 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       ir::Value ir_value = tensors[i].CurrentIrValue();
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
+          if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), tensors[i])) {
+            print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor", tensors[i]);
+            continue;
+          } else {
+            //print_tensor("CollectSyncTensors", tensors[i]);
+          }
           // Add only tensors which need to be synced.
           coll.hash = xla::util::HashCombine(coll.hash, ir_value.hash());
           coll.indices.push_back(i);
@@ -1054,7 +1088,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       }
     }
   }
-#if 1
+#if 0
   std::cout << "========" << std::endl << std::flush;
   for (int i : coll.indices) {
     ColorScope clr(Color::FG_RED);
@@ -1168,7 +1202,7 @@ std::vector<ir::Value> XLATensor::CollectRoots(
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchTensorData(
     std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
     absl::Span<const size_t> indices) {
-  print_all_tensors("FetchTensorData", *tensors);
+  //print_all_tensors("FetchTensorData", *tensors);
   std::vector<xla::ComputationClient::DataPtr> tensors_data;
   tensors_data.reserve(indices.size());
   for (auto index : indices) {

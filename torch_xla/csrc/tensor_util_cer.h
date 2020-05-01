@@ -12,6 +12,7 @@ enum EPythonState {
   EPS_IN_TRAIN_LOOP = 1,
   EPS_IN_DATA_BATCH = 2,
   EPS_IN_OPTIMIZER_STEP = 3,
+  EPS_IN_DEBUG = 4,
 };
 
 //extern std::stack<int> python_state_;
@@ -26,9 +27,9 @@ template<typename CB>
 
 void XLATensor::print_tensors(const std::string& label, const std::vector<XLATensor>& tensors, CB cb) {
   std::vector<XLATensor> ats;
-  ats.reserve(tensors.size());
   for (const XLATensor& t : tensors) {
     if (cb(t)) {
+      ats.reserve(tensors.size());
       ats.emplace_back(t);
     }
   }
@@ -78,14 +79,17 @@ class THelper {
 
 class CompileWatcher {
 public:
-  typedef void *compiler_t;
+  typedef void *compiler_t;  // TODO: make this the device
   typedef size_t hash_t;
   static void NotifyCompile(compiler_t opaque, hash_t hash);
   static void NotifyExecute(compiler_t opaque, hash_t hash);
   static void NotifyStepMarker(compiler_t opaque);
   static bool IsWseRunReady(compiler_t opaque, hash_t hash);
+  static bool IsWseRunReady(compiler_t opaque);
+  static bool IsWseRunning(compiler_t opaque);
   static void CompileCacheHit(hash_t hash);
   static void CompileCacheMiss(hash_t hash);
+  static bool IsAllowedOutput(compiler_t opaque, XLATensor tensor);
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,
                                const std::vector<at::Tensor>& output_tensors);

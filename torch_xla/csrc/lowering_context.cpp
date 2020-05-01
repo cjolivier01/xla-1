@@ -8,6 +8,7 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/core/util/util.h"
 #include "torch_xla/csrc/python_util.h"
+#include "torch_xla/csrc/tensor_util_cer.h"
 
 namespace torch_xla {
 namespace ir {
@@ -71,6 +72,12 @@ xla::XlaOp LoweringContext::GetParameter(
   xla::ComputationClient::Data::OpaqueHandle handle = data->GetOpaqueHandle();
   auto it = parameters_map_.find(handle);
   if (it == parameters_map_.end()) {
+//    if (data->shape().rank() == 0) {
+//      std::cout << "Scalar parameter" << std::endl << std::flush;
+//    }
+//    if (GetPythonState() == EPS_IN_DEBUG) {
+//      std::cout << "Creating debug parameter" << std::endl << std::flush;
+//    }
     xla::XlaOp param =
         xla::Parameter(builder(), parameters_.size(), data->shape(),
                        absl::StrCat("p", parameters_.size()));
@@ -105,6 +112,9 @@ void LoweringContext::AssignOutputOp(const Output& output, xla::XlaOp op) {
 xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
   auto it = emitted_outputs_.find(output);
   if (it == emitted_outputs_.end()) {
+    if (GetPythonState() == EPS_IN_TRAIN_LOOP) {
+      std::cout << "Adding output: " << output.ToString() << std::endl << std::flush;
+    }
     auto post_order = Util::ComputePostOrder(output.node, &emit_status_);
     for (auto node : post_order) {
       LowerNode(node);
