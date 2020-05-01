@@ -307,12 +307,12 @@ class XLATensor::DeviceContextArena {
   void UnregisterTensor(Data* data) {
     DeviceContext* devctx = GetDeviceContext(data->device);
     std::lock_guard<std::mutex> lock(devctx->lock);
-    if (verbose) {
-      if (!data->tensor_type.empty()) {
-        //std::cout << "[" << --active_parameter_count << "] ";
-        XLATensor::print_tensor("Unregistering", data);
-      }
-    }
+//    if (verbose) {
+//      if (!data->tensor_type.empty()) {
+//        //std::cout << "[" << --active_parameter_count << "] ";
+//        XLATensor::print_tensor("Unregistering", data);
+//      }
+//    }
     devctx->tensors_data.erase(data->unique_id);
     XLA_COUNTER("DestroyXlaTensor", 1);
   }
@@ -346,15 +346,15 @@ class XLATensor::DeviceContextArena {
     devctx->sync_hashes.insert(hash);
   }
 
-  void dump(const std::string& label, const Device* device) {
-    const std::vector<XLATensor> tensors = GetLiveTensors(device);
-    std::for_each(
-        tensors.begin(),
-        tensors.end(),
-        [&](const XLATensor& tensor) {
-          print_tensor(label, tensor.data(), false);
-        });
-  }
+//  void dump(const std::string& label, const Device* device) {
+//    const std::vector<XLATensor> tensors = GetLiveTensors(device);
+//    std::for_each(
+//        tensors.begin(),
+//        tensors.end(),
+//        [&](const XLATensor& tensor) {
+//          print_tensor(label, tensor.data(), false);
+//        });
+//  }
 
  private:
   std::vector<DeviceContext*> GetAllDeviceContexts() {
@@ -439,7 +439,7 @@ XLATensor XLATensor::Create(const at::Tensor& tensor, const Device& device) {
   XLATensor xtensor(tensor, device);
   DeviceContextArena::Get()->RegisterTensor(xtensor.data_ptr());
   if (is_autograd_thread()) {
-    print_tensor("Autograd creating XLATensor", xtensor, false);
+    print_tensor("Autograd creating XLATensor", xtensor);
   }
   return xtensor;
 }
@@ -1062,6 +1062,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
   }
   TF_VLOG(4) << "Waiting on device barrier for device " << coll.device
              << " done!";
+  CompileWatcher::ResetConsideredSyncOutputs(xla::ComputationClient::Get());
   for (size_t i = 0; i < tensors.size(); ++i) {
     if (tensors[i].CurrentXlaData() == nullptr) {
       ir::Value ir_value = tensors[i].CurrentIrValue();
@@ -1069,6 +1070,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
         if (ShouldSyncIrValue(ir_value)) {
           if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), tensors[i])) {
             print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor", tensors[i]);
+            // This will affect the hash of the normal XLA path, which may cause a recompile
             continue;
           } else {
             //print_tensor("CollectSyncTensors", tensors[i]);
@@ -1406,6 +1408,9 @@ XLATensor::OpByOpAsync XLATensor::SyncTensorsGraphOpByOp(
 void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
                                         absl::Span<const size_t> indices,
                                         ir::LoweringContext* lowering_ctx) {
+  if (is_wse_ready()) {
+    std::cout << "XLATensor::BuildInputOutputAliases" << std::endl << std::flush;
+  }
   std::unordered_map<xla::int64, size_t> output_tensor_id_map;
   for (size_t i = 0; i < indices.size(); ++i) {
     size_t tensor_index = indices[i];
@@ -1425,6 +1430,9 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
         size_t tensor_index = indices[output_index];
         if (parameters_data[i]->shape() == tensors[tensor_index].shape() &&
             alias_map[output_index] < 0) {
+          std::cout << "param " << i << " -> out " << output_index
+                    << "  shape: " << tensors[tensor_index].shape()
+                    << std::endl << std::flush;
           lowering_ctx->builder()->SetUpAlias(
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;

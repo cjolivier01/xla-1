@@ -93,6 +93,7 @@ public:
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,
                                const std::vector<at::Tensor>& output_tensors);
+  static void ResetConsideredSyncOutputs(compiler_t opaque);
   static std::vector<xla::ComputationClient::DataPtr> WseExecute(
       compiler_t opaque,
       hash_t hash,

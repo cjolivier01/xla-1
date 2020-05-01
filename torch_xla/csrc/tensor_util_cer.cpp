@@ -41,15 +41,16 @@ int XLATensor::get_rank(const XLATensor::Data* data) {
   }
 }
 
-void XLATensor::print_tensor(const std::string& label, const XLATensor& tensor, bool assert) {
-  print_tensor(label, tensor.data(), assert);
+void XLATensor::print_tensor(const std::string& label, const XLATensor& tensor) {
+  print_tensor(label, tensor.data(), false, tensor.GetViewAliasId());
 }
 
-void XLATensor::print_tensor_ex(const std::string& label, const XLATensor& tensor, bool assert) {
-  print_tensor_ex(label, tensor.data(), assert);
+void XLATensor::print_tensor_ex(const std::string& label, const XLATensor& tensor) {
+  print_tensor_ex(label, tensor.data(), false, tensor.GetViewAliasId());
 }
 
-void XLATensor::print_tensor_ex(const std::string& label, const XLATensor::Data* data, bool assert) {
+void XLATensor::print_tensor_ex(const std::string& label,
+    const XLATensor::Data* data, bool assert, ptrdiff_t alias_id) {
   std::cout << "[" << syscall(SYS_gettid) << "] ";
   if (data->ir_value) {
     std::cout << label << " (id=" << data->unique_id << ", type = " << data->tensor_type << ") "
@@ -85,9 +86,9 @@ void XLATensor::print_tensor_ex(const std::string& label, const XLATensor::Data*
   }
 }
 
-void XLATensor::print_tensor(const std::string& label, const XLATensor::Data* data, bool assert) {
+void XLATensor::print_tensor(const std::string& label, const XLATensor::Data* data, bool assert, ptrdiff_t alias_id) {
   ColorScope color_scope(Color::FG_CYAN, true);
-  print_tensor_ex(label, data, assert);
+  print_tensor_ex(label, data, assert, alias_id);
 }
 
 void XLATensor::print_all_tensors(const std::string& label, const std::vector<XLATensor>& tensors) {
@@ -101,7 +102,7 @@ void XLATensor::print_all_tensors(const std::string& label, const std::vector<XL
     ColorScope cs(alias_id ? Color::FG_CYAN : Color::FG_BLUE, bright);
     std::string s = "\t";
     s += label;
-    XLATensor::print_tensor_ex(s, t.data());
+    XLATensor::print_tensor_ex(s, t.data(), false, t.GetViewAliasId());
     if (alias_id) {
       std::shared_ptr<Alias> alias = t.data()->view->alias();
     }
@@ -147,6 +148,9 @@ struct CompileInfo {
   std::shared_ptr<std::vector<at::Tensor>> output_tensors_;
   std::unique_ptr<CompileWatcher::hash_t> hash_;
   std::unordered_set<size_t> output_ids_;
+
+  std::shared_ptr<std::vector<XLATensor>> removed_outputs_;
+  std::unordered_set<size_t> removed_output_ids_;
 };
 
 std::mutex compile_info_map_mtx_;
@@ -250,13 +254,13 @@ void CompileWatcher::SetInputsOutputs(compiler_t opaque,
   for (const at::Tensor& tensor : *compile_info->input_tensors_) {
     XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
     ColorScope color_scope(Color::FG_YELLOW, true);
-    //XLATensor::print_tensor_ex("Input", xla_tensor);
+    XLATensor::print_tensor_ex("Input", xla_tensor);
   }
   compile_info->output_ids_.clear();
   for (const at::Tensor& tensor : *compile_info->output_tensors_) {
     XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
     ColorScope color_scope(Color::FG_YELLOW, true);
-    //XLATensor::print_tensor("Output", xla_tensor);
+    XLATensor::print_tensor("Output", xla_tensor);
     const bool added = compile_info->output_ids_.insert(
         xla_tensor.data()->unique_id).second;
     assert(added);
@@ -279,13 +283,25 @@ std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
   HERE();
 }
 
+void CompileWatcher::ResetConsideredSyncOutputs(compiler_t opaque) {
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  compile_info->removed_outputs_.reset();
+}
+
 bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor) {
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
   if (!IsWseRunning(opaque)) {
     return true;
   }
+  if (compile_info->output_ids_.empty()) {
+    return true;  // they haven't specified, so try everything
+  }
+//  if (tensor.GetViewAliasId()) {
+//    XLATensor::print_tensor_ex("CONSIDERING OUTPUT WHICH HAS AN ALIAS", tensor);
+//  }
   const bool found =  compile_info->output_ids_.find(tensor.data()->unique_id)
       != compile_info->output_ids_.end();
+  // TODO: Ensure that the directly-ensuing compile is this set of input/outputs
   return found;
 }
 

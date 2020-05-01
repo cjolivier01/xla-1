@@ -165,11 +165,11 @@ class XLATensor {
       const std::vector<at::Tensor>& tensors,
       const std::vector<std::string>& devices);
 
-  static void print_tensor(const std::string& label, const XLATensor& tensor, bool assert = false);
-  static void print_tensor(const std::string& label, const XLATensor::Data* data, bool assert = false);
+  static void print_tensor(const std::string& label, const XLATensor& tensor);
+  static void print_tensor(const std::string& label, const XLATensor::Data* data, bool assert, ptrdiff_t alias_id);
 
-  static void print_tensor_ex(const std::string& label, const XLATensor& tensor, bool assert = false);
-  static void print_tensor_ex(const std::string& label, const XLATensor::Data* data, bool assert = false);
+  static void print_tensor_ex(const std::string& label, const XLATensor& tensor);
+  static void print_tensor_ex(const std::string& label, const XLATensor::Data* data, bool assert, ptrdiff_t alias_id);
 
   static void print_all_tensors(const std::string& label, const std::vector<XLATensor>& tensors);
 
