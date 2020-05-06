@@ -54,11 +54,15 @@ class HloMetadataSetter {
       const std::string src = frame.function + "@" + frame.file.substr(pos);
       metadata.set_source_file(src);
       metadata.set_source_line(frame.line);
-      if (ss.str().empty()) {
-        ss << src << ":" << frame.line;
+      if (!ss.tellp()) {
+        ss << src << "_" << frame.line;
       }
     }
-    metadata.set_op_name(ss.str());
+    std::string result = ss.str();
+    std::replace(result.begin(), result.end(), '.', '_');
+    std::replace(result.begin(), result.end(), '@', '/');
+    std::replace(result.begin(), result.end(), ':', '/');
+    metadata.set_op_name(result);
     loctx->builder()->SetOpMetadata(std::move(metadata));
   }
 
@@ -72,12 +76,6 @@ xla::XlaOp LoweringContext::GetParameter(
   xla::ComputationClient::Data::OpaqueHandle handle = data->GetOpaqueHandle();
   auto it = parameters_map_.find(handle);
   if (it == parameters_map_.end()) {
-//    if (data->shape().rank() == 0) {
-//      std::cout << "Scalar parameter" << std::endl << std::flush;
-//    }
-//    if (GetPythonState() == EPS_IN_DEBUG) {
-//      std::cout << "Creating debug parameter" << std::endl << std::flush;
-//    }
     xla::XlaOp param =
         xla::Parameter(builder(), parameters_.size(), data->shape(),
                        absl::StrCat("p", parameters_.size()));
