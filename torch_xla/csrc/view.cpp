@@ -187,9 +187,9 @@ ir::Value Alias::SyncUpdateOperations() {
 View::View(xla::Shape shape, std::shared_ptr<Alias> alias, ViewInfo view_info)
     : shape_(std::move(shape)), alias_(std::move(alias)) {
   view_infos_.push_back(std::move(view_info));
-  if (alias_) {
-    std::cout << "Created view with alias, shape=" << shape << std::endl << std::flush;
-  }
+//  if (alias_) {
+//    std::cout << "Created view with alias, shape=" << shape << std::endl << std::flush;
+//  }
 }
 
 View::View(xla::Shape shape, std::shared_ptr<Alias> alias,
@@ -197,9 +197,9 @@ View::View(xla::Shape shape, std::shared_ptr<Alias> alias,
     : view_infos_(std::move(view_infos)),
       shape_(std::move(shape)),
       alias_(std::move(alias)) {
-  if (alias_) {
-    std::cout << "Created view with alias and multiple ViewInfos, shape=" << shape << std::endl << std::flush;
-  }
+//  if (alias_) {
+//    std::cout << "Created view with alias and multiple ViewInfos, shape=" << shape << std::endl << std::flush;
+//  }
 }
 
 void View::Update(ir::Value ir_value) {

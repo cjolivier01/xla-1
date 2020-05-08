@@ -104,7 +104,7 @@ add_dependencies(ptxla libxla_computation_client)
 
 add_custom_target(
         xlac ALL
-        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.cpython-36m-x86_64-linux-gnu.so"
+        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.cpython-37m-x86_64-linux-gnu.so"
         DEPENDS ptxla
 )
 
