@@ -3,6 +3,7 @@
 #include <stack>
 #include "torch_xla/csrc/tensor.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
+#include "torch_xla/csrc/pytorch_live_interface.h"
 
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 
@@ -81,6 +82,7 @@ class CompileWatcher {
 public:
   typedef void *compiler_t;  // TODO: make this the device
   typedef size_t hash_t;
+  static void SetLiveInterface(std::shared_ptr<pytorch_live::IPytorchLive> interface);
   static void NotifyCompile(compiler_t opaque, hash_t hash);
   static void NotifyExecute(compiler_t opaque, hash_t hash);
   static void NotifyStepMarker(compiler_t opaque);

@@ -167,7 +167,13 @@ std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
 
 const size_t RUNS_TILL_COMPILE = 3;
 
+std::shared_ptr<pytorch_live::IPytorchLive> live_interface;
+
 }  // namespace
+
+void CompileWatcher::SetLiveInterface(std::shared_ptr<pytorch_live::IPytorchLive> interface) {
+    live_interface = interface;
+}
 
 void CompileWatcher::NotifyCompile(compiler_t opaque, hash_t hash) {
   if (!IsWseRunning(opaque)) {

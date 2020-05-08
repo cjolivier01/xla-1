@@ -83,14 +83,14 @@ def generate_xla_aten_code(base_dir):
 
 
 def build_extra_libraries(base_dir, build_mode=None):
-  build_libs_cmd = [os.path.join(base_dir, 'build_torch_xla_libs.sh')]
-  if build_mode is not None:
-    build_libs_cmd += [build_mode]
-  if subprocess.call(build_libs_cmd) != 0:
-    print(
-        'Failed to build external libraries: {}'.format(build_libs_cmd),
-        file=sys.stderr)
-    sys.exit(1)
+ build_libs_cmd = [os.path.join(base_dir, 'build_torch_xla_libs.sh')]
+ if build_mode is not None:
+   build_libs_cmd += [build_mode]
+ if subprocess.call(build_libs_cmd) != 0:
+   print(
+       'Failed to build external libraries: {}'.format(build_libs_cmd),
+       file=sys.stderr)
+   sys.exit(1)
 
 
 def generate_protos(base_dir, third_party_path):
@@ -203,7 +203,7 @@ if build_mode not in ['clean']:
   generate_xla_aten_code(base_dir)
 
   # Build the support libraries (ie, TF).
-  build_extra_libraries(base_dir, build_mode=build_mode)
+  #build_extra_libraries(base_dir, build_mode=build_mode)
 
   # Generate the proto C++/python files only after third_party has built.
   generate_protos(base_dir, third_party_path)

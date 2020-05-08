@@ -35,6 +35,7 @@
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
 #include "torch_xla/csrc/tensor_util_cer.h"
+#include "torch_xla/csrc/pytorch_live_interface.h"
 
 namespace torch_xla {
 namespace {
@@ -701,6 +702,12 @@ void InitXlaModuleBindings(py::module m) {
   m.def("_xla_get_python_state",
         []() {
     return (int)GetPythonState();
+  });
+  m.def("_xla_set_live_interface",
+      [](std::shared_ptr<pytorch_live::IPytorchLive> p) {
+      std::cout << "Setting _xla_set_live_interface"
+                << std::endl << std::flush;
+      CompileWatcher::SetLiveInterface(p);
   });
 }
 
