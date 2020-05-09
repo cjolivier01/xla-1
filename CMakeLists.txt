@@ -99,7 +99,7 @@ target_link_libraries(
 
 add_custom_target(
         xlac ALL
-        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.cpython-37m-x86_64-linux-gnu.so"
+        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
         DEPENDS ptxla
 )
 
