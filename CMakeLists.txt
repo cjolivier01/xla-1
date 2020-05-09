@@ -110,11 +110,11 @@ if (BUILD_TENSORFLOW)
 #    execute_process(COMMAND python3 -c "import tensorflow as tf; print(' '.join(tf.sysconfig.get_link_flags()), end='')" OUTPUT_VARIABLE Tensorflow_LINK_FLAGS)
 #    execute_process(COMMAND python3 -c "import tensorflow as tf; print(' '.join(tf.sysconfig.get_compile_flags()), end='')" OUTPUT_VARIABLE Tensorflow_COMPILE_FLAGS)
 
-    message(STATUS "Tensorflow_COMPILE_FLAGS: ${Tensorflow_COMPILE_FLAGS}")
-    message(STATUS "Tensorflow_INCLUDE_DIRS: ${Tensorflow_INCLUDE_DIRS}")
-    message(STATUS "Tensorflow_LINK_FLAGS: ${Tensorflow_LINK_FLAGS}")
+#    message(STATUS "Tensorflow_COMPILE_FLAGS: ${Tensorflow_COMPILE_FLAGS}")
+#    message(STATUS "Tensorflow_INCLUDE_DIRS: ${Tensorflow_INCLUDE_DIRS}")
+#    message(STATUS "Tensorflow_LINK_FLAGS: ${Tensorflow_LINK_FLAGS}")
 
-    set(TF_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/third_party/tensorflow)
+    #set(TF_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/third_party/tensorflow)
 
     #list(APPEND FRAMEWORK_LIBS ${TF_DIRECTORY}/bazel-out/host/bin/tensorflow/libtensorflow_framework.so)
     list(APPEND FRAMEWORK_LIBS ${TF_DIRECTORY}/bazel-bin/tensorflow/python/_pywrap_tensorflow_internal.so)
