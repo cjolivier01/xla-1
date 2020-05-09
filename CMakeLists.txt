@@ -84,9 +84,6 @@ set_target_properties(
 
 message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
 
-set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/libxla_computation_client.so")
-message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
-target_link_libraries(ptxla "${LIBXLA_COMPUTATION_CLIENT_LIB}")
 
 target_link_libraries(
         ptxla
@@ -100,8 +97,6 @@ target_link_libraries(
         -ldl
 )
 
-add_dependencies(ptxla libxla_computation_client)
-
 add_custom_target(
         xlac ALL
         COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.cpython-37m-x86_64-linux-gnu.so"
@@ -109,7 +104,29 @@ add_custom_target(
 )
 
 if (BUILD_TENSORFLOW)
-    add_dependencies(ptxla libxla_computation_client)
+
+    # get tensorflow include dirs, see https://www.tensorflow.org/how_tos/adding_an_op/
+#    execute_process(COMMAND python3 -c "import tensorflow; print(tensorflow.sysconfig.get_include())" OUTPUT_VARIABLE Tensorflow_INCLUDE_DIRS)
+#    execute_process(COMMAND python3 -c "import tensorflow as tf; print(' '.join(tf.sysconfig.get_link_flags()), end='')" OUTPUT_VARIABLE Tensorflow_LINK_FLAGS)
+#    execute_process(COMMAND python3 -c "import tensorflow as tf; print(' '.join(tf.sysconfig.get_compile_flags()), end='')" OUTPUT_VARIABLE Tensorflow_COMPILE_FLAGS)
+
+    message(STATUS "Tensorflow_COMPILE_FLAGS: ${Tensorflow_COMPILE_FLAGS}")
+    message(STATUS "Tensorflow_INCLUDE_DIRS: ${Tensorflow_INCLUDE_DIRS}")
+    message(STATUS "Tensorflow_LINK_FLAGS: ${Tensorflow_LINK_FLAGS}")
+
+    set(TF_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/third_party/tensorflow)
+
+    #list(APPEND FRAMEWORK_LIBS ${TF_DIRECTORY}/bazel-out/host/bin/tensorflow/libtensorflow_framework.so)
+    list(APPEND FRAMEWORK_LIBS ${TF_DIRECTORY}/bazel-bin/tensorflow/python/_pywrap_tensorflow_internal.so)
+            #if (NOT BUILD_MONOLITH)
+        #set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/libxla_computation_client.so")
+        #message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
+        #target_link_libraries(ptxla ${LIBXLA_COMPUTATION_CLIENT_LIB})
+        target_link_libraries(ptxla ${FRAMEWORK_LIBS})
+        add_dependencies(ptxla libxla_computation_client)
+    #else()
+        #message(STATUS "Not linking to libxla_computation_client")
+    #endif()
 else()
     message(STATUS "Not building TensorFlow -- assuming the library exists: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 endif()
