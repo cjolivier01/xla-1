@@ -1430,9 +1430,9 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
         size_t tensor_index = indices[output_index];
         if (parameters_data[i]->shape() == tensors[tensor_index].shape() &&
             alias_map[output_index] < 0) {
-          std::cout << "param " << i << " -> out " << output_index
-                    << "  shape: " << tensors[tensor_index].shape()
-                    << std::endl << std::flush;
+//          std::cout << "param " << i << " -> out " << output_index
+//                    << "  shape: " << tensors[tensor_index].shape()
+//                    << std::endl << std::flush;
           lowering_ctx->builder()->SetUpAlias(
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;
