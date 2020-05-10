@@ -1038,9 +1038,9 @@ class XLATensor {
     size_t hash = 0;
     std::vector<xla::util::ExceptionCleanup> unlocker;
     std::string device;
-    SyncTensorCollection() {
-      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
-    }
+//    SyncTensorCollection() {
+//      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
+//    }
 //    ~SyncTensorCollection() {
 //      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
 //    }
