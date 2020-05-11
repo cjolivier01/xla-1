@@ -31,7 +31,7 @@ file(GLOB
         ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/ops/*.h)
 
-message(STATUS "XLA_SOURCES=${XLA_SOURCES}")
+#message(STATUS "XLA_SOURCES=${XLA_SOURCES}")
 #message(STATUS "XLA_HEADERS=${XLA_HEADERS}")
 
 if(NOT TORCH_PATH)
@@ -55,7 +55,7 @@ include_directories(${TORCH_PATH})
 include_directories(${TORCH_PATH}/torch/csrc)
 include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
 include_directories(${TORCH_PATH}/torch/include)
-include_directories(${TORCH_PATH}/torch/include/TH)
+include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
 
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fPIC ${CMAKE_CXX_FLAGS}")

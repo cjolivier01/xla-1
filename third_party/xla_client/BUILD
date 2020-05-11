@@ -1,5 +1,7 @@
 licenses(["notice"])  # Apache 2.0
 
+load("//tensorflow:tensorflow.bzl", "tf_python_pybind_extension")
+
 package(default_visibility = ["//tensorflow:internal"])
 
 load(
@@ -40,6 +42,11 @@ tf_proto_library_cc(
 
 tf_cc_shared_object(
     name = "libxla_computation_client.so",
+    srcs = [
+        "touch.cc",
+        #"@com_google_absl//absl/strings",
+    ],
+    copts=[], # [ "-ggdb3", "-O0" ],
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [
@@ -51,21 +58,32 @@ tf_cc_shared_object(
     }),
     visibility = ["//visibility:public"],
     deps = [
-        "computation_client_impl",
-        "//tensorflow/compiler/xla:literal_util",
-        "//tensorflow/compiler/xla/client",
-        "//tensorflow/compiler/xla/client:global_data",
-        "//tensorflow/compiler/xla/client:xla_builder",
-        "//tensorflow/compiler/xla/client:xla_computation",
-        "//tensorflow/compiler/xla/client/lib:svd",
-        "//tensorflow/tools/xla_extract:wse_hlo",
-        "//tensorflow/stream_executor:wse_platform",
-        "//tensorflow/compiler/xla/rpc:grpc_stub",
+        #"computation_client_impl",
+        #"//tensorflow/compiler/xla:literal_util",
+        #"//tensorflow/compiler/xla/client",
+        #"//tensorflow/compiler/xla/client:global_data",
+        #"//tensorflow/compiler/xla/client:xla_builder",
+        #"//tensorflow/compiler/xla/client:xla_computation",
+        #"//tensorflow/compiler/xla/client/lib:svd",
+        #"//tensorflow/tools/xla_extract:wse_hlo",
+        #"//tensorflow/stream_executor:wse_platform",
+        #"//tensorflow/compiler/xla/rpc:grpc_stub",
         "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
         "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
-        "//tensorflow/core:lib",
-        "//tensorflow/core/platform/cloud:gcs_file_system",
+        #"//tensorflow/core:lib",
+        #"//tensorflow/core/platform/cloud:gcs_file_system",
+
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:optional",
+        "@com_google_absl//absl/types:span",
+        "@com_google_protobuf//:protobuf",
+
+        # "//tensorflow/python:_pywrap_tensorflow_internal.so"
     ],
 )
 
@@ -88,6 +106,7 @@ cc_library(
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
+        "@com_google_absl//absl/strings",
     ],
     hdrs = [
         "cache.h",
@@ -113,6 +132,7 @@ cc_library(
         "xrt_session.h",
         "xrt_session_cache.h",
     ],
+    copts = [ "-ggdb3", "-O0" ],
     deps = [
         ":mesh_service_proto_cc",
         "//tensorflow:grpc",
@@ -158,6 +178,13 @@ cc_library(
         "//tensorflow/core/protobuf/tpu:topology_proto_cc",
         "//tensorflow/stream_executor:stream_executor_impl",
         "@com_google_absl//absl/strings",
+        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
+        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
+        "//tensorflow/compiler/xla/client:xla_builder",
+        "//tensorflow/core/platform/cloud:gcs_file_system",
+
     ] + if_cuda_is_configured(["//tensorflow/compiler/jit:xla_gpu_device"]),
     alwayslink = 1,
+    linkstatic = 1,
 )
+
