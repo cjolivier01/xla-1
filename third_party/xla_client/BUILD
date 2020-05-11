@@ -188,3 +188,17 @@ cc_library(
     linkstatic = 1,
 )
 
+filegroup(
+    name = "xla_client_runtime_srcs",
+    srcs = [
+    ],
+    #visibility = [":friends"],
+)
+
+filegroup(
+    name = "xla_client_runtime_hdrs",
+    srcs = [
+        "xrt_computation_client_ext_intf.h",
+    ],
+    #visibility = [":friends"],
+)

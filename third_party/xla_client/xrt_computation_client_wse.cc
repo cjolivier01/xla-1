@@ -50,6 +50,10 @@ void XrtComputationClientWse::SetExternalInterface(
     }
 }
 
+ComputationClient::DataPtr XrtComputationClientWse::CreateDataPlaceholder(std::string device, Shape shape) {
+    return Super::CreateDataPlaceholder(device, shape);
+}
+
 // Transfers local tensor values to the TPU servers and fetches the handles.
 std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
   absl::Span<const TensorSource> tensors) {

@@ -25,24 +25,28 @@ public:
    */
   ~XrtComputationClientWse();
 
+  // Creates a Data object with no actual device handle in it. The device handle
+  // will be populated in an asynchrounous fashion.
+  DataPtr CreateDataPlaceholder(std::string device, Shape shape) override;
+
   // Transfers local tensor values to the TPU servers and fetches the handles.
-  virtual std::vector<DataPtr> TransferToServer(
+  std::vector<DataPtr> TransferToServer(
       absl::Span<const TensorSource> tensors) override;
 
   // Reads the tensor literal values stored at TPU server sites, behind the
   // supplied handles.
-  virtual std::vector<Literal> TransferFromServer(
+  std::vector<Literal> TransferFromServer(
       absl::Span<const DataPtr> handles) override;
 
   // Compiles a set of computations.
-  virtual std::vector<ComputationPtr> Compile(
+  std::vector<ComputationPtr> Compile(
       std::vector<CompileInstance> instances) override;
 
   // Executes computation with arguments and returns the result.
   // The passed device must match the common device of the arguments Data.
   // If options.explode_tuple is true, the output tuple will be decomposed into
   // its single elements.
-  virtual std::vector<DataPtr> ExecuteComputation(
+  std::vector<DataPtr> ExecuteComputation(
       const Computation& computation, absl::Span<const DataPtr> arguments,
       const std::string& device, const ExecuteComputationOptions& options) override;
 

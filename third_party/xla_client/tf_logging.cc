@@ -12,6 +12,7 @@ void ErrorGenerator::operator&(const std::basic_ostream<char>& oss) const {
   std::stringstream ess;
   ess << file_ << ":" << line_ << " : " << sink_str;
   // We cannot use AT_ERROR() here, due to layering issues.
+  raise(SIGTRAP);
   throw std::runtime_error(ess.str());
 }
 
