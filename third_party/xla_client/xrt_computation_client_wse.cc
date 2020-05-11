@@ -1,0 +1,83 @@
+
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
+#include "tensorflow/core/util/util.h"
+
+#include "tensorflow/core/protobuf/tpu/topology.pb.h"
+
+#include <stdexcept>
+
+namespace xla {
+
+namespace {
+
+std::shared_ptr<XrtComputationClientExternalInterface> callback_interface_{nullptr};
+
+xla::opaque_t GetOpaque(const XrtComputationClientWse *object_ptr) {
+    return reinterpret_cast<xla::opaque_t>(object_ptr);
+}
+
+}  // namespace
+
+XrtComputationClientWse::XrtComputationClientWse(
+    Options options,
+    std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto)
+    : XrtComputationClient(std::move(options), std::move(topology_proto)) {
+    std::cout << "CREATE XrtComputationClientWse" << ENDL;
+    if(callback_interface_) {
+        callback_interface_->OnCreate(GetOpaque(this));
+    }
+}
+
+XrtComputationClientWse::~XrtComputationClientWse() {
+    std::cout << "DESTROY XrtComputationClientWse" << ENDL;
+    if(callback_interface_) {
+        callback_interface_->OnDestroy(GetOpaque(this));
+    }
+}
+
+void XrtComputationClientWse::SetExternalInterface(
+    std::shared_ptr<XrtComputationClientExternalInterface> callback_interface
+) {
+    if(!callback_interface_) {
+        callback_interface_ = callback_interface;
+    } else {
+        if (callback_interface != callback_interface_) {
+            throw std::runtime_error(
+                "An attempt was made to set the Xrt callback interface more than once"
+            );
+        }
+    }
+}
+
+// Transfers local tensor values to the TPU servers and fetches the handles.
+std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
+  absl::Span<const TensorSource> tensors) {
+    return Super::TransferToServer(tensors);
+}
+
+// Reads the tensor literal values stored at TPU server sites, behind the
+// supplied handles.
+std::vector<Literal> XrtComputationClientWse::TransferFromServer(
+  absl::Span<const DataPtr> handles) {
+    return Super::TransferFromServer(handles);
+}
+
+// Compiles a set of computations.
+std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
+  std::vector<CompileInstance> instances) {
+    return Super::Compile(std::move(instances));
+}
+
+// Executes computation with arguments and returns the result.
+// The passed device must match the common device of the arguments Data.
+// If options.explode_tuple is true, the output tuple will be decomposed into
+// its single elements.
+std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputation(
+  const Computation& computation, absl::Span<const DataPtr> arguments,
+  const std::string& device, const ExecuteComputationOptions& options) {
+    return Super::ExecuteComputation(computation, arguments, device, options);
+}
+
+
+}  // namespace xla

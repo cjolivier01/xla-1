@@ -50,7 +50,6 @@ bool verbose = false;
 
 struct TlsData {
   ~TlsData() {
-    std::cout << "dest" << std::endl;
   }
   void Reset() {
     trim_counter = 0;

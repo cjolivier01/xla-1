@@ -22,11 +22,18 @@
 #include "tensorflow/compiler/xla/xla_client/xrt_local_service.h"
 #include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/util/device_name_utils.h"
+#include "tensorflow/core/util/util.h"
 
 namespace xla {
 namespace {
 
+bool verbose = true;
+
 thread_local std::vector<std::string> g_replication_devices;
+
+pid_t gettid() {
+    return syscall(__NR_gettid);
+}
 
 // A simple Tensorflow Allocator which caches Tensor allocations in order to
 // avoid paying the kernel's clear_page_c() price.
@@ -281,6 +288,22 @@ std::vector<size_t> XrtComputationClient::PartitionTransferToServer(
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
     absl::Span<const TensorSource> tensors) {
+  //HERE();
+
+  if (verbose) {
+      ColorScope clr(Color::FG_BLUE);
+      std::cout << gettid() << " XrtComputationClient::TransferToServer( ";
+
+      size_t i = 0;
+      for (const TensorSource& t : tensors) {
+          if (i++) {
+              std::cout << ", ";
+          }
+          std::cout << t.shape << " ";
+      }
+      std::cout << ")" << std::endl << std::flush;
+  }
+
   auto partitions = PartitionTransferToServer(tensors);
   if (partitions.size() == 1) {
     // Fast path in case of single partition. Avoid creating threads and
@@ -383,6 +406,20 @@ XrtComputationClient::TransferToServerInternal(
 
 std::vector<Literal> XrtComputationClient::TransferFromServer(
     absl::Span<const DataPtr> handles) {
+
+  if (verbose) {
+      ColorScope clr(Color::FG_MAGENTA);
+      std::cout << gettid() << " XrtComputationClient::TransferFromServer( ";
+      size_t i = 0;
+      for (const DataPtr& dp : handles) {
+          if (i++) {
+              std::cout << ", ";
+          }
+          std::cout << dp->shape() << " ";
+      }
+      std::cout << ")" << std::endl << std::flush;
+  }
+
   metrics::TimedSection timed(TransferFromServerMetric());
 
   int64 max_partition_size = GetMaxTensorsPartitionSize();
@@ -442,6 +479,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
 
 std::vector<ComputationClient::ComputationPtr> XrtComputationClient::Compile(
     std::vector<CompileInstance> instances) {
+  //HERE();
   metrics::TimedSection timed(CompileMetric());
 
   std::mutex lock;
@@ -543,6 +581,7 @@ std::vector<ComputationClient::DataPtr>
 XrtComputationClient::ExecuteComputation(
     const Computation& computation, absl::Span<const DataPtr> arguments,
     const std::string& device, const ExecuteComputationOptions& options) {
+  //HEREX();
   metrics::TimedSection timed(ExecuteMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -571,6 +610,7 @@ XrtComputationClient::ExecuteReplicated(
     const std::vector<std::vector<DataPtr>>& arguments,
     absl::Span<const std::string> devices,
     const ExecuteReplicatedOptions& options) {
+  HERE();
   metrics::TimedSection timed(ExecuteReplicatedMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -592,6 +632,7 @@ XrtComputationClient::RunComputations(
     absl::Span<const Computation* const> computations,
     absl::Span<const std::string> devices,
     const tensorflow::ClientSession::FeedType& feed_inputs) {
+  HERE();
   // In the PyTorch/XRT interface we keep a map (options_.workers_map) from a
   // worker+taskno, to the GRPC server which is the entry point for that worker.
   // Since XRT could re-distribute ops internally, if we have N hosts
@@ -654,6 +695,7 @@ XrtComputationClient::ExecuteParallel(
     const std::vector<std::vector<DataPtr>>& arguments,
     absl::Span<const std::string> devices,
     const ExecuteParallelOptions& options) {
+  HERE();
   metrics::TimedSection timed(ExecuteParallelMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -674,6 +716,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChained(
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChainedXrt(
     absl::Span<const ExecuteChainedOp> ops, const std::string& device) {
+  HERE();
   metrics::TimedSection timed(ExecuteChainedMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -756,6 +799,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChainedXrt(
 std::vector<ComputationClient::DataPtr>
 XrtComputationClient::ExecuteChainedSplit(
     absl::Span<const ExecuteChainedOp> ops, const std::string& device) {
+  HERE();
   metrics::TimedSection timed(ExecuteChainedMetric());
 
   std::vector<int64> uses(ops.size(), 0);
@@ -1534,6 +1578,9 @@ const XrtSession::CachedNode& XrtComputationClient::GetExecuteNode(
          tensorflow::ops::Placeholder(
              scope, tensorflow::DT_INT64,
              tensorflow::ops::Placeholder::Shape({-1}))});
+    if (!holders[1].output.node()) {
+        std::cout << "NULL holders[1].output.node()" << std::endl << std::flush;
+    }
     cache->Add(std::make_shared<XrtSession::CachedNode>(
         tensorflow::ops::XRTExecute(scope, holders[0], holders[1],
                                     {tensorflow::Output(holders[2])}),
@@ -1734,6 +1781,7 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
 
 void XrtComputationClient::MaybeCreateLocalService(
     const XrtComputationClient::Options& options) {
+  HERE();
   static const std::string* const grpc_root =
       new std::string("grpc://localhost:");
   int task_index = -1;

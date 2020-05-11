@@ -35,7 +35,8 @@
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
 #include "torch_xla/csrc/tensor_util_cer.h"
-#include "torch_xla/csrc/pytorch_live_interface.h"
+
+#include "third_party/xla_client/xrt_computation_client_ext_intf.h"
 
 namespace torch_xla {
 namespace {
@@ -703,8 +704,13 @@ void InitXlaModuleBindings(py::module m) {
         []() {
     return (int)GetPythonState();
   });
+  py::class_<
+    xla::XrtComputationClientExternalInterface,
+    std::shared_ptr<xla::XrtComputationClientExternalInterface>>(
+    m, "XrtComputationClientExternalInterface" /*, py::buffer_protocol()*/
+  );
   m.def("_xla_set_live_interface",
-      [](std::shared_ptr<pytorch_live::IPytorchLive> p) {
+      [](std::shared_ptr<xla::XrtComputationClientExternalInterface>& p) {
       std::cout << "Setting _xla_set_live_interface"
                 << std::endl << std::flush;
       CompileWatcher::SetLiveInterface(p);

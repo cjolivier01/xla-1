@@ -1,7 +1,9 @@
 #include "torch_xla/csrc/tensor.h"
-#include "tensorflow/core/util/util.h"
 #include "torch_xla/csrc/tensor_util_cer.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
+
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
+#include "tensorflow/core/util/util.h"
 
 #include <string>
 #include <stack>
@@ -167,12 +169,13 @@ std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
 
 const size_t RUNS_TILL_COMPILE = 3;
 
-std::shared_ptr<pytorch_live::IPytorchLive> live_interface;
+std::shared_ptr<xla::XrtComputationClientExternalInterface> xrt_live_interface_;
 
 }  // namespace
 
-void CompileWatcher::SetLiveInterface(std::shared_ptr<pytorch_live::IPytorchLive> interface) {
-    live_interface = interface;
+void CompileWatcher::SetLiveInterface(std::shared_ptr<xla::XrtComputationClientExternalInterface> interface) {
+    //xrt_live_interface_ = interface;
+    xla::XrtComputationClientWse::SetExternalInterface(interface);
 }
 
 void CompileWatcher::NotifyCompile(compiler_t opaque, hash_t hash) {
