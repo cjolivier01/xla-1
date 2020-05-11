@@ -117,7 +117,7 @@ class ParallelLoader(object):
     def fn(v):
       csize = v.size()[dim]
       if not size:
-        size.append(csize)bmodule sync
+        size.append(csize)
 
       else:
         assert csize == size[0]
