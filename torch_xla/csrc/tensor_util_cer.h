@@ -80,7 +80,9 @@ class CompileWatcher {
 public:
   typedef void *compiler_t;  // TODO: make this the device
   typedef size_t hash_t;
-  static void SetLiveInterface(std::shared_ptr<xla::XrtComputationClientExternalInterface> interface);
+  static void SetLiveInterface(
+      std::shared_ptr<xla::XrtComputationClientExternalInterface> interface
+  );
   static void NotifyCompile(compiler_t opaque, hash_t hash);
   static void NotifyExecute(compiler_t opaque, hash_t hash);
   static void NotifyStepMarker(compiler_t opaque);

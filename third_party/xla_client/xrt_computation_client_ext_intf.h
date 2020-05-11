@@ -28,7 +28,10 @@ typedef ptrdiff_t opaque_t;
 /**
  * Define interface
  */
-struct XrtComputationClientExternalInterface {
+struct XrtComputationClientExternalInterface :
+    public std::enable_shared_from_this<XrtComputationClientExternalInterface> {
+
+  virtual ~XrtComputationClientExternalInterface() = default;
 
   virtual void OnCreate(xla::opaque_t obj) = 0;
   virtual void OnDestroy(xla::opaque_t obj) = 0;

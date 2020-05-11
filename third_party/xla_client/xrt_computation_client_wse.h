@@ -47,7 +47,9 @@ public:
       const std::string& device, const ExecuteComputationOptions& options) override;
 
   // TODO: This will be replaced with grpc
-  static void SetExternalInterface(std::shared_ptr<XrtComputationClientExternalInterface> intf);
+  static void SetExternalInterface(
+      std::shared_ptr<XrtComputationClientExternalInterface> callback_interface
+   );
 };
 
 }  // namespace xla

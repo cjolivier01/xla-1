@@ -704,16 +704,16 @@ void InitXlaModuleBindings(py::module m) {
         []() {
     return (int)GetPythonState();
   });
-  py::class_<
-    xla::XrtComputationClientExternalInterface,
-    std::shared_ptr<xla::XrtComputationClientExternalInterface>>(
-    m, "XrtComputationClientExternalInterface" /*, py::buffer_protocol()*/
-  );
   m.def("_xla_set_live_interface",
-      [](std::shared_ptr<xla::XrtComputationClientExternalInterface>& p) {
+        [](ptrdiff_t p) {
       std::cout << "Setting _xla_set_live_interface"
                 << std::endl << std::flush;
-      CompileWatcher::SetLiveInterface(p);
+      // TODO: TEMPORARY -- Make this grpc
+      CompileWatcher::SetLiveInterface(
+          reinterpret_cast<xla::XrtComputationClientExternalInterface *>(
+              p
+          )->shared_from_this()
+      );
   });
 }
 

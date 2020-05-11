@@ -40,7 +40,7 @@ void XrtComputationClientWse::SetExternalInterface(
     std::shared_ptr<XrtComputationClientExternalInterface> callback_interface
 ) {
     if(!callback_interface_) {
-        callback_interface_ = callback_interface;
+        callback_interface_ = callback_interface->shared_from_this();
     } else {
         if (callback_interface != callback_interface_) {
             throw std::runtime_error(

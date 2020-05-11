@@ -1,6 +1,8 @@
 import os
 import re
 
+# Load TensorFlow first in order to shared backends
+import tensorflow
 
 def _setup_grpc():
   # Setup GRPC options to correctly talk to TPU backends.

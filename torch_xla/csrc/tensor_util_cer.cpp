@@ -169,7 +169,7 @@ std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
 
 const size_t RUNS_TILL_COMPILE = 3;
 
-std::shared_ptr<xla::XrtComputationClientExternalInterface> xrt_live_interface_;
+//std::shared_ptr<xla::XrtComputationClientExternalInterface> xrt_live_interface_;
 
 }  // namespace
 
