@@ -11,6 +11,8 @@ namespace xla {
 
 namespace {
 
+
+
 std::shared_ptr<XrtComputationClientExternalInterface> callback_interface_{nullptr};
 
 xla::opaque_t GetOpaque(const XrtComputationClientWse *object_ptr) {
@@ -23,6 +25,7 @@ XrtComputationClientWse::XrtComputationClientWse(
     Options options,
     std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto)
     : XrtComputationClient(std::move(options), std::move(topology_proto)) {
+    setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
     std::cout << "CREATE XrtComputationClientWse" << ENDL;
     if(callback_interface_) {
         callback_interface_->OnCreate(GetOpaque(this));
