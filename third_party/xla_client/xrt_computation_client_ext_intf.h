@@ -14,13 +14,19 @@ enum ECompileState {
   ECS_AFTER_COMPILE,
 };
 
+enum ECompileResult{
+  ECR_ACCEPT,
+  ECRT_DEFER
+};
+
 enum ERunState {
   ERS_BEFORE_RUN,
   ERS_AFTER_RUN,
 };
 
 enum ERunStatus {
-    ERS_OK,
+  ERS_ACCEPT,
+  ERS_DEFER,
 };
 
 typedef ptrdiff_t opaque_t;
@@ -43,10 +49,11 @@ struct XrtComputationClientExternalInterface :
    * @param compile_state
    * @return
    */
-  virtual int on_compile(
+  virtual ECompileResult OnCompile(
       xla::opaque_t obj,
       std::size_t hash,
       const xla::HloModuleProto &hlo_module,
+      const std::vector<std::string>& devices,
       ECompileState compile_state
   ) = 0;
 
@@ -56,7 +63,12 @@ struct XrtComputationClientExternalInterface :
    * @param run_state
    * @return
    */
-  virtual ERunStatus on_run(xla::opaque_t obj, std::size_t hash, ERunState run_state) = 0;
+  virtual ERunStatus OnExecuteComputation(
+      xla::opaque_t obj,
+      std::size_t hash,
+      const std::string& device,
+      ERunState run_state
+  ) = 0;
 };
 
 }  // namespace xla

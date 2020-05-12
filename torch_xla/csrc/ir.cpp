@@ -15,8 +15,6 @@ namespace torch_xla {
 namespace ir {
 namespace {
 
-bool verbose = true;
-
 using ShapeCache = xla::util::Cache<size_t, xla::Shape>;
 
 struct ScapeEntry {
@@ -32,9 +30,6 @@ struct ScopeContext {
 thread_local ScopeContext g_scope_context;
 
 void PushScope(const std::string& name) {
-  if (verbose) {
-    std::cout << "PushScope(" << name << ")" << ENDL;
-  }
   size_t id = g_scope_context.next_id;
   g_scope_context.scopes.push_back(
       {absl::StrCat(name, ".", id), g_scope_context.next_id + 1});
@@ -42,11 +37,6 @@ void PushScope(const std::string& name) {
 }
 
 void PopScope() {
-  if (verbose) {
-    std::cout << "PopScope("
-              << g_scope_context.scopes.rbegin()->name << ")"
-              << ENDL;
-  }
   XLA_CHECK(!g_scope_context.scopes.empty());
   g_scope_context.next_id = g_scope_context.scopes.back().saved_next_id;
   g_scope_context.scopes.pop_back();

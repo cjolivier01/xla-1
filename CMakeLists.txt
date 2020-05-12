@@ -72,8 +72,9 @@ set(CMAKE_CXX_FLAGS "-DTORCH_EXTENSION_NAME=_XLAC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 
 add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
-
 add_dependencies(ptxla link_torch link_torch_python link_c10 link_shm link_torch_global_deps)
+
+link_directories(${CMAKE_BINARY_DIR}/lib)
 
 set_target_properties(
         ptxla
@@ -84,7 +85,6 @@ set_target_properties(
 
 message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
 
-
 target_link_libraries(
         ptxla
         -Wl,--unresolved-symbols=ignore-in-shared-libs
@@ -94,6 +94,7 @@ target_link_libraries(
         -lutil
         -pthread
         -lstdc++
+        -lprotobuf
         -ldl
 )
 

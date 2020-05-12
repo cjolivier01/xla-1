@@ -289,16 +289,6 @@ class XLATensor::DeviceContextArena {
   void RegisterTensor(std::shared_ptr<Data> data) {
     DeviceContext* devctx = GetDeviceContext(data->device);
     std::lock_guard<std::mutex> lock(devctx->lock);
-    //if (verbose) {
-    if (is_autograd_thread()) {
-      //std::cout << "[" << active_parameter_count++ << "] ";
-      //if (data->tensor_data.has_value()) {
-        //XLATensor::print_tensor("Autograd Registering", data.get(), true);
-      //}
-    }
-//    if (GetPythonState() == EPS_IN_OPTIMIZER_STEP) {
-//      XLATensor::print_tensor("EPS_IN_OPTIMIZER_STEP Registering", data.get(), true);
-//    }
     devctx->tensors_data.emplace(data->unique_id, data);
     XLA_COUNTER("CreateXlaTensor", 1);
   }
@@ -306,12 +296,6 @@ class XLATensor::DeviceContextArena {
   void UnregisterTensor(Data* data) {
     DeviceContext* devctx = GetDeviceContext(data->device);
     std::lock_guard<std::mutex> lock(devctx->lock);
-//    if (verbose) {
-//      if (!data->tensor_type.empty()) {
-//        //std::cout << "[" << --active_parameter_count << "] ";
-//        XLATensor::print_tensor("Unregistering", data);
-//      }
-//    }
     devctx->tensors_data.erase(data->unique_id);
     XLA_COUNTER("DestroyXlaTensor", 1);
   }
@@ -344,16 +328,6 @@ class XLATensor::DeviceContextArena {
     std::lock_guard<std::mutex> lock(devctx->lock);
     devctx->sync_hashes.insert(hash);
   }
-
-//  void dump(const std::string& label, const Device* device) {
-//    const std::vector<XLATensor> tensors = GetLiveTensors(device);
-//    std::for_each(
-//        tensors.begin(),
-//        tensors.end(),
-//        [&](const XLATensor& tensor) {
-//          print_tensor(label, tensor.data(), false);
-//        });
-//  }
 
  private:
   std::vector<DeviceContext*> GetAllDeviceContexts() {
@@ -622,16 +596,6 @@ void XLATensor::SetXlaData(xla::ComputationClient::DataPtr xla_data,
 
 void XLATensor::SetIrValue(ir::Value ir_value) {
   if (is_wse_running()) {
-//    ColorScope clr(Color::FG_GREEN);
-//    print_tensor_ex("SetIrValue() called", *this);
-//    if (data()->unique_id == 22 || data()->unique_id == 23) {
-//      std::cout << GetPythonFrames() << std::endl << std::flush;
-//    }
-//    return;
-//    if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), *this)) {
-//      print_tensor_ex("Skipping not allowed output tensor", *this);
-//      return;
-//    }
   }
   data()->xla_data = nullptr;
   data()->tensor_data = c10::nullopt;
@@ -1032,9 +996,6 @@ void XLATensor::ApplyPendingGraph() {
 
 XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
     const std::vector<XLATensor>& tensors, const SyncTensorsConfig& config) {
-//  if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
-//    std::cout << "IsWseRunReady: CollectSyncTensors()" << std::endl << std::flush;
-//  }
   xla::util::Unique<Device> unique_device;
   for (size_t i = 0; i < tensors.size(); ++i) {
     unique_device.set(tensors[i].GetDevice());
@@ -1089,14 +1050,6 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       }
     }
   }
-#if 0
-  std::cout << "========" << std::endl << std::flush;
-  for (int i : coll.indices) {
-    ColorScope clr(Color::FG_RED);
-    print_tensor_ex("\tCollectSyncTensors: ", tensors[i]);
-  }
-  std::cout << "========" << std::endl << std::flush;
-#endif
   // Mix the hash with the resource domain hashes as compile handles are only
   // valid within a domain (usually a single host).
   coll.hash = xla::util::MHash(
@@ -1407,9 +1360,6 @@ XLATensor::OpByOpAsync XLATensor::SyncTensorsGraphOpByOp(
 void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
                                         absl::Span<const size_t> indices,
                                         ir::LoweringContext* lowering_ctx) {
-  if (is_wse_ready()) {
-    std::cout << "XLATensor::BuildInputOutputAliases" << std::endl << std::flush;
-  }
   std::unordered_map<xla::int64, size_t> output_tensor_id_map;
   for (size_t i = 0; i < indices.size(); ++i) {
     size_t tensor_index = indices[i];
@@ -1429,9 +1379,6 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
         size_t tensor_index = indices[output_index];
         if (parameters_data[i]->shape() == tensors[tensor_index].shape() &&
             alias_map[output_index] < 0) {
-//          std::cout << "param " << i << " -> out " << output_index
-//                    << "  shape: " << tensors[tensor_index].shape()
-//                    << std::endl << std::flush;
           lowering_ctx->builder()->SetUpAlias(
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;

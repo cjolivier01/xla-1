@@ -488,9 +488,6 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::vector<at::Tensor>& input_tensors,
              const std::vector<at::Tensor>& output_tensors) {
           SetInputsOutputs(input_tensors, output_tensors);
-          std::cout << "Set " << input_tensors.size()
-                    << " input tensors and " << output_tensors.size()
-                    << " output tensors" << std::endl;
         });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
@@ -706,8 +703,6 @@ void InitXlaModuleBindings(py::module m) {
   });
   m.def("_xla_set_live_interface",
         [](ptrdiff_t p) {
-      std::cout << "Setting _xla_set_live_interface"
-                << std::endl << std::flush;
       // TODO: TEMPORARY -- Make this grpc
       CompileWatcher::SetLiveInterface(
           reinterpret_cast<xla::XrtComputationClientExternalInterface *>(

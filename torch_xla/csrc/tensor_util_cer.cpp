@@ -53,7 +53,6 @@ void XLATensor::print_tensor_ex(const std::string& label, const XLATensor& tenso
 
 void XLATensor::print_tensor_ex(const std::string& label,
     const XLATensor::Data* data, bool assert, ptrdiff_t alias_id) {
-  std::cout << "[" << syscall(SYS_gettid) << "] ";
   if (data->ir_value) {
     std::cout << label << " (id=" << data->unique_id << ", type = " << data->tensor_type << ") "
               << " IR tensor of shape: " << data->ir_value.shape().ToString()
@@ -124,17 +123,11 @@ EPythonState GetPythonState() {
 }
 
 void PushPythonState(EPythonState state) {
-  if (state == EPS_IN_DEBUG) {
-    std::cout << ">>> ENTER DEBUG MODE" << std::endl << std::flush;
-  }
   python_state.states.push(state);
 }
 
 EPythonState PopPythonState() {
   const EPythonState current_state = GetPythonState();
-  if (current_state == EPS_IN_DEBUG) {
-    std::cout << ">>> LEAVE DEBUG MODE" << std::endl << std::flush;
-  }
   python_state.states.pop();
   return current_state;
 }
@@ -169,12 +162,9 @@ std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
 
 const size_t RUNS_TILL_COMPILE = 3;
 
-//std::shared_ptr<xla::XrtComputationClientExternalInterface> xrt_live_interface_;
-
 }  // namespace
 
 void CompileWatcher::SetLiveInterface(std::shared_ptr<xla::XrtComputationClientExternalInterface> interface) {
-    //xrt_live_interface_ = interface;
     xla::XrtComputationClientWse::SetExternalInterface(interface);
 }
 
@@ -197,7 +187,6 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
   }
   if (opaque == compile_info->last_opaque_ &&
       compile_info->hash_.get() && hash == *compile_info->hash_) {
-    //if (compile_info->python_state_ == EPS_IN_TRAIN_LOOP) {
       if (compile_info->run_count_++ == RUNS_TILL_COMPILE) {
         ColorScope clr(Color::FG_RED);
         // TODO: Should also have a check that everything required is available,
@@ -205,7 +194,6 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
         //  Maybe even inspect the proposed HLO graph for compatibility.
         std::cout << "**** ELIGIBLE FOR WSE COMPILE ****" << ENDL;
       }
-    //}
   } else {
     Reset(opaque);
   }
@@ -234,23 +222,18 @@ void CompileWatcher::Reset(compiler_t opaque) {
 bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash) {
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
   return compile_info->run_count_ == RUNS_TILL_COMPILE &&
-    //compile_info->python_state_ == EPS_IN_TRAIN_LOOP &&
       compile_info->hash_.get() &&
       *compile_info->hash_ == hash;
 }
 
 bool CompileWatcher::IsWseRunReady(compiler_t opaque) {
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-  return compile_info->run_count_ == RUNS_TILL_COMPILE //&&
-         //compile_info->python_state_ == EPS_IN_TRAIN_LOOP
-         ;
+  return compile_info->run_count_ == RUNS_TILL_COMPILE;
 }
 
 bool CompileWatcher::IsWseRunning(compiler_t opaque) {
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-  return compile_info->run_count_ >= RUNS_TILL_COMPILE //&&
-         //compile_info->python_state_ == EPS_IN_TRAIN_LOOP
-         ;
+  return compile_info->run_count_ >= RUNS_TILL_COMPILE;
 }
 
 void CompileWatcher::SetInputsOutputs(compiler_t opaque,
@@ -288,8 +271,6 @@ std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
     compiler_t opaque,
     hash_t hash,
     std::shared_ptr<XLATensor::Async> async) {
-  //std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-  HERE();
 }
 
 void CompileWatcher::ResetConsideredSyncOutputs(compiler_t opaque) {
@@ -305,9 +286,6 @@ bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor) {
   if (compile_info->output_ids_.empty()) {
     return true;  // they haven't specified, so try everything
   }
-//  if (tensor.GetViewAliasId()) {
-//    XLATensor::print_tensor_ex("CONSIDERING OUTPUT WHICH HAS AN ALIAS", tensor);
-//  }
   const bool found =  compile_info->output_ids_.find(tensor.data()->unique_id)
       != compile_info->output_ids_.end();
   // TODO: Ensure that the directly-ensuing compile is this set of input/outputs

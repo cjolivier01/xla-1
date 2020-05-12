@@ -288,12 +288,9 @@ std::vector<size_t> XrtComputationClient::PartitionTransferToServer(
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
     absl::Span<const TensorSource> tensors) {
-  //HERE();
-
   if (verbose) {
       ColorScope clr(Color::FG_BLUE);
       std::cout << gettid() << " XrtComputationClient::TransferToServer( ";
-
       size_t i = 0;
       for (const TensorSource& t : tensors) {
           if (i++) {

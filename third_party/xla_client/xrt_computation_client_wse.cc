@@ -23,8 +23,8 @@ xla::opaque_t GetOpaque(const XrtComputationClientWse *object_ptr) {
 
 XrtComputationClientWse::XrtComputationClientWse(
     Options options,
-    std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto)
-    : XrtComputationClient(std::move(options), std::move(topology_proto)) {
+    std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
+) : XrtComputationClient(std::move(options), std::move(topology_proto)) {
     setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
     std::cout << "CREATE XrtComputationClientWse" << ENDL;
     if(callback_interface_) {
@@ -59,20 +59,38 @@ ComputationClient::DataPtr XrtComputationClientWse::CreateDataPlaceholder(std::s
 
 // Transfers local tensor values to the TPU servers and fetches the handles.
 std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
-  absl::Span<const TensorSource> tensors) {
+  absl::Span<const TensorSource> tensors
+) {
     return Super::TransferToServer(tensors);
 }
 
 // Reads the tensor literal values stored at TPU server sites, behind the
 // supplied handles.
 std::vector<Literal> XrtComputationClientWse::TransferFromServer(
-  absl::Span<const DataPtr> handles) {
+  absl::Span<const DataPtr> handles
+) {
     return Super::TransferFromServer(handles);
 }
 
 // Compiles a set of computations.
 std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
-  std::vector<CompileInstance> instances) {
+  std::vector<CompileInstance> instances
+) {
+    if(callback_interface_) {
+        assert(instances.size() == 1);
+        const ECompileResult comp_result = callback_interface_->OnCompile(
+            GetOpaque(this),
+            instances[0].computation.proto().id(),  // good enough or need hash from PTXLA layer?
+            instances[0].computation.proto(),
+            instances[0].devices,
+            ECS_BEFORE_COMPILE
+        );
+        if (comp_result != ECRT_DEFER) {
+            // We compiled it ourselves
+            assert(false);
+            return std::vector<ComputationClient::ComputationPtr>();
+        }
+    }
     return Super::Compile(std::move(instances));
 }
 
@@ -81,8 +99,24 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
 // If options.explode_tuple is true, the output tuple will be decomposed into
 // its single elements.
 std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputation(
-  const Computation& computation, absl::Span<const DataPtr> arguments,
-  const std::string& device, const ExecuteComputationOptions& options) {
+  const Computation& computation,
+  absl::Span<const DataPtr> arguments,
+  const std::string& device,
+  const ExecuteComputationOptions& options
+) {
+    if(callback_interface_) {
+        ERunStatus run_status = callback_interface_->OnExecuteComputation(
+            GetOpaque(this),
+            computation.computation().proto().id(),
+            device,
+            ERS_BEFORE_RUN
+        );
+        if (run_status != ERS_DEFER) {
+            // No data returned yet :(
+            assert(false);
+            return std::vector<ComputationClient::DataPtr>{nullptr};
+        }
+    }
     return Super::ExecuteComputation(computation, arguments, device, options);
 }
 
