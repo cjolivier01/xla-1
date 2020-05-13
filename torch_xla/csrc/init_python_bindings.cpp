@@ -162,7 +162,7 @@ void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
   auto opt_device = GetOptionalDevice(device_str);
   const Device* device = opt_device ? &opt_device.value() : nullptr;
-  CompileWatcher::NotifyStepMarker(xla::ComputationClient::Get());
+  CompileWatcher::NotifyStepMarker(xla::ComputationClient::Get(), devices);
   XLATensor::SyncLiveTensorsGraph(device, devices, wait);
   XLATensor::MarkStep(device);
 }
@@ -178,11 +178,14 @@ std::string GetTensorsHloProto(const std::vector<at::Tensor>& tensors) {
 }
 
 void SetInputsOutputs(const std::vector<at::Tensor>& input_tensors,
-                      const std::vector<at::Tensor>& output_tensors) {
+                      const std::vector<at::Tensor>& output_tensors,
+                      bool append) {
   CompileWatcher::SetInputsOutputs(
       xla::ComputationClient::Get(),
       input_tensors,
-      output_tensors);
+      output_tensors,
+      append
+  );
 }
 
 std::string GetLiveTensorsReport(size_t nodes_threshold,
@@ -486,9 +489,14 @@ void InitXlaModuleBindings(py::module m) {
         });
   m.def("_set_inputs_outputs",
         [](const std::vector<at::Tensor>& input_tensors,
-             const std::vector<at::Tensor>& output_tensors) {
-          SetInputsOutputs(input_tensors, output_tensors);
-        });
+             const std::vector<at::Tensor>& output_tensors,
+             bool append
+         ) {
+          SetInputsOutputs(input_tensors, output_tensors, append);
+        },
+        py::arg("input_tensors") = {},
+        py::arg("output_tensors") = {},
+        py::arg("append") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;
@@ -705,7 +713,7 @@ void InitXlaModuleBindings(py::module m) {
         [](ptrdiff_t p) {
       // TODO: TEMPORARY -- Make this grpc
       CompileWatcher::SetLiveInterface(
-          reinterpret_cast<xla::XrtComputationClientExternalInterface *>(
+          reinterpret_cast<xla::ptxla::XrtComputationClientExternalInterface *>(
               p
           )->shared_from_this()
       );

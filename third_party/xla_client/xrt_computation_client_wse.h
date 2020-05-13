@@ -7,7 +7,7 @@
 
 namespace xla {
 
-class XrtComputationClientExternalInterface;
+namespace ptxla { class XrtComputationClientExternalInterface; }
 
 class XrtComputationClientWse : public XrtComputationClient {
     typedef XrtComputationClient Super;
@@ -52,7 +52,7 @@ public:
 
   // TODO: This will be replaced with grpc
   static void SetExternalInterface(
-      std::shared_ptr<XrtComputationClientExternalInterface> callback_interface
+      std::shared_ptr<ptxla::XrtComputationClientExternalInterface> callback_interface
    );
 };
 

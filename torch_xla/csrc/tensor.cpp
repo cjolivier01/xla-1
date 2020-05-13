@@ -1029,7 +1029,10 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
           if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), tensors[i])) {
-            print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor", tensors[i]);
+            static int message_count = 0;
+            if (!message_count++) {
+                print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor (one message only)", tensors[i]);
+            }
             // This will affect the hash of the normal XLA path, which may cause a recompile
             continue;
           } else {
@@ -1443,10 +1446,13 @@ XLATensor::CompilationResult XLATensor::Compile(
                        xla::ComputationClient::Get()->GetCompilationDevices(
                            unique_device->ToString(), devices),
                        &shape});
-
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
-  CompileWatcher::NotifyCompile(xla::ComputationClient::Get(), coll.hash);
+  CompileWatcher::NotifyCompile(
+      xla::ComputationClient::Get(),
+      instances,
+      coll.hash
+  );
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
       computations =
           xla::ComputationClient::Get()->Compile(std::move(instances));

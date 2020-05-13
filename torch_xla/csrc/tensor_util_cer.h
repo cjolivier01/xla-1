@@ -76,16 +76,19 @@ class THelper {
   }
 };
 
+/**
+ * This is mostly an exploratory class and will go away eventually
+ */
 class CompileWatcher {
 public:
   typedef void *compiler_t;  // TODO: make this the device
   typedef size_t hash_t;
   static void SetLiveInterface(
-      std::shared_ptr<xla::XrtComputationClientExternalInterface> interface
+      std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface
   );
-  static void NotifyCompile(compiler_t opaque, hash_t hash);
+  static void NotifyCompile(compiler_t opaque, std::vector<xla::ComputationClient::CompileInstance>& instances, hash_t hash);
   static void NotifyExecute(compiler_t opaque, hash_t hash);
-  static void NotifyStepMarker(compiler_t opaque);
+  static void NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices);
   static bool IsWseRunReady(compiler_t opaque, hash_t hash);
   static bool IsWseRunReady(compiler_t opaque);
   static bool IsWseRunning(compiler_t opaque);
@@ -94,15 +97,16 @@ public:
   static bool IsAllowedOutput(compiler_t opaque, XLATensor tensor);
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,
-                               const std::vector<at::Tensor>& output_tensors);
+                               const std::vector<at::Tensor>& output_tensors,
+                               bool append);
   static void ResetConsideredSyncOutputs(compiler_t opaque);
   static std::vector<xla::ComputationClient::DataPtr> WseExecute(
       compiler_t opaque,
       hash_t hash,
       std::shared_ptr<XLATensor::Async> async);
-
+    static std::string GetDevice();
 private:
-  static void Reset(compiler_t opaque);
+  static void Reset(compiler_t opaque, bool reset_hash = true);
 };
 
 }  // namespace torch_xla
