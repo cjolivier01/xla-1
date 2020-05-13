@@ -59,14 +59,14 @@ XrtComputationClientWse::CreateDataPlaceholder(std::string device, Shape shape) 
 std::vector <ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
     absl::Span<const TensorSource> tensors
 ) {
-    if (callback_interface_) {
-        std::vector<ptxla::XTensorSource> x_tensors;
-        std::pair<ptxla::EIntent, std::vector<ptxla::XDataPtr>> result =
-            callback_interface_->TransferToServer(GetOpaque(this), x_tensors);
-        if (result.first != ptxla::EI_DEFER) {
-            return std::vector<ComputationClient::DataPtr>();
-        }
-    }
+//    if (callback_interface_) {
+//        std::vector<ptxla::XTensorSource> x_tensors;
+//        std::pair<ptxla::EIntent, std::vector<ptxla::XDataPtr>> result =
+//            callback_interface_->TransferToServer(GetOpaque(this), x_tensors);
+//        if (result.first != ptxla::EI_DEFER) {
+//            return std::vector<ComputationClient::DataPtr>();
+//        }
+//    }
     return Super::TransferToServer(tensors);
 }
 
@@ -75,14 +75,14 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::TransferToServ
 std::vector <Literal> XrtComputationClientWse::TransferFromServer(
     absl::Span<const DataPtr> handles
 ) {
-    if (callback_interface_) {
-        std::vector<ptxla::XDataPtr> x_handles;
-        std::pair<ptxla::EIntent, std::vector<ptxla::XLiteral>> result =
-            callback_interface_->TransferFromServer(GetOpaque(this), x_handles);
-        if (result.first != ptxla::EI_DEFER) {
-            return std::vector<Literal>();
-        }
-    }
+//    if (callback_interface_) {
+//        std::vector<ptxla::XDataPtr> x_handles;
+//        std::pair<ptxla::EIntent, std::vector<ptxla::XLiteral>> result =
+//            callback_interface_->TransferFromServer(GetOpaque(this), x_handles);
+//        if (result.first != ptxla::EI_DEFER) {
+//            return std::vector<Literal>();
+//        }
+//    }
     return Super::TransferFromServer(handles);
 }
 
@@ -118,19 +118,19 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
     const std::string &device,
     const ExecuteComputationOptions &options
 ) {
-    if (callback_interface_) {
-        ptxla::ERunStatus run_status = callback_interface_->OnExecuteComputation(
-            GetOpaque(this),
-            computation.computation().proto().id(),
-            device,
-            ptxla::ERS_BEFORE_RUN
-        );
-        if (run_status != ptxla::ERS_DEFER) {
-            // No data returned yet :(
-            assert(false);
-            return std::vector < ComputationClient::DataPtr > {nullptr};
-        }
-    }
+//    if (callback_interface_) {
+//        ptxla::ERunStatus run_status = callback_interface_->OnExecuteComputation(
+//            GetOpaque(this),
+//            computation.computation().proto().id(),
+//            device,
+//            ptxla::ERS_BEFORE_RUN
+//        );
+//        if (run_status != ptxla::ERS_DEFER) {
+//            // No data returned yet :(
+//            assert(false);
+//            return std::vector < ComputationClient::DataPtr > {nullptr};
+//        }
+//    }
     return Super::ExecuteComputation(computation, arguments, device, options);
 }
 
