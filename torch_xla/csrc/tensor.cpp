@@ -1204,7 +1204,11 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get(), hash)) {
         CompileWatcher::WseExecute(xla::ComputationClient::Get(), hash, async);
       } else {
-        CompileWatcher::NotifyExecute(xla::ComputationClient::Get(), hash);
+        CompileWatcher::NotifyExecute(
+            xla::ComputationClient::Get(),
+            async->device,
+            hash
+        );
       }
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
           *async->cached_computation->computation, async->parameters_data,

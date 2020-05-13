@@ -154,6 +154,7 @@ struct CompileInfo {
   std::unordered_set<size_t> removed_output_ids_;
 
   void set_hash(CompileWatcher::hash_t hash) {
+      std::cout << "Setting has to: " << hash << std::endl << std::flush;
       hash_ = std::make_unique<CompileWatcher::hash_t>(hash);
   }
 };
@@ -207,7 +208,7 @@ void CompileWatcher::NotifyCompile(
   }
 }
 
-void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
+void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_t hash) {
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
   bool new_hash = false;
   if (!compile_info->hash_.get()) {
@@ -224,21 +225,25 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
               //  like grads and whatnot in the live tensors.
               //  Maybe even inspect the proposed HLO graph for compatibility.
               std::cout << "**** ELIGIBLE FOR WSE COMPILE ****"
-                        << ", hash=" << hash << ENDL;
+                        << ", hash=" << hash << ", device=" << device << ENDL;
           } else {
               std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_
-                        << ", hash=" << hash << std::endl << std::flush;
+                        << ", hash=" << hash << ", device=" << device << std::endl << std::flush;
           }
       } else {
-//          std::cout << "REPEAT RUN " << compile_info->run_count_
-//                    << ", hash=" << hash << std::endl << std::flush;
+//          if (!IsWseRunning(opaque)) {
+//              std::cout << "REPEAT RUN " << compile_info->run_count_
+//                        << ", hash=" << hash << std::endl << std::flush;
+//          }
       }
   } else {
     if (!compile_info->hash_.get()) {
+      // TODO: need to recognize ineligible (i.e. dataset fetch) vis python scope check
       std::cout << "No hash" << std::endl;
     }
     std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_.load()
-              << ", hash=" << hash << std::endl << std::flush;
+              << ", hash " << *compile_info->hash_ << " -> " << hash
+              << ", device=" << device << std::endl << std::flush;
     Reset(opaque, !new_hash);
   }
 }
@@ -246,8 +251,10 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, hash_t hash) {
 void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices) {
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
   //if (!compile_info->output_ids_.empty()) {
-    ++compile_info->mark_step_;
-    ++compile_info->mark_steps_since_reset_;
+    const size_t total_steps = ++compile_info->mark_step_;
+    const size_t steps_since_reset = ++compile_info->mark_steps_since_reset_;
+    ColorScope clr(IsWseRunning(opaque) ? Color::FG_YELLOW : Color::FG_WHITE);
+    std::cout << "Mark step: " << steps_since_reset << "/" << total_steps << std::endl << std::flush;
   //}
 }
 

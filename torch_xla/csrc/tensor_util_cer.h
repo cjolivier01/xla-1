@@ -87,7 +87,7 @@ public:
       std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface
   );
   static void NotifyCompile(compiler_t opaque, std::vector<xla::ComputationClient::CompileInstance>& instances, hash_t hash);
-  static void NotifyExecute(compiler_t opaque, hash_t hash);
+  static void NotifyExecute(compiler_t opaque, std::string& device, hash_t hash);
   static void NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices);
   static bool IsWseRunReady(compiler_t opaque, hash_t hash);
   static bool IsWseRunReady(compiler_t opaque);
