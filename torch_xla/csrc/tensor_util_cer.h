@@ -104,7 +104,8 @@ public:
       compiler_t opaque,
       hash_t hash,
       std::shared_ptr<XLATensor::Async> async);
-    static std::string GetDevice();
+    //static std::string GetDevice();
+    static Device GetDevice();
 private:
   static void Reset(compiler_t opaque, bool reset_hash = true);
 };

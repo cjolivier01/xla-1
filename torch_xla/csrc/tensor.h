@@ -1248,7 +1248,8 @@ class XLATensor {
 
   static CompilationResult Compile(const std::vector<XLATensor>& tensors,
                                    absl::Span<const std::string> devices,
-                                   const SyncTensorCollection& coll);
+                                   const SyncTensorCollection& coll,
+                                   const Device *force_on_device);
 
   static std::shared_ptr<Async> SyncTensorsGraphInternal(
       std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,

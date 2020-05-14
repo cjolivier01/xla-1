@@ -41,10 +41,37 @@ tf_proto_library_cc(
 )
 
 tf_cc_shared_object(
+    name = "lib_xla_computation_client_standalone.so",
+    linkopts = select({
+        "//tensorflow:windows": [],
+        "//conditions:default": [
+            "-z defs",
+            "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
+            "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
+        ],
+    }),
+    visibility = ["//visibility:public"],
+    deps = [
+        "computation_client_impl",
+        "//tensorflow/compiler/xla:literal_util",
+        "//tensorflow/compiler/xla/client",
+        "//tensorflow/compiler/xla/client:global_data",
+        "//tensorflow/compiler/xla/client:xla_builder",
+        "//tensorflow/compiler/xla/client:xla_computation",
+        "//tensorflow/compiler/xla/client/lib:svd",
+        "//tensorflow/compiler/xla/rpc:grpc_stub",
+        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
+        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
+        "//tensorflow/core:lib",
+        "//tensorflow/core/platform/cloud:gcs_file_system",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+tf_cc_shared_object(
     name = "libxla_computation_client.so",
     srcs = [
-        "touch.cc",
-        #"@com_google_absl//absl/strings",
+        #"touch.cc",
     ],
     copts=[], # [ "-ggdb3", "-O0" ],
     linkopts = select({
@@ -72,6 +99,53 @@ tf_cc_shared_object(
         "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
         #"//tensorflow/core:lib",
         #"//tensorflow/core/platform/cloud:gcs_file_system",
+
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:optional",
+        "@com_google_absl//absl/types:span",
+        "@com_google_protobuf//:protobuf",
+
+        # "//tensorflow/python:_pywrap_tensorflow_internal.so"
+    ],
+)
+
+tf_cc_shared_object(
+    name = "libxla_computation_client_standalone.so",
+    srcs = [
+        "touch.cc",
+        #"@com_google_absl//absl/strings",
+    ],
+    copts=[], # [ "-ggdb3", "-O0" ],
+    linkopts = select({
+        "//tensorflow:windows": [],
+        "//conditions:default": [
+            "-z defs",
+            "-s",
+            "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
+            "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
+        ],
+    }),
+    visibility = ["//visibility:public"],
+    deps = [
+        "computation_client_impl",
+        "//tensorflow/compiler/xla:literal_util",
+        "//tensorflow/compiler/xla/client",
+        "//tensorflow/compiler/xla/client:global_data",
+        "//tensorflow/compiler/xla/client:xla_builder",
+        "//tensorflow/compiler/xla/client:xla_computation",
+        "//tensorflow/compiler/xla/client/lib:svd",
+        "//tensorflow/tools/xla_extract:wse_hlo",
+        "//tensorflow/stream_executor:wse_platform",
+        "//tensorflow/compiler/xla/rpc:grpc_stub",
+        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
+        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
+        "//tensorflow/core:lib",
+        "//tensorflow/core/platform/cloud:gcs_file_system",
 
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",

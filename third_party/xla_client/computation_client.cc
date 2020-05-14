@@ -130,7 +130,7 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
                          global_device.ordinal,
                          [](int a, int b) { return std::min(a, b); });
   }
-  for (auto kind : {"TPU", "GPU", "CPU"}) {
+  for (auto kind : {"TPU", "GPU", "CPU", "WSE"}) {
     auto it = min_ordinals.find(kind);
     if (it != min_ordinals.end()) {
       options->default_device = absl::StrCat(kind, ":", it->second);
@@ -150,6 +150,7 @@ void AddXrtHostDevices(const std::string& worker_name, int task_no,
   } const devices[] = {
       {"TPU", "TPU", (int)sys_util::GetEnvInt("TPU_NUM_DEVICES", 8)},
       {"CPU", "XLA_CPU", (int)sys_util::GetEnvInt("CPU_NUM_DEVICES", 1)},
+      {"WSE", "XLA_WSE", (int)sys_util::GetEnvInt("WSE_NUM_DEVICES", 1)},
   };
   options->workers_map.emplace(
       XrtComputationClient::Worker(worker_name, task_no),

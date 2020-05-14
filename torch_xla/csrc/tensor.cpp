@@ -1401,7 +1401,9 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
 
 XLATensor::CompilationResult XLATensor::Compile(
     const std::vector<XLATensor>& tensors,
-    absl::Span<const std::string> devices, const SyncTensorCollection& coll) {
+    absl::Span<const std::string> devices,
+    const SyncTensorCollection& coll,
+    const Device *force_on_device) {
   static const bool enable_aliasing =
       xla::sys_util::GetEnvBool("XLA_ENABLE_PARAM_ALIASING", true);
   xla::util::Unique<Device> unique_device;
@@ -1410,7 +1412,11 @@ XLATensor::CompilationResult XLATensor::Compile(
     ir::Value ir_value = tensors[index].CurrentIrValue();
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
     lowering_ctx.AddResult(root);
-    unique_device.set(tensors[index].GetDevice());
+    if (!force_on_device) {
+        unique_device.set(tensors[index].GetDevice());
+    } else {
+        unique_device.set(*force_on_device);
+    }
   }
   if (enable_aliasing && coll.config.force_xla_data) {
     // We can only alias at the step barrier, when force_xla_data is true.
@@ -1452,11 +1458,13 @@ XLATensor::CompilationResult XLATensor::Compile(
                        &shape});
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
+
   CompileWatcher::NotifyCompile(
       xla::ComputationClient::Get(),
       instances,
       coll.hash
   );
+
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
       computations =
           xla::ComputationClient::Get()->Compile(std::move(instances));
@@ -1488,7 +1496,16 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
     return async;
   }
 
-  CompilationResult compile_result = Compile(*tensors, devices, coll);
+  CompilationResult compile_result;
+
+  // TEMPORARY HACK TO FORCE ON DEVICE AND STILL DO THE CPU VERSION
+  if (devices.empty() && CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
+      Device wse_device = CompileWatcher::GetDevice();
+      compile_result = Compile(*tensors, devices, coll, &wse_device);
+  } else {
+      //compile_result = Compile(*tensors, devices, coll);
+  }
+  compile_result = Compile(*tensors, devices, coll, nullptr);
 
   XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
   TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;

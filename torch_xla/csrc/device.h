@@ -7,7 +7,7 @@
 
 namespace torch_xla {
 
-enum class DeviceType { CPU, GPU, TPU };
+enum class DeviceType { CPU, GPU, TPU, WSE };
 
 struct Device {
   Device() = default;

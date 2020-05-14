@@ -200,7 +200,7 @@ class ClusterResolver(object):
     idx = parts.index(name)
     return parts[idx + 1]
 
-  def __init__(self, tpu, vms=None, zone=None, project=None):
+  def __init__(self, tpu, vms=None, zone=None, project=None, cloud=True):
     """Creates a new ClusterResolver object."""
 
     if not tpu:
@@ -213,12 +213,13 @@ class ClusterResolver(object):
     self._vms = vms
     self._zone = zone
     self._project = project
+    self._cloud = cloud
 
     self._compute_service = discovery.build(
         'compute',
         'v1',
-        credentials=GoogleCredentials.get_application_default(),
-        cache_discovery=False)
+        credentials=GoogleCredentials.get_application_default()
+        cache_discovery=False) if cloud else None
 
     if project is None:
       self._project = self.get_instance_metadata('project/project-id')
@@ -229,6 +230,8 @@ class ClusterResolver(object):
 
   def _get_instance_group(self):
     """Gets the instance group that the current VM belongs to."""
+    if self._compute_service is None:
+      return None
     resp = self._compute_service.instances().get(
         project=self._project,
         zone=self._zone,

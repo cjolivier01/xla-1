@@ -186,16 +186,16 @@ void CompileWatcher::NotifyCompile(
     hash_t hash
 ) {
   if (IsWseRunReady(opaque)) {
-      {
-          ColorScope clr(Color::FG_GREEN);
-          std::cout << "SET FOR WSE COMPILE" << std::endl << std::flush;
-      }
-      const std::string wse_device = GetDevice();
-      assert(instances.size() == 1);
-      std::vector<std::string>& devices = instances[0].devices;
-      assert(std::find(devices.begin(), devices.end(), wse_device) == devices.end());
-      assert(devices.size() == 1);
-      devices[0] = GetDevice();
+//      {
+//          ColorScope clr(Color::FG_GREEN);
+//          std::cout << "SET FOR WSE COMPILE" << std::endl << std::flush;
+//      }
+//      const std::string wse_device = GetDevice();
+//      assert(instances.size() == 1);
+//      std::vector<std::string>& devices = instances[0].devices;
+//      assert(std::find(devices.begin(), devices.end(), wse_device) == devices.end());
+//      assert(devices.size() == 1);
+//      devices.push_back(GetDevice());
   } else if (!IsWseRunning(opaque)) {
     std::cout << "Compiling hash=" << hash << ENDL;
     assert(opaque != nullptr);
@@ -258,8 +258,10 @@ void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::
   //}
 }
 
-std::string CompileWatcher::GetDevice() {
-    return "CPU:1";  // TODO: work out code path for unrecognized device type
+Device CompileWatcher::GetDevice() {
+    //return "CPU:1";  // TODO: work out code path for unrecognized device type
+    //return "WSE:1";
+    return Device(DeviceType::WSE, 1);
 }
 
 void CompileWatcher::Reset(compiler_t opaque, bool reset_hash) {

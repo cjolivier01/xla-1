@@ -1,8 +1,9 @@
 import os
 import re
 
-# Load TensorFlow first in order to shared backends
-import tensorflow
+# if not int(os.environ.get("PTXLA_STANDALONE", 0)):
+#   # Load TensorFlow first in order to shared backends
+#   import tensorflow
 
 def _setup_grpc():
   # Setup GRPC options to correctly talk to TPU backends.

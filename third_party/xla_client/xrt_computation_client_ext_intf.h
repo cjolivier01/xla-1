@@ -108,6 +108,14 @@ typedef ptrdiff_t opaque_t;
 
 /**
  * Define interface
+ *
+ * This class is TEMPORARY until the XRT GRPC barrier is writting to behave similarly
+ * to the TPU XRT barrier (which has the same API that we need).  In the interest of POC,
+ * writing as an in-process callback atm.
+ * That's not to say that the GRPC callback won;t be in-process (it is for much of the XRT layer
+ * in most cases, such as what calls cpu_compiler.cc), but this will also keep us from
+ * needing to modify very much TensorFlow source code, since we aren't calling back from
+ * within the TF codebase once the GRPC XRT layer is implemented.
  */
 struct XrtComputationClientExternalInterface :
     public std::enable_shared_from_this<XrtComputationClientExternalInterface> {

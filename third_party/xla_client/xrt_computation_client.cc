@@ -296,7 +296,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
           if (i++) {
               std::cout << ", ";
           }
-          std::cout << t.shape << " ";
+          std::cout << t.shape << "@" << t.device << " ";
       }
       std::cout << ")" << std::endl << std::flush;
   }
@@ -412,9 +412,9 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
           if (i++) {
               std::cout << ", ";
           }
-          std::cout << dp->shape() << " ";
+          std::cout << dp->shape() << "@" << dp->device() << " ";
       }
-      std::cout << ")" << std::endl << std::flush;
+      std::cout << " )" << std::endl << std::flush;
   }
 
   metrics::TimedSection timed(TransferFromServerMetric());
@@ -979,10 +979,16 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
     auto computation_device = device_assignment->add_computation_devices();
     for (int64 i = 0; i < devices.size(); ++i) {
       const std::string& xrt_device = TorchDeviceToXrtDevice(devices[i]);
-      const auto& core_coords = GetDeviceMeshCoords(xrt_device);
+
+      std::cout << "replica device: " << xrt_device << std::endl << std::flush;
       auto replica_device = computation_device->add_replica_devices();
-      for (auto coord : core_coords) {
-        replica_device->add_value(coord);
+      if (xrt_device == "TPU") {
+          const auto &core_coords = GetDeviceMeshCoords(xrt_device);
+          for (auto coord : core_coords) {
+              replica_device->add_value(coord);
+          }
+      } else {
+          replica_device->add_value(i);  // WSE
       }
     }
     config->set_num_replicas(devices.size());
@@ -1247,11 +1253,14 @@ void XrtComputationClient::InitializeDevices(
   bool is_master = topology_proto == nullptr;
   if (is_master) {
     std::set<Worker> tpu_workers;
+    std::set<Worker> wse_workers;  // TODO: probably don't need this
     for (const auto& dev_target : options_.global_device_map) {
       tensorflow::DeviceNameUtils::ParsedName parsed_device =
           ParseFullXrtDevice(dev_target.second);
       if (parsed_device.type == "TPU") {
         tpu_workers.emplace(parsed_device.job, parsed_device.task);
+      } else if (parsed_device.type == "XLA_WSE") {
+        wse_workers.emplace(parsed_device.job, parsed_device.task);
       }
     }
     if (!tpu_workers.empty()) {
@@ -1262,11 +1271,12 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          InitializeAndFetchTopology(worker.name, worker.task_no, it->second,
-                                     session_cache_->GetConfig());
+          InitializeAndFetchTopology(
+              worker.name, worker.task_no, it->second,
+              session_cache_->GetConfig());
       if (topology_proto == nullptr) {
-        topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
-            std::move(worker_topology_proto));
+          topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
+              std::move(worker_topology_proto));
       }
     }
     if (topology_proto != nullptr) {
@@ -1778,7 +1788,6 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
 
 void XrtComputationClient::MaybeCreateLocalService(
     const XrtComputationClient::Options& options) {
-  HERE();
   static const std::string* const grpc_root =
       new std::string("grpc://localhost:");
   int task_index = -1;
