@@ -85,6 +85,7 @@ tf_cc_shared_object(
     }),
     visibility = ["//visibility:public"],
     deps = [
+        ":xla_client_runtime_hdrs",
         #"computation_client_impl",
         #"//tensorflow/compiler/xla:literal_util",
         #"//tensorflow/compiler/xla/client",
@@ -132,7 +133,8 @@ tf_cc_shared_object(
     }),
     visibility = ["//visibility:public"],
     deps = [
-        "computation_client_impl",
+        ":computation_client_impl",
+        ":xla_client_runtime_hdrs",
         "//tensorflow/compiler/xla:literal_util",
         "//tensorflow/compiler/xla/client",
         "//tensorflow/compiler/xla/client:global_data",
@@ -201,10 +203,10 @@ cc_library(
         "xla_util.h",
         "xrt_computation_client.h",
         "xrt_computation_client_wse.h",
-        "xrt_computation_client_ext_intf.h",
         "xrt_local_service.h",
         "xrt_session.h",
         "xrt_session_cache.h",
+        ":xla_client_runtime_hdrs",
     ],
     copts = [ "-ggdb3", "-O0" ],
     deps = [

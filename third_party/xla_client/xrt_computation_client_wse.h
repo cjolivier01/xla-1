@@ -39,8 +39,8 @@ public:
       absl::Span<const DataPtr> handles) override;
 
   // Compiles a set of computations.
-  std::vector<ComputationPtr> Compile(
-      std::vector<CompileInstance> instances) override;
+//  std::vector<ComputationPtr> Compile(
+//      std::vector<CompileInstance> instances) override;
 
   // Executes computation with arguments and returns the result.
   // The passed device must match the common device of the arguments Data.

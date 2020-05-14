@@ -6,6 +6,7 @@
 #include "tensorflow/core/protobuf/tpu/topology.pb.h"
 
 #include "tensorflow/compiler/tf2xla/xla_op_registry.h"
+#include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
 
 #include <stdexcept>
 #include <string>
@@ -64,6 +65,7 @@ void XrtComputationClientWse::SetExternalInterface(
 ) {
     if (!callback_interface_) {
         callback_interface_ = callback_interface->shared_from_this();
+        xla::wse::WseCompiler::SetCompilerCallback(callback_interface_);
     } else {
         if (callback_interface != callback_interface_) {
             throw std::runtime_error(
@@ -110,65 +112,65 @@ std::vector <Literal> XrtComputationClientWse::TransferFromServer(
 }
 
 // Compiles a set of computations.
-std::vector <ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
-    std::vector <CompileInstance> instances
-) {
-    std::set<std::size_t> index_of;
-    std::vector<ComputationClient::ComputationPtr> results;
-    results.reserve(instances.size());
-
-    size_t this_index = 0;
-    for (CompileInstance& instance : instances) {
-        bool is_registered_device = is_device(instance.compilation_device, "WSE");
-        if (is_registered_device) {
-            ColorScope clr(Color::FG_RED);
-            std::cout << "WSE DEVICE REQUESTED" << std::endl << std::flush;
-        }
-        // TODO: callback should be device registered
-        if (!is_registered_device) {
-            for (const std::string &device : instance.devices) {
-                is_registered_device = is_device(device, "WSE");
-                if (is_registered_device) {
-                    break;
-                }
-            }
-        }
-        if (is_registered_device) {
-            std::cout << "WSE DEVICE COMPILE" << std::endl << std::flush;
-            if (callback_interface_) {
-                const ptxla::ECompileResult comp_result = callback_interface_->OnCompile(
-                    GetOpaque(this),
-                    instance.computation.proto().id(),  // good enough or need hash from PTXLA layer?
-                    instance.computation.proto(),
-                    instance.devices,
-                    ptxla::ECS_BEFORE_COMPILE
-                );
-                if (comp_result == ptxla::ECR_ACCEPT) {
-                    assert(false);  // need to finish this
-                    // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
-                    ComputationClient::ComputationPtr computation_ptr =
-                        std::make_shared<ComputationClient::Computation>(
-                            XlaComputation(instance.computation.proto()),
-                            ProgramShape(instance.computation.proto().host_program_shape()),
-                            instance.devices
-                        );
-                    index_of.insert(this_index);
-                    results.push_back(computation_ptr);
-                } else {
-                    is_registered_device = false;
-                }
-            } else {
-                // TEMPORARY: defer
-//                std::cout << "Noc allback, deferring to CPU" << std::endl << std::flush;
-//                instance.compilation_device = "CPU:0";
-//                instance.devices[0] = "CPU:0";
-            }
-        } else {
-
-        }
-    }
-    return Super::Compile(std::move(instances));
-}
+//std::vector <ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
+//    std::vector <CompileInstance> instances
+//) {
+//    std::set<std::size_t> index_of;
+//    std::vector<ComputationClient::ComputationPtr> results;
+//    results.reserve(instances.size());
+//
+//    size_t this_index = 0;
+//    for (CompileInstance& instance : instances) {
+//        bool is_registered_device = is_device(instance.compilation_device, "WSE");
+//        if (is_registered_device) {
+//            ColorScope clr(Color::FG_RED);
+//            std::cout << "WSE DEVICE REQUESTED" << std::endl << std::flush;
+//        }
+//        // TODO: callback should be device registered
+//        if (!is_registered_device) {
+//            for (const std::string &device : instance.devices) {
+//                is_registered_device = is_device(device, "WSE");
+//                if (is_registered_device) {
+//                    break;
+//                }
+//            }
+//        }
+//        if (is_registered_device) {
+//            std::cout << "WSE DEVICE COMPILE" << std::endl << std::flush;
+//            if (callback_interface_) {
+//                const ptxla::ECompileResult comp_result = callback_interface_->OnCompile(
+//                    GetOpaque(this),
+//                    instance.computation.proto().id(),  // good enough or need hash from PTXLA layer?
+//                    instance.computation.proto(),
+//                    instance.devices,
+//                    ptxla::ECS_BEFORE_COMPILE
+//                );
+//                if (comp_result == ptxla::ECR_ACCEPT) {
+//                    assert(false);  // need to finish this
+//                    // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
+//                    ComputationClient::ComputationPtr computation_ptr =
+//                        std::make_shared<ComputationClient::Computation>(
+//                            XlaComputation(instance.computation.proto()),
+//                            ProgramShape(instance.computation.proto().host_program_shape()),
+//                            instance.devices
+//                        );
+//                    index_of.insert(this_index);
+//                    results.push_back(computation_ptr);
+//                } else {
+//                    is_registered_device = false;
+//                }
+//            } else {
+//                // TEMPORARY: defer
+////                std::cout << "Noc allback, deferring to CPU" << std::endl << std::flush;
+////                instance.compilation_device = "CPU:0";
+////                instance.devices[0] = "CPU:0";
+//            }
+//        } else {
+//
+//        }
+//    }
+//    return Super::Compile(std::move(instances));
+//}
 
 // Executes computation with arguments and returns the result.
 // The passed device must match the common device of the arguments Data.
