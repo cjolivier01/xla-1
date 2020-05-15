@@ -369,14 +369,6 @@ void CompileWatcher::SetInputsOutputs(compiler_t opaque,
   }
 }
 
-void CompileWatcher::CompileCacheHit(hash_t hash) {
-
-}
-
-void CompileWatcher::CompileCacheMiss(hash_t hash) {
-
-}
-
 std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
     compiler_t opaque,
     hash_t hash,

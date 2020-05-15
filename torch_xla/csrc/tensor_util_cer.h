@@ -92,8 +92,6 @@ public:
   static bool IsWseRunReady(compiler_t opaque, hash_t hash);
   static bool IsWseRunReady(compiler_t opaque);
   static bool IsWseRunning(compiler_t opaque);
-  static void CompileCacheHit(hash_t hash);
-  static void CompileCacheMiss(hash_t hash);
   static bool IsAllowedOutput(compiler_t opaque, XLATensor tensor);
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,

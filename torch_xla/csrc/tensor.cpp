@@ -62,14 +62,6 @@ struct TlsData {
 
 thread_local TlsData g_tls_data;
 
-bool is_wse_ready() {
-  return CompileWatcher::IsWseRunReady(xla::ComputationClient::Get());
-}
-
-bool is_wse_running() {
-  return CompileWatcher::IsWseRunning(xla::ComputationClient::Get());
-}
-
 // Locking:
 // We perform two kinds of operations of tensors, synchronous and asynchronous.
 // The ApplyPendingGraph() are synchronous, as we need the device data result
@@ -1450,11 +1442,11 @@ XLATensor::CompilationResult XLATensor::Compile(
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
 
-  CompileWatcher::NotifyCompile(
-      xla::ComputationClient::Get(),
-      instances,
-      coll.hash
-  );
+//  CompileWatcher::NotifyCompile(
+//      xla::ComputationClient::Get(),
+//      instances,
+//      coll.hash
+//  );
 
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
       computations =
@@ -1490,12 +1482,12 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   CompilationResult compile_result;
 
   // TEMPORARY HACK TO FORCE ON DEVICE AND STILL DO THE CPU VERSION
-  if (devices.empty() && CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
-      Device wse_device = CompileWatcher::GetDevice();
-      compile_result = Compile(*tensors, devices, coll, &wse_device);
-  } else {
-      //compile_result = Compile(*tensors, devices, coll);
-  }
+//  if (devices.empty() && CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
+//      Device wse_device = CompileWatcher::GetDevice();
+//      compile_result = Compile(*tensors, devices, coll, &wse_device);
+//  } else {
+//      //compile_result = Compile(*tensors, devices, coll);
+//  }
   compile_result = Compile(*tensors, devices, coll, nullptr);
 
   XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
