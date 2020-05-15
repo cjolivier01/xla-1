@@ -411,9 +411,6 @@ XLATensor XLATensor::Create(const at::Tensor& tensor, const Device& device) {
   XLA_CHECK_EQ(tensor.device().type(), at::kCPU);
   XLATensor xtensor(tensor, device);
   DeviceContextArena::Get()->RegisterTensor(xtensor.data_ptr());
-  if (is_autograd_thread()) {
-    print_tensor("Autograd creating XLATensor", xtensor);
-  }
   return xtensor;
 }
 
@@ -595,8 +592,6 @@ void XLATensor::SetXlaData(xla::ComputationClient::DataPtr xla_data,
 }
 
 void XLATensor::SetIrValue(ir::Value ir_value) {
-  if (is_wse_running()) {
-  }
   data()->xla_data = nullptr;
   data()->tensor_data = c10::nullopt;
   if (data()->view != nullptr) {
@@ -951,7 +946,6 @@ std::vector<XLATensor> XLATensor::MakeOutputTensors(ir::NodePtr node) const {
 
 XLATensor XLATensor::CopyTensorToDevice(const Device& device) {
   // TODO: This can be optimized via proper XRT/XLA computation.
-  HERE();
   return Create(ToTensor(), device);
 }
 
@@ -1104,10 +1098,8 @@ std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
   ComputationCache::TypePtr cached_computation = LookupCachedCompile(
       *tensors, coll->hash, coll->indices, &parameters_data);
   if (cached_computation == nullptr) {
-    CompileWatcher::CompileCacheMiss(coll->hash);
     return nullptr;
   }
-  CompileWatcher::CompileCacheHit(coll->hash);
   return ScheduleSyncTensorsGraph(tensors, coll, std::move(parameters_data),
                                   coll->device, std::move(cached_computation));
 }
@@ -1122,7 +1114,6 @@ XLATensor::ComputationCache* XLATensor::GetComputationCache() {
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
     const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices,
     size_t* graph_size) {
-  //print_all_tensors("FetchParameters", tensors);
   std::vector<const ir::Node*> roots;
   roots.reserve(indices.size());
   for (auto index : indices) {
@@ -1159,7 +1150,6 @@ std::vector<ir::Value> XLATensor::CollectRoots(
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchTensorData(
     std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
     absl::Span<const size_t> indices) {
-  //print_all_tensors("FetchTensorData", *tensors);
   std::vector<xla::ComputationClient::DataPtr> tensors_data;
   tensors_data.reserve(indices.size());
   for (auto index : indices) {
@@ -1456,6 +1446,7 @@ XLATensor::CompilationResult XLATensor::Compile(
                        xla::ComputationClient::Get()->GetCompilationDevices(
                            unique_device->ToString(), devices),
                        &shape});
+
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
 

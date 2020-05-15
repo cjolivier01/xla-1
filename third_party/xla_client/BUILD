@@ -245,7 +245,9 @@ cc_library(
         "//tensorflow/compiler/xla/client:xla_builder",
         "//tensorflow/core/platform/cloud:gcs_file_system",
 
-    ] + if_cuda_is_configured(["//tensorflow/compiler/jit:xla_gpu_device"]),
+    ] + if_cuda_is_configured([
+    "//tensorflow/compiler/jit:xla_gpu_device"
+    ]),
     alwayslink = 1,
     linkstatic = 1,
 )

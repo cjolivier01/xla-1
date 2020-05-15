@@ -9,7 +9,6 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "torch_xla/csrc/lowering_context.h"
-#include "tensorflow/core/util/util.h"
 
 namespace torch_xla {
 namespace ir {
@@ -263,8 +262,7 @@ std::vector<SourceLocation> Node::GetFrameInfo() {
   // At the time of writing, retrieving Python frames costs from 1us up to 20us.
   // This per IR Node. Since it is not unreasonable to have a many hundreds of
   // IR Node, this can be a multi-millisecond cost, which is not negligible.
-  //static bool wants_frames = xla::sys_util::GetEnvBool("XLA_IR_DEBUG", false);
-  static bool wants_frames = true;
+  static bool wants_frames = xla::sys_util::GetEnvBool("XLA_IR_DEBUG", false);
   return wants_frames ? GetPythonFrames() : std::vector<SourceLocation>();
 }
 
