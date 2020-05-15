@@ -457,9 +457,43 @@ void RemoveTfFile(const std::string& path) {
   XLA_CHECK_OK(env->DeleteFile(path));
 }
 
+//void test_python() {
+//    //pybind11::module sys = pybind11::module::import("sys");
+//    //pybind11::print(sys.attr("path"));
+//    //Py_Initialize();
+//    //PyEval_InitThreads();
+//
+//
+//    PyGILState_STATE gstate;
+//
+//    /* aquire python thread */
+//    gstate = PyGILState_Ensure();
+//
+//    //...access python objects...
+//
+//    PyRun_SimpleString ("import sys; sys.path.insert(0, '/cb/toolchains/buildroot/monolith-tf/202005071849-2-6df3f4e4/rootfs-tf-x86_64/usr/lib/python3.7/site-packages/')");
+//    PyObject * pModule = NULL;
+//    PyObject * pFunc   = NULL;
+//
+//    pModule = PyImport_ImportModule("sys");
+//    pFunc   = PyObject_GetAttrString(pModule, "Hello");
+//    if(pFunc != NULL) {
+//        PyEval_CallObject(pFunc, NULL);
+//        Py_Finalize();
+//    }
+//    else {
+//        printf("pFunc returned NULL\n");
+//    }
+//    /* release python thread */
+//    PyGILState_Release(gstate);
+//}
+
+
 void InitXlaModuleBindings(py::module m) {
   m.def("_initialize_aten_bindings",
-        []() { AtenXlaType::InitializeAtenBindings(); });
+        []() { AtenXlaType::InitializeAtenBindings();
+          //test_python();
+});
   m.def("_get_git_revs", []() { return GetRevisions(); });
   m.def("_get_xla_tensor_dimension_size",
         [](const at::Tensor& tensor, int dim) {

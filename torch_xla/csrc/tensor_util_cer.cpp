@@ -8,6 +8,10 @@
 #include <string>
 #include <stack>
 #include <mutex>
+#include <Python.h>
+
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
 
 /**
  * Most of this can eventually move to monolith
@@ -174,6 +178,37 @@ std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
 const size_t MARK_STEPS_TILL_COMPILE = 3;
 const size_t RUNS_TILL_COMPILE = 3;
 
+void test_python() {
+    //pybind11::module sys = pybind11::module::import("sys");
+    //pybind11::print(sys.attr("path"));
+    //Py_Initialize();
+    //PyEval_InitThreads();
+
+
+    PyGILState_STATE gstate;
+
+    /* aquire python thread */
+    gstate = PyGILState_Ensure();
+
+    //...access python objects...
+
+    PyRun_SimpleString ("import sys; sys.path.insert(0, '/cb/toolchains/buildroot/monolith-tf/202005071849-2-6df3f4e4/rootfs-tf-x86_64/usr/lib/python3.7/site-packages/')");
+    PyObject * pModule = NULL;
+    PyObject * pFunc   = NULL;
+
+    pModule = PyImport_ImportModule("sys");
+    pFunc   = PyObject_GetAttrString(pModule, "Hello");
+    if(pFunc != NULL) {
+        PyEval_CallObject(pFunc, NULL);
+        Py_Finalize();
+    }
+    else {
+        printf("pFunc returned NULL\n");
+    }
+    /* release python thread */
+    PyGILState_Release(gstate);
+}
+
 }  // namespace
 
 void CompileWatcher::SetLiveInterface(std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface) {
@@ -197,6 +232,9 @@ void CompileWatcher::NotifyCompile(
 //      assert(devices.size() == 1);
 //      devices.push_back(GetDevice());
   } else if (!IsWseRunning(opaque)) {
+
+      //test_python();
+
     std::cout << "Compiling hash=" << hash << ENDL;
     assert(opaque != nullptr);
     Reset(opaque);

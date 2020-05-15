@@ -1202,7 +1202,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       TF_VLOG(3) << "Executing IR graph hash " << hash << " on device "
                  << async->device << " ...";
       if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get(), hash)) {
-        CompileWatcher::WseExecute(xla::ComputationClient::Get(), hash, async);
+        //CompileWatcher::WseExecute(xla::ComputationClient::Get(), hash, async);
       } else {
         CompileWatcher::NotifyExecute(
             xla::ComputationClient::Get(),
