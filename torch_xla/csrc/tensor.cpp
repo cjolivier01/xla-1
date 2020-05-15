@@ -43,10 +43,10 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
+//#define WSE_REDIRECT
+
 namespace torch_xla {
 namespace {
-
-bool verbose = false;
 
 struct TlsData {
   ~TlsData() {
@@ -1394,11 +1394,16 @@ XLATensor::CompilationResult XLATensor::Compile(
     ir::Value ir_value = tensors[index].CurrentIrValue();
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
     lowering_ctx.AddResult(root);
+
+#ifdef WSE_REDIRECT
     if (!force_on_device) {
         unique_device.set(tensors[index].GetDevice());
     } else {
         unique_device.set(*force_on_device);
     }
+#else
+    unique_device.set(tensors[index].GetDevice());
+#endif  // WSE_REDIRECT
   }
   if (enable_aliasing && coll.config.force_xla_data) {
     // We can only alias at the step barrier, when force_xla_data is true.
@@ -1442,11 +1447,11 @@ XLATensor::CompilationResult XLATensor::Compile(
   TF_VLOG(3) << "Compiling IR graph hash " << coll.hash << " on device "
              << coll.device << " ...";
 
-//  CompileWatcher::NotifyCompile(
-//      xla::ComputationClient::Get(),
-//      instances,
-//      coll.hash
-//  );
+  CompileWatcher::NotifyCompile(
+      xla::ComputationClient::Get(),
+      instances,
+      coll.hash
+  );
 
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
       computations =
@@ -1482,13 +1487,12 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   CompilationResult compile_result;
 
   // TEMPORARY HACK TO FORCE ON DEVICE AND STILL DO THE CPU VERSION
-//  if (devices.empty() && CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
-//      Device wse_device = CompileWatcher::GetDevice();
-//      compile_result = Compile(*tensors, devices, coll, &wse_device);
-//  } else {
-//      //compile_result = Compile(*tensors, devices, coll);
-//  }
-  compile_result = Compile(*tensors, devices, coll, nullptr);
+  if (devices.empty() && CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
+      Device wse_device = CompileWatcher::GetDevice();
+      compile_result = Compile(*tensors, devices, coll, &wse_device);
+  } else {
+      compile_result = Compile(*tensors, devices, coll, nullptr);
+  }
 
   XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
   TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;
