@@ -57,6 +57,8 @@ include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
 include_directories(${TORCH_PATH}/torch/include)
 include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
 
+message(STATUS "ptxla CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
+
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fPIC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fwrapv ${CMAKE_CXX_FLAGS}")
