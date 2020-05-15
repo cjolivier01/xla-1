@@ -476,7 +476,6 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
 
 std::vector<ComputationClient::ComputationPtr> XrtComputationClient::Compile(
     std::vector<CompileInstance> instances) {
-  //HERE();
   metrics::TimedSection timed(CompileMetric());
 
   std::mutex lock;
@@ -578,7 +577,6 @@ std::vector<ComputationClient::DataPtr>
 XrtComputationClient::ExecuteComputation(
     const Computation& computation, absl::Span<const DataPtr> arguments,
     const std::string& device, const ExecuteComputationOptions& options) {
-  //HEREX();
   metrics::TimedSection timed(ExecuteMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -607,7 +605,6 @@ XrtComputationClient::ExecuteReplicated(
     const std::vector<std::vector<DataPtr>>& arguments,
     absl::Span<const std::string> devices,
     const ExecuteReplicatedOptions& options) {
-  HERE();
   metrics::TimedSection timed(ExecuteReplicatedMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -629,7 +626,6 @@ XrtComputationClient::RunComputations(
     absl::Span<const Computation* const> computations,
     absl::Span<const std::string> devices,
     const tensorflow::ClientSession::FeedType& feed_inputs) {
-  HERE();
   // In the PyTorch/XRT interface we keep a map (options_.workers_map) from a
   // worker+taskno, to the GRPC server which is the entry point for that worker.
   // Since XRT could re-distribute ops internally, if we have N hosts
@@ -692,7 +688,6 @@ XrtComputationClient::ExecuteParallel(
     const std::vector<std::vector<DataPtr>>& arguments,
     absl::Span<const std::string> devices,
     const ExecuteParallelOptions& options) {
-  HERE();
   metrics::TimedSection timed(ExecuteParallelMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -713,7 +708,6 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChained(
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChainedXrt(
     absl::Span<const ExecuteChainedOp> ops, const std::string& device) {
-  HERE();
   metrics::TimedSection timed(ExecuteChainedMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -796,7 +790,6 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChainedXrt(
 std::vector<ComputationClient::DataPtr>
 XrtComputationClient::ExecuteChainedSplit(
     absl::Span<const ExecuteChainedOp> ops, const std::string& device) {
-  HERE();
   metrics::TimedSection timed(ExecuteChainedMetric());
 
   std::vector<int64> uses(ops.size(), 0);
@@ -979,16 +972,10 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
     auto computation_device = device_assignment->add_computation_devices();
     for (int64 i = 0; i < devices.size(); ++i) {
       const std::string& xrt_device = TorchDeviceToXrtDevice(devices[i]);
-
-      std::cout << "replica device: " << xrt_device << std::endl << std::flush;
+      const auto& core_coords = GetDeviceMeshCoords(xrt_device);
       auto replica_device = computation_device->add_replica_devices();
-      if (xrt_device == "TPU") {
-          const auto &core_coords = GetDeviceMeshCoords(xrt_device);
-          for (auto coord : core_coords) {
-              replica_device->add_value(coord);
-          }
-      } else {
-          replica_device->add_value(i);  // WSE
+      for (auto coord : core_coords) {
+        replica_device->add_value(coord);
       }
     }
     config->set_num_replicas(devices.size());
