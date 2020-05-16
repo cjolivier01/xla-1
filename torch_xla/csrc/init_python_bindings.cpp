@@ -702,11 +702,7 @@ void InitXlaModuleBindings(py::module m) {
   });
   m.def("_xla_pop_python_state",
         []() {
-    return (int)PopPythonState();
-  });
-  m.def("_xla_get_python_state",
-        []() {
-    return (int)GetPythonState();
+    PopPythonState();
   });
   m.def("_xla_set_live_interface",
         [](ptrdiff_t p) {

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <sys/syscall.h>
+
 #include <stack>
+
 #include "torch_xla/csrc/tensor.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "third_party/xla_client/xrt_computation_client_ext_intf.h"
@@ -16,14 +19,11 @@ enum EPythonState {
 
 //extern std::stack<int> python_state_;
 
-EPythonState GetPythonState();
+EPythonState GetPythonState(pid_t tid);
 void PushPythonState(EPythonState state);
-EPythonState PopPythonState();
-
-extern std::atomic<size_t> active_parameter_count;
+void PopPythonState();
 
 template<typename CB>
-
 void XLATensor::print_tensors(const std::string& label, const std::vector<XLATensor>& tensors, CB cb) {
   std::vector<XLATensor> ats;
   for (const XLATensor& t : tensors) {
@@ -86,26 +86,45 @@ public:
   static void SetLiveInterface(
       std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface
   );
-  static void NotifyCompile(compiler_t opaque, std::vector<xla::ComputationClient::CompileInstance>& instances, hash_t hash);
-  static void NotifyExecute(compiler_t opaque, std::string& device, hash_t hash);
-  static void NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices);
-  static bool IsWseRunReady(compiler_t opaque, hash_t hash);
-  static bool IsWseRunReady(compiler_t opaque);
-  static bool IsWseRunning(compiler_t opaque);
-  static bool IsAllowedOutput(compiler_t opaque, XLATensor tensor);
+  static void NotifyCompile(
+    compiler_t opaque,
+    std::vector<xla::ComputationClient::CompileInstance>& instances,
+    hash_t hash,
+    pid_t tid
+  );
+  static void NotifyExecute(
+    compiler_t opaque,
+    std::string& device,
+    hash_t hash,
+    pid_t tid
+  );
+  static void NotifyStepMarker(
+    compiler_t opaque,
+    const std::vector<std::string>&
+    devices
+  );
+  static bool IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid);
+  static bool IsWseRunReady(compiler_t opaque, pid_t tid);
+  static bool IsWseRunning(compiler_t opaque, pid_t tid);
+  static bool IsAllowedOutput(compiler_t opaque, XLATensor tensor, pid_t tid);
   static void SetInputsOutputs(compiler_t opaque,
                                const std::vector<at::Tensor>& input_tensors,
                                const std::vector<at::Tensor>& output_tensors,
                                bool append);
-  static void ResetConsideredSyncOutputs(compiler_t opaque);
-  static std::vector<xla::ComputationClient::DataPtr> WseExecute(
-      compiler_t opaque,
-      hash_t hash,
-      std::shared_ptr<XLATensor::Async> async);
+  static void ResetConsideredSyncOutputs(compiler_t opaque, pid_t tid);
+//  static std::vector<xla::ComputationClient::DataPtr> WseExecute(
+//      compiler_t opaque,
+//      hash_t hash,
+//      std::shared_ptr<XLATensor::Async> async);
     //static std::string GetDevice();
     static Device GetDevice();
+    static bool IsTrainingThread(pid_t tid);
 private:
-  static void Reset(compiler_t opaque, bool reset_hash = true);
+  static void Reset(compiler_t opaque, pid_t tid, bool reset_hash);
 };
+
+inline pid_t gettid() {
+  return syscall(__NR_gettid);
+}
 
 }  // namespace torch_xla

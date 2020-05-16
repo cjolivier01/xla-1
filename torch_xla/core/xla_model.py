@@ -545,8 +545,7 @@ def in_train_loop():
   try:
     yield
   finally:
-    state = torch_xla._XLAC._xla_pop_python_state()
-    assert state == _PY_STATE_IN_TRAIN_LOOP
+    torch_xla._XLAC._xla_pop_python_state()
 
 
 @contextlib.contextmanager
@@ -559,8 +558,7 @@ def in_data_batch():
   try:
     yield
   finally:
-    state = torch_xla._XLAC._xla_pop_python_state()
-    assert state == _PY_STATE_IN_DATA_BATCH
+    torch_xla._XLAC._xla_pop_python_state()
 
 
 @contextlib.contextmanager
@@ -573,8 +571,7 @@ def in_optimizer_step():
   try:
     yield
   finally:
-    state = torch_xla._XLAC._xla_pop_python_state()
-    assert state == _PY_STATE_IN_OPTIMIZER_STEP
+    torch_xla._XLAC._xla_pop_python_state()
 
 
 @contextlib.contextmanager
@@ -587,5 +584,4 @@ def in_py_debug():
   try:
     yield
   finally:
-    state = torch_xla._XLAC._xla_pop_python_state()
-    assert state == _PY_STATE_IN_DEBUG
+    torch_xla._XLAC._xla_pop_python_state()

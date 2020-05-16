@@ -36,24 +36,26 @@ class HloMetadataSetter {
   }
 
   static void PopulateXlaOpMetadata(LoweringContext* loctx, const Node* node) {
-//    xla::OpMetadata metadata;
-//    metadata.set_op_type(node->op().ToString());
-//    const ir::MetaData& nmeta = node->metadata();
-//    if (!nmeta.scope.empty()) {
-//      metadata.set_op_name(nmeta.scope);
-//    }
-//    if (!nmeta.frame_info.empty()) {
-//      const SourceLocation& frame = nmeta.frame_info.front();
-//      std::string::size_type pos = frame.file.find_last_of('/');
-//      if (pos == std::string::npos) {
-//        pos = 0;
-//      } else {
-//        ++pos;
-//      }
-//      metadata.set_source_file(frame.function + "@" + frame.file.substr(pos));
-//      metadata.set_source_line(frame.line);
-//    }
-//    loctx->builder()->SetOpMetadata(std::move(metadata));
+    xla::OpMetadata metadata;
+    metadata.set_op_type(node->op().ToString());
+    const ir::MetaData& nmeta = node->metadata();
+    if (!nmeta.scope.empty()) {
+      metadata.set_op_name(nmeta.scope);
+    } else {
+      metadata.set_op_name(node->op().ToString());
+    }
+    if (!nmeta.frame_info.empty()) {
+      const SourceLocation& frame = nmeta.frame_info.front();
+      std::string::size_type pos = frame.file.find_last_of('/');
+      if (pos == std::string::npos) {
+        pos = 0;
+      } else {
+        ++pos;
+      }
+      metadata.set_source_file(frame.function + "@" + frame.file.substr(pos));
+      metadata.set_source_line(frame.line);
+    }
+    loctx->builder()->SetOpMetadata(std::move(metadata));
   }
 
   LoweringContext* loctx_ = nullptr;

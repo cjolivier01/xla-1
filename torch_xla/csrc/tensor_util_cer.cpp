@@ -123,22 +123,48 @@ void XLATensor::print_all_tensors(const std::string& label, const std::vector<XL
 
 struct SPythonState {
   std::stack<EPythonState> states;
+
+  void push(EPythonState new_state) {
+    std::lock_guard<std::mutex> lk(python_state_map_mtx);
+    python_state_map[gettid()].states.push(new_state);
+  }
+  void pop() {
+    std::lock_guard<std::mutex> lk(python_state_map_mtx);
+    const pid_t tid = gettid();
+    auto iter = python_state_map.find(tid);
+    assert(iter != python_state_map.end());
+    assert(!iter->second.states.empty());
+    iter->second.states.pop();
+    if (iter->second.states.empty()) {
+      python_state_map.erase(iter);
+    }
+  }
+  EPythonState get(pid_t tid) {
+    std::lock_guard<std::mutex> lk(python_state_map_mtx);
+    auto iter = python_state_map.find(tid);
+    if (iter != python_state_map.end()) {
+      assert(!iter->second.states.empty());
+      return iter->second.states.top();
+    }
+    return EPS_INVALID;
+  }
+
+private:
+  std::mutex python_state_map_mtx;
+  std::map<pid_t, SPythonState> python_state_map;
 };
+SPythonState python_state;
 
-static thread_local SPythonState python_state;
-
-EPythonState GetPythonState() {
-  return python_state.states.empty() ? EPS_INVALID : python_state.states.top();
+EPythonState GetPythonState(pid_t tid) {
+  return python_state.get(tid);
 }
 
 void PushPythonState(EPythonState state) {
-  python_state.states.push(state);
+  python_state.push(state);
 }
 
-EPythonState PopPythonState() {
-  const EPythonState current_state = GetPythonState();
-  python_state.states.pop();
-  return current_state;
+void PopPythonState() {
+  python_state.pop();
 }
 
 namespace {
@@ -164,9 +190,11 @@ struct CompileInfo {
 };
 
 std::mutex compile_info_map_mtx_;
-std::map<CompileWatcher::compiler_t, std::shared_ptr<CompileInfo>> compile_info_map;
+//std::map<CompileWatcher::compiler_t, std::shared_ptr<CompileInfo>> compile_info_map;
+std::map<pid_t, std::shared_ptr<CompileInfo>> compile_info_map;
 
-std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
+//std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
+std::shared_ptr<CompileInfo> GetCompileInfo(pid_t opaque) {
   std::lock_guard<std::mutex> lk(compile_info_map_mtx_);
   std::shared_ptr<CompileInfo> sp = compile_info_map[opaque];
   if (!sp) {
@@ -175,8 +203,8 @@ std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
   return std::move(sp);
 }
 
-const size_t MARK_STEPS_TILL_COMPILE = 3;
-const size_t RUNS_TILL_COMPILE = 3;
+const size_t MARK_STEPS_TILL_COMPILE = 15;
+const size_t RUNS_TILL_COMPILE = 15;
 
 void test_python() {
     //pybind11::module sys = pybind11::module::import("sys");
@@ -215,12 +243,20 @@ void CompileWatcher::SetLiveInterface(std::shared_ptr<xla::ptxla::XrtComputation
     xla::XrtComputationClientWse::SetExternalInterface(interface);
 }
 
+bool CompileWatcher::IsTrainingThread(pid_t tid) {
+  return GetPythonState(tid) == EPS_IN_TRAIN_LOOP;
+}
+
 void CompileWatcher::NotifyCompile(
     compiler_t opaque,
     std::vector<xla::ComputationClient::CompileInstance>& instances,
-    hash_t hash
+    hash_t hash,
+    pid_t tid
 ) {
-  if (IsWseRunReady(opaque)) {
+  if (!IsTrainingThread(tid)) {
+    return;
+  }
+  if (IsWseRunReady(opaque, tid)) {
 //      {
 //          ColorScope clr(Color::FG_GREEN);
 //          std::cout << "SET FOR WSE COMPILE" << std::endl << std::flush;
@@ -231,23 +267,26 @@ void CompileWatcher::NotifyCompile(
 //      assert(std::find(devices.begin(), devices.end(), wse_device) == devices.end());
 //      assert(devices.size() == 1);
 //      devices.push_back(GetDevice());
-  } else if (!IsWseRunning(opaque)) {
+  } else if (!IsWseRunning(opaque, tid)) {
 
       //test_python();
 
     std::cout << "Compiling hash=" << hash << ENDL;
     assert(opaque != nullptr);
-    Reset(opaque);
-    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-    compile_info->python_state_ = GetPythonState();
+    Reset(opaque, tid, true);
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+    compile_info->python_state_ = GetPythonState(tid);
     compile_info->set_hash(hash);
   } else {
     std::cout << "COMPILING WHILE RUNNING" << std::endl << std::flush;
   }
 }
 
-void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_t hash) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_t hash, pid_t tid) {
+  if (!IsTrainingThread(tid)) {
+    return;
+  }
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   bool new_hash = false;
   if (!compile_info->hash_.get()) {
       compile_info->set_hash(hash);
@@ -255,26 +294,33 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
   }
   if (opaque == compile_info->last_opaque_ &&
       compile_info->hash_.get() && hash == *compile_info->hash_) {
-      // Here we can determine if more runs than steps are occuring
-      if (compile_info->run_count_++ == RUNS_TILL_COMPILE) {
-          if (compile_info->run_count_ <= compile_info->mark_steps_since_reset_) {
-              ColorScope clr(Color::FG_RED);
-              // TODO: Should also have a check that everything required is available,
-              //  like grads and whatnot in the live tensors.
-              //  Maybe even inspect the proposed HLO graph for compatibility.
-              std::cout << "**** ELIGIBLE FOR WSE COMPILE ****"
-                        << ", hash=" << hash << ", device=" << device << ENDL;
-          } else {
-              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_
-                        << ", hash=" << hash << ", device=" << device << std::endl << std::flush;
-          }
+    // Here we can determine if more runs than steps are occuring
+    if (compile_info->run_count_++ == RUNS_TILL_COMPILE) {
+      if (compile_info->run_count_ <= compile_info->mark_steps_since_reset_) {
+        ColorScope clr(Color::FG_GREEN);
+        // TODO: Should also have a check that everything required is available,
+        //  like grads and whatnot in the live tensors.
+        //  Maybe even inspect the proposed HLO graph for compatibility.
+        std::cout << "**** ELIGIBLE FOR WSE COMPILE ****"
+                  << ", hash=" << hash << ", device=" << device << ENDL;
       } else {
+        // THIS COULD BE ASYNC
+//              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_
+//                        << ", hash=" << hash << ", device=" << device << std::endl << std::flush;
+      }
+    } else {
 //          if (!IsWseRunning(opaque)) {
 //              std::cout << "REPEAT RUN " << compile_info->run_count_
 //                        << ", hash=" << hash << std::endl << std::flush;
 //          }
-      }
+    }
+  } else if(IsWseRunReady(opaque, tid)) {
+    // Set new hash since this is WSE version of the same graph
+    ColorScope clr(Color::FG_BLUE);
+    std::cout << "Resetting hash to WSE's compile" << std::endl << std::flush;
+    compile_info->set_hash(hash);
   } else {
+    ColorScope clr(Color::FG_RED);
     if (!compile_info->hash_.get()) {
       // TODO: need to recognize ineligible (i.e. dataset fetch) vis python scope check
       std::cout << "No hash" << std::endl;
@@ -282,16 +328,21 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
     std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_.load()
               << ", hash " << *compile_info->hash_ << " -> " << hash
               << ", device=" << device << std::endl << std::flush;
-    Reset(opaque, !new_hash);
+    Reset(opaque, !new_hash, tid);
   }
 }
 
 void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  const pid_t tid = gettid();
+  assert(IsTrainingThread(tid));
+  if (!IsTrainingThread(tid)) {
+    return;
+  }
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   //if (!compile_info->output_ids_.empty()) {
     const size_t total_steps = ++compile_info->mark_step_;
     const size_t steps_since_reset = ++compile_info->mark_steps_since_reset_;
-    ColorScope clr(IsWseRunning(opaque) ? Color::FG_YELLOW : Color::FG_WHITE);
+    ColorScope clr(IsWseRunning(opaque, gettid()) ? Color::FG_YELLOW : Color::FG_WHITE);
     std::cout << "Mark step: " << steps_since_reset << "/" << total_steps << std::endl << std::flush;
   //}
 }
@@ -302,8 +353,12 @@ Device CompileWatcher::GetDevice() {
     return Device(DeviceType::WSE, 1);
 }
 
-void CompileWatcher::Reset(compiler_t opaque, bool reset_hash) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+void CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
+  if(!IsTrainingThread(tid)) {
+    EPythonState state = GetPythonState(tid);
+    assert(state == EPS_IN_TRAIN_LOOP);
+  }
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   assert(compile_info->last_opaque_ == nullptr || compile_info->last_opaque_ == opaque);
   compile_info->last_opaque_ = opaque;
   compile_info->run_count_ = 0;
@@ -318,20 +373,29 @@ void CompileWatcher::Reset(compiler_t opaque, bool reset_hash) {
 }
 
 // TODO: This should be based on the computation cache hash value
-bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash) {
-  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid) {
+  if (!IsTrainingThread(tid)) {
+    return false;
+  }
+  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   return compile_info->run_count_ == RUNS_TILL_COMPILE &&
       compile_info->hash_.get() &&
       *compile_info->hash_ == hash;
 }
 
-bool CompileWatcher::IsWseRunReady(compiler_t opaque) {
-  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+bool CompileWatcher::IsWseRunReady(compiler_t opaque, pid_t tid) {
+  if (!IsTrainingThread(tid)) {
+    return false;
+  }
+  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   return compile_info->run_count_ == RUNS_TILL_COMPILE;
 }
 
-bool CompileWatcher::IsWseRunning(compiler_t opaque) {
-  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+bool CompileWatcher::IsWseRunning(compiler_t opaque, pid_t tid) {
+  if (!IsTrainingThread(tid)) {
+    return false;
+  }
+  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   return compile_info->run_count_ >= RUNS_TILL_COMPILE;
 }
 
@@ -339,7 +403,9 @@ void CompileWatcher::SetInputsOutputs(compiler_t opaque,
                                       const std::vector<at::Tensor>& input_tensors,
                                       const std::vector<at::Tensor>& output_tensors,
                                       bool append) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+  const pid_t tid = gettid();
+  assert(IsTrainingThread(tid));
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
 //  if (!append || !compile_info->input_tensors_) {
 //      compile_info->input_tensors_ = std::make_shared<std::vector<at::Tensor>>(input_tensors);
 //  }
@@ -369,20 +435,20 @@ void CompileWatcher::SetInputsOutputs(compiler_t opaque,
   }
 }
 
-std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
-    compiler_t opaque,
-    hash_t hash,
-    std::shared_ptr<XLATensor::Async> async) {
-}
+//std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
+//    compiler_t opaque,
+//    hash_t hash,
+//    std::shared_ptr<XLATensor::Async> async) {
+//}
 
-void CompileWatcher::ResetConsideredSyncOutputs(compiler_t opaque) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
+void CompileWatcher::ResetConsideredSyncOutputs(compiler_t opaque, pid_t tid) {
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   compile_info->removed_outputs_.reset();
 }
 
-bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(opaque);
-  if (!IsWseRunning(opaque)) {
+bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor, pid_t tid) {
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+  if (!IsWseRunning(opaque, tid)) {
     return true;
   }
   if (compile_info->output_ids_.empty()) {

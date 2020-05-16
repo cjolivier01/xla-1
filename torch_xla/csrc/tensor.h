@@ -70,6 +70,8 @@ class XLATensor {
   const Device& GetDevice() const;
   xla::int64 GetUniqueId() const;
 
+  void SetDevice(const std::string& device);
+
   // Retrieves an opaque ID of the alias object upon which the tensor's view is
   // rooted, or 0 if this tensor is not a view.
   std::ptrdiff_t GetViewAliasId() const;
@@ -1038,12 +1040,8 @@ class XLATensor {
     size_t hash = 0;
     std::vector<xla::util::ExceptionCleanup> unlocker;
     std::string device;
-//    SyncTensorCollection() {
-//      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
-//    }
-//    ~SyncTensorCollection() {
-//      std::cout << "SyncTensorCollection::SyncTensorCollection()" << std::endl;
-//    }
+    // Save the thread that is requesting
+    pid_t requesting_tid = gettid();
   };
 
   struct CompilationResult {
@@ -1117,7 +1115,7 @@ class XLATensor {
     std::shared_ptr<View> view;
     c10::optional<at::ScalarType> logical_element_type;
     c10::optional<at::Tensor> tensor_data;
-    const Device device;
+    Device device;
     const xla::int64 unique_id = 0;
     size_t generation = 1;
     std::string tensor_type;  // cjolivier01@ currently unused

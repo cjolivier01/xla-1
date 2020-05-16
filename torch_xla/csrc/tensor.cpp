@@ -496,6 +496,25 @@ xla::Shape XLATensor::shape_with_layout() const {
 
 const Device& XLATensor::GetDevice() const { return data()->device; }
 
+void XLATensor::SetDevice(const std::string& device) {
+  const Device new_device(device);
+//  auto prev_data = data();
+  if (data()->device != new_device) {
+//    std::shared_ptr<Data> new_data = std::make_shared<Data>(
+//      prev_data->ir_value,
+//      new_device,
+//      prev_data->logical_element_type
+//    );
+//    data()->device = new_device;
+    //data()->xla_data.reset();
+//    new_data->view = prev_data->view;
+//    new_data->tensor_data = prev_data->tensor_data;
+//    new_data->generation = prev_data->generation;
+
+//    data_ = new_data;
+  }
+}
+
 xla::int64 XLATensor::GetUniqueId() const { return data()->unique_id; }
 
 std::ptrdiff_t XLATensor::GetViewAliasId() const {
@@ -655,8 +674,8 @@ c10::optional<at::Tensor> XLATensor::CurrentTensorData() const {
     return c10::nullopt;
   }
   return data()->tensor_data;
-}
 
+}
 ir::Value XLATensor::GetIrValueForTensor(const at::Tensor& tensor,
                                          const Device& device) const {
   xla::ComputationClient::DataPtr data;
@@ -1008,13 +1027,13 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
   }
   TF_VLOG(4) << "Waiting on device barrier for device " << coll.device
              << " done!";
-  CompileWatcher::ResetConsideredSyncOutputs(xla::ComputationClient::Get());
+  CompileWatcher::ResetConsideredSyncOutputs(xla::ComputationClient::Get(), coll.requesting_tid);
   for (size_t i = 0; i < tensors.size(); ++i) {
     if (tensors[i].CurrentXlaData() == nullptr) {
       ir::Value ir_value = tensors[i].CurrentIrValue();
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
-          if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), tensors[i])) {
+          if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), tensors[i], coll.requesting_tid)) {
             static int message_count = 0;
             if (!message_count++) {
                 print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor (one message only)", tensors[i]);
@@ -1178,20 +1197,17 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       coll, std::move(parameters_data), std::move(tensors_data),
       std::move(cached_computation));
 
-  auto syncfn = [async, hash = coll->hash]() {
+  auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
       TF_VLOG(3) << "Executing IR graph hash " << hash << " on device "
                  << async->device << " ...";
-      if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get(), hash)) {
-        //CompileWatcher::WseExecute(xla::ComputationClient::Get(), hash, async);
-      } else {
-        CompileWatcher::NotifyExecute(
-            xla::ComputationClient::Get(),
-            async->device,
-            hash
-        );
-      }
+      CompileWatcher::NotifyExecute(
+          xla::ComputationClient::Get(),
+          async->device,
+          hash,
+          requesting_tid
+      );
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
           *async->cached_computation->computation, async->parameters_data,
           async->device, options);
@@ -1346,6 +1362,7 @@ XLATensor::OpByOpAsync XLATensor::SyncTensorsGraphOpByOp(
   return async_op.Schedule();
 }
 
+
 void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
                                         absl::Span<const size_t> indices,
                                         ir::LoweringContext* lowering_ctx) {
@@ -1372,6 +1389,8 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;
 
+          std::cout << "Aliased paramter " << i << " with output "
+                     << output_index << ": " << parameters_data[i]->shape();
           TF_VLOG(6) << "Aliased paramter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
         }
@@ -1392,6 +1411,13 @@ XLATensor::CompilationResult XLATensor::Compile(
   ir::LoweringContext lowering_ctx("SyncTensorsGraph");
   for (auto index : coll.indices) {
     ir::Value ir_value = tensors[index].CurrentIrValue();
+#ifdef WSE_REDIRECT
+    if (force_on_device) {
+      std::cout << "Forcing to device: " << force_on_device->ToString()
+                << ir_value.shape() << std::endl << std::flush;
+      const_cast<XLATensor *>(&tensors[index])->SetDevice(force_on_device->ToString());
+    }
+#endif
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
     lowering_ctx.AddResult(root);
 
@@ -1438,6 +1464,7 @@ XLATensor::CompilationResult XLATensor::Compile(
   xla::Shape shape =
       MakeShapeWithDeviceLayout(program_shape.result(), unique_device->hw_type);
 
+
   std::vector<xla::ComputationClient::CompileInstance> instances;
   instances.push_back({std::move(computation), unique_device->ToString(),
                        xla::ComputationClient::Get()->GetCompilationDevices(
@@ -1450,7 +1477,8 @@ XLATensor::CompilationResult XLATensor::Compile(
   CompileWatcher::NotifyCompile(
       xla::ComputationClient::Get(),
       instances,
-      coll.hash
+      coll.hash,
+      coll.requesting_tid
   );
 
   std::vector<std::shared_ptr<xla::ComputationClient::Computation>>
@@ -1479,23 +1507,33 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
                                   &coll.indices);
 
-  std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll);
-  if (async != nullptr) {
-    return async;
-  }
-
   CompilationResult compile_result;
 
-  // TEMPORARY HACK TO FORCE ON DEVICE AND STILL DO THE CPU VERSION
-  if (devices.empty() && CompileWatcher::IsWseRunReady(xla::ComputationClient::Get())) {
+#ifdef WSE_REDIRECT  // TODO: WSE as separate device
+  if (CompileWatcher::IsWseRunReady(xla::ComputationClient::Get(), coll.requesting_tid)) {
+    std::vector<xla::ComputationClient::DataPtr> parameters_data;
+    XLATensor::ComputationCache::TypePtr cached_computation =
+      LookupCachedCompile(*tensors, coll.hash, coll.indices, &parameters_data);
+    if (cached_computation) {
+      // Force recompile
       Device wse_device = CompileWatcher::GetDevice();
       compile_result = Compile(*tensors, devices, coll, &wse_device);
-  } else {
-      compile_result = Compile(*tensors, devices, coll, nullptr);
+    }
+  }
+#endif  // WSE_REDIRECT
+
+  if (!compile_result.computation) {
+    std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll);
+    if (async != nullptr) {
+      return async;
+    }
+
+    compile_result = Compile(*tensors, devices, coll, nullptr);
   }
 
   XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
   TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;
+
 
   auto cached_computation = std::make_shared<CachedComputation>(
       std::move(compile_result.computation),
