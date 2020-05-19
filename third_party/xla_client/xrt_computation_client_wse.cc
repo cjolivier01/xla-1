@@ -227,7 +227,7 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
   }
   //std::cout << std::endl << std::flush;
 
-  if (!wse_device_str.empty()) {
+  if (false && !wse_device_str.empty()) {
     std::vector<ComputationClient::DataPtr> result;
     for (DataPtr dp : arguments) {
       std::cout << "argument: " << dp->shape() << std::endl;

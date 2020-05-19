@@ -43,7 +43,7 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-#define WSE_REDIRECT
+//#define WSE_REDIRECT
 
 namespace torch_xla {
 namespace {
@@ -500,6 +500,7 @@ void XLATensor::SetDevice(const std::string& device) {
   const Device new_device(device);
 //  auto prev_data = data();
   if (data()->device != new_device) {
+//    FetchTensorData();
 //    std::shared_ptr<Data> new_data = std::make_shared<Data>(
 //      prev_data->ir_value,
 //      new_device,

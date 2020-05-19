@@ -40,7 +40,7 @@ def get_xla_supported_devices(devkind=None, max_devices=None):
     The list of device strings.
   """
   xla_devices = torch_xla._XLAC._xla_get_devices()
-  devkind = devkind or ['TPU', 'GPU', 'CPU']
+  devkind = devkind or ['TPU', 'GPU', 'CPU', 'WSE']
   for kind in devkind:
     kind_devices = []
     for i, device in enumerate(xla_devices):

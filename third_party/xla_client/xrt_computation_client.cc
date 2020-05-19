@@ -932,9 +932,9 @@ XrtSession* XrtComputationClient::GetSessionForTarget(
 XrtSession* XrtComputationClient::GetSessionForXrtDevice(
     XrtSessionCache* cache, const std::string& xrt_device,
     XrtSessionCache::SessionMap* session_map) {
-  if (strstr(xrt_device.c_str(), "WSE") != 0) {
-    std::cout << "GetSessionForXrtDevice( " << xrt_device << ")" << std::endl << std::flush;
-  }
+//  if (strstr(xrt_device.c_str(), "WSE") != 0) {
+//    std::cout << "GetSessionForXrtDevice( " << xrt_device << ")" << std::endl << std::flush;
+//  }
   auto worker_hostport = GetWorkerForXrtDevice(xrt_device);
   return GetSessionForTarget(cache, worker_hostport.second, session_map);
 }
@@ -1363,8 +1363,8 @@ XrtComputationClient::GetComputationResults(
     const tensorflow::Tensor& xrt_result, const Shape& result_shape,
     const std::string& device) {
   std::vector<DataPtr> results;
+  std::cout << "result_shape: " << result_shape << ", output shape: " << xrt_result.shape().DebugString() << std::endl << std::flush;
   if (xrt_result.dims() == 1) {
-    std::cout << "result_shape: " << result_shape << ", output shape: " << xrt_result.shape().DebugString() << std::endl << std::flush;
     auto handles_vec = xrt_result.vec<int64>();
     for (int64 i = 0; i < handles_vec.size(); ++i) {
       auto hv = handles_vec(i);
