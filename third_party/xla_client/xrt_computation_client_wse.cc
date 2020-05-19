@@ -5,6 +5,10 @@
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
+#include "tensorflow/compiler/xla/literal.h"
+#include "tensorflow/compiler/xrt/xrt_state.h"
+#include "tensorflow/compiler/xrt/xrt_memory_manager.h"
+#include "tensorflow/core/lib/random/random.h"
 #include "tensorflow/core/util/util.h"
 
 #include "tensorflow/core/protobuf/tpu/topology.pb.h"
@@ -14,9 +18,17 @@
 #include "tensorflow/compiler/tf2xla/xla_op_registry.h"
 #include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
 
+#include "absl/types/span.h"
+
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+/**
+ * TODO: Non-TF-linking portions of this to be moved to
+ *       monolith-side after grpc boundary inserted
+ */
+using namespace tensorflow;
 
 namespace xla {
 namespace {
@@ -46,22 +58,96 @@ bool is_device(const std::string& found_device, const std::string& want_device) 
   return false;
 }
 
-struct TensorBuffer {
-  void allocate(size_t size) {
-    data_.reset(new char[size]);
-    size_ = size;
-  }
-  std::size_t size_;
-  std::unique_ptr<char[]> data_;
-};
+bool is_wse_device(const std::string& found_device) {
+  return is_device(found_device, "WSE");
+}
+
+bool is_wse_device(const XrtComputationClient::TensorSource& tensor_source) {
+  return is_wse_device(tensor_source.device);
+}
+
+bool is_wse_device(const XrtComputationClient::DataPtr& data_ptr) {
+  return is_wse_device(data_ptr->device());
+}
+
+
+//struct TensorBuffer {
+//  void allocate(size_t size) {
+//    data_.reset(new char[size]);
+//    size_ = size;
+//  }
+//  std::size_t size_;
+//  std::unique_ptr<char[]> data_;
+//};
 
 }  // namespace
 
+// Quick version of XRTMemoryManager until we can get on
+// the other side of a grpc boundary
+class XrtComputationClientWse::MemoryManager {
+  struct TensorDataEntry {
+    TensorDataEntry(
+      std::shared_ptr<tensorflow::Tensor> tensor,
+      bool has_data) : tensor_(tensor), has_data_(has_data) {}
+    std::shared_ptr<tensorflow::Tensor> tensor_;
+    bool has_data_;
+  };
+public:
+  bool IsIn(int64 handle) {
+    std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
+    return tensor_map_.count(handle) != 0;
+  }
+  int64 Register(std::shared_ptr<tensorflow::Tensor> tensor, bool has_data) {
+    assert(tensor.get());
+    int64 handle;
+    std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
+    while (true) {
+      handle = CreateUid();
+      if (tensor_map_.count(handle) == 0) {
+        tensor_map_.emplace(std::make_pair(
+          handle,
+          std::make_shared<TensorDataEntry>(std::move(tensor), has_data))
+        );
+        break;
+      }
+    }
+    return handle;
+  }
+  xla::Literal GetLiteral(int64 handle) {
+    assert(false);  // TransferFromServer
+    return xla::Literal();
+  }
+  std::shared_ptr<tensorflow::Tensor> Get(int64 handle) const {
+    std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
+    assert(tensor_map_.count(handle) != 0);
+    return tensor_map_.find(handle)->second->tensor_;
+  }
+  void  Free(int64 handle) {
+    std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
+    assert(tensor_map_.count(handle) != 0);
+    tensor_map_.erase(handle);
+  }
+private:
+
+  static int64 InvalidKey() { return 0; }
+  static int64 CreateUid() {
+    int64 uid;
+    do {
+      uid = random::New64() & INT64_MAX;
+    } while (uid == InvalidKey());
+    return -uid + 4;  // Change a little from what XRTMemoryManager generates
+  }
+
+  mutable std::mutex mem_buffers_mtx_;
+  std::unordered_map<int64, std::shared_ptr<TensorDataEntry>> tensor_map_;
+};
+
 XrtComputationClientWse::XrtComputationClientWse(
   Options options,
-  std::unique_ptr <tensorflow::tpu::TopologyProto> topology_proto
-) : XrtComputationClient(std::move(options), std::move(topology_proto)) {
-  setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
+  std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
+) : XrtComputationClient(std::move(options), std::move(topology_proto))
+  , memory_manager_(std::make_unique<XrtComputationClientWse::MemoryManager>()) {
+  ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
   std::cout << "CREATE XrtComputationClientWse" << ENDL;
   if (callback_interface_) {
     callback_interface_->OnCreate(GetOpaque(this));
@@ -90,8 +176,19 @@ void XrtComputationClientWse::SetExternalInterface(
   }
 }
 
+void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 handle) {
+  // is it a wse device?
+  assert(!is_wse_device(device));  // better if this is true, but think it's not?
+  // if it's true, then use it
+  if (memory_manager_->IsIn(handle)) {
+    memory_manager_->Free(handle);
+    return;
+  }
+}
+
 ComputationClient::DataPtr
 XrtComputationClientWse::CreateDataPlaceholder(std::string device, Shape shape) {
+  // In case we wish to create a special type ofd DataPtr
   return Super::CreateDataPlaceholder(device, shape);
 }
 
@@ -115,6 +212,47 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::TransferToServ
 std::vector <Literal> XrtComputationClientWse::TransferFromServer(
   absl::Span<const DataPtr> handles
 ) {
+  const bool has_wse_device = std::any_of(
+    handles.begin(),
+    handles.end(),
+    [](const DataPtr& d){return is_wse_device(d); }
+  );
+  if (!has_wse_device) {
+    return Super::TransferFromServer(handles);
+  }
+
+  // TODO: For checkpoints, need to recognize they're not normal outputs
+  //       (they actually will be the ones not filled in from the execute,
+  //       so that should be sufficient)
+  //       pull whole checkpoint and then put in the handle cache for any
+  //       subsequent fetches until the next execute
+  std::vector<Literal> results(handles.size());
+
+  std::vector<std::size_t> wse_indexes, other_indexes;
+  std::vector<xla::ComputationClient::DataPtr> other_handles;
+  wse_indexes.reserve(handles.size());
+  other_indexes.reserve(handles.size());
+  std::size_t index = 0;
+  for (const DataPtr data_ptr : handles) {
+    if (is_wse_device(data_ptr)) {
+      results[index] = memory_manager_->GetLiteral(data_ptr->GetOpaqueHandle());
+      wse_indexes.emplace_back(index);
+    } else {
+      other_indexes.emplace_back(index);
+      other_handles.emplace_back(data_ptr);
+    }
+    ++index;
+  }
+  if (!other_indexes.empty()) {
+    std::vector<Literal> other_results = Super::TransferFromServer(
+      other_handles
+    );
+    size_t i = 0;
+    for (Literal& literal : other_results) {
+      results[other_indexes[i]] = std::move(literal);
+      ++i;
+    }
+  }
 //    if (callback_interface_) {
 //        std::vector<ptxla::XDataPtr> x_handles;
 //        std::pair<ptxla::EIntent, std::vector<ptxla::XLiteral>> result =
@@ -123,7 +261,7 @@ std::vector <Literal> XrtComputationClientWse::TransferFromServer(
 //            return std::vector<Literal>();
 //        }
 //    }
-  return Super::TransferFromServer(handles);
+  return std::move(results);
 }
 
 // Compiles a set of computations.
@@ -136,7 +274,7 @@ std::vector <ComputationClient::ComputationPtr> XrtComputationClientWse::Compile
 
   size_t this_index = 0;
   for (CompileInstance& instance : instances) {
-    bool is_registered_device = is_device(instance.compilation_device, "WSE");
+    bool is_registered_device = is_wse_device(instance.compilation_device);
     if (is_registered_device) {
       ColorScope clr(Color::FG_RED);
       std::cout << "WSE DEVICE REQUESTED" << std::endl << std::flush;
@@ -144,7 +282,7 @@ std::vector <ComputationClient::ComputationPtr> XrtComputationClientWse::Compile
     // TODO: callback should be device registered
     if (!is_registered_device) {
       for (const std::string &device : instance.devices) {
-        is_registered_device = is_device(device, "WSE");
+        is_registered_device = is_wse_device(device);
         if (is_registered_device) {
           break;
         }
@@ -190,11 +328,18 @@ std::vector <ComputationClient::ComputationPtr> XrtComputationClientWse::Compile
   return Super::Compile(std::move(instances));
 }
 
+//void DataToXrtMemory() {
+//  ResourceMgr* rm;
+//  //tensorflow::ResourceMgr::
+//  RefPtr<XRTMemoryManager> xrt_memory_manager = XRTMemoryManager::Get(rm);
+//
+//}
+
 // Executes computation with arguments and returns the result.
 // The passed device must match the common device of the arguments Data.
 // If options.explode_tuple is true, the output tuple will be decomposed into
 // its single elements.
-std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputation(
+std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputation(
   const Computation &computation,
   absl::Span<const DataPtr> arguments,
   const std::string &device,
@@ -217,9 +362,9 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
   std::string wse_device_str;
   const std::vector<std::string> &devices = computation.devices();
   //std::cout << "devices: ";
-  for (const std::string this_device : devices) {
+  for (const std::string& this_device : devices) {
     //std::cout << device << ", ";
-    if (is_device(this_device, "WSE")) {
+    if (is_wse_device(this_device)) {
       assert(devices.size() == 1);  // What to do if not one? replicas?
       wse_device_str = this_device;
       break;
@@ -227,24 +372,24 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
   }
   //std::cout << std::endl << std::flush;
 
-  if (false && !wse_device_str.empty()) {
+  if (wse_device_str.empty()) {
     std::vector<ComputationClient::DataPtr> result;
-    for (DataPtr dp : arguments) {
-      std::cout << "argument: " << dp->shape() << std::endl;
-    }
-    assert(is_device(device, "WSE"));
-    std::cout << std::endl << std::flush;
+//    for (DataPtr dp : arguments) {
+//      std::cout << "argument: " << dp->shape() << std::endl;
+//    }
+//    assert(is_wse_device(device));
+//    std::cout << std::endl << std::flush;
 
-    std::cout << "program shape: " << computation.program_shape().ToString() << std::endl;
-    std::cout << "program shape result: " << computation.program_shape().result().ToString()
-              << std::endl;
+//    std::cout << "program shape: " << computation.program_shape().ToString() << std::endl;
+//    std::cout << "program shape result: " << computation.program_shape().result().ToString()
+//              << std::endl;
 
     const Shape &result_shape = computation.program_shape().result();
     if (result_shape.IsTuple()) {
       for (int i = 0, n = result_shape.tuple_shapes_size(); i < n; ++i) {
         const Shape &output_shape = result_shape.tuple_shapes(i);
-        std::cout << "Tuple index " << i << ": " << output_shape.ShortDebugString() << std::endl
-                  << std::flush;
+//        std::cout << "Tuple index " << i << ": " << output_shape.ShortDebugString() << std::endl
+//                  << std::flush;
       }
     } else {
       throw std::runtime_error("Expected result shape to be a tuple");
@@ -286,7 +431,7 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
           const xla::ComputationClient::TensorSource &source_tensor,
           void *dest_buffer, size_t dest_buffer_size
         ) {
-          std::cout << "dest buffer: " << dest_buffer << ", size=" << dest_buffer_size << ENDL;
+          //std::cout << "dest buffer: " << dest_buffer << ", size=" << dest_buffer_size << ENDL;
           memset(dest_buffer, i, dest_buffer_size);
 //          PopulateTensorBuffer(tensor, source_tensor.shape, dest_buffer,
 //                               dest_buffer_size, device);
@@ -317,7 +462,7 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
 
       //const Shape &output_shape = result_shape.tuple_shapes(j);
 
-      const bool debug_sync = true;
+      const bool debug_sync = false;
       std::mutex debug_sync_mutex;
 
       auto converter = [&, j]() {
@@ -327,11 +472,11 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
         std::cout << "locked in converter" << ENDL;
         std::string device = GetEffectiveDevice(wse_device_str);
         const std::string &xrt_device = TorchDeviceToXrtDevice(device);
-        tensorflow::Tensor tensor(
+        auto tensor_ptr = std::make_shared<tensorflow::Tensor>(
           GetTensorAllocator(),
           XlaTypeToDataType(tensors[j].shape.element_type()),
           MakeEquivalentTensorShape(tensors[j].shape));
-        auto tdata = tensor.tensor_data();
+        auto tdata = tensor_ptr->tensor_data();
         tensors[j].populate_fn(tensors[j], const_cast<char *>(tdata.data()), tdata.size());
         {
           std::lock_guard<std::mutex> slock(lock);
@@ -343,7 +488,7 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
             session->root()->WithDevice(xrt_device);
           const XrtSession::CachedNode &cached_node =
             GetAllocateNode(session, device_scope, device, tensors[j].shape);
-          session_work->feed_inputs.insert({cached_node.holders[0], tensor});
+          session_work->feed_inputs.insert({cached_node.holders[0], *tensor_ptr});
           session_work->outputs_handles.push_back(cached_node.outputs[0]);
           session_work->index_mapping.push_back(j);
 
@@ -352,9 +497,9 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
 
         results[j] = std::make_shared<XrtData>(
           this,
-          device,  // should be CPU device? main device in call parameters?
+          wse_device_str,  // should be CPU device? main device in call parameters?
           tensors[j].shape,
-          tensor.scalar<int64>()()
+          memory_manager_->Register(tensor_ptr, true)  // pretend it's real for now
         );
       };
       if (!debug_sync) {
@@ -364,31 +509,6 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
       }
     }
     mwait.Wait();
-
-//    mwait.Reset(session_work_map.size());
-//    std::vector<DataPtr> results(tensors.size());
-//    for (auto& session_session_work : session_work_map) {
-//      XrtSession* session = session_session_work.first;
-//      SessionWork* session_work = &session_session_work.second;
-//      auto runner = [&, session, session_work]() {
-//        std::vector<tensorflow::Tensor> outputs;
-//        XLA_CHECK_OK(session->session()->Run(
-//          session_work->feed_inputs, session_work->outputs_handles, &outputs));
-//        XLA_CHECK_EQ(outputs.size(), session_work->outputs_handles.size());
-//
-//        for (size_t i = 0; i < outputs.size(); ++i) {
-//          size_t li = session_work->index_mapping[i];
-//          results[li] = std::make_shared<XrtData>(
-//            this, GetEffectiveDevice(tensors[li].device), tensors[li].shape,
-//            outputs[i].scalar<int64>()());
-//        }
-//        CreateDataHandlesCounter()->AddValue(outputs.size());
-//      };
-//      env::ScheduleIoClosure(mwait.Completer(std::move(runner)));
-//    }
-//    mwait.Wait();
-
-
     return results;
   }
 

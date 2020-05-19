@@ -287,7 +287,7 @@ class XrtComputationClient : public ComputationClient {
   void ReleaseHandle(int64 handle, const std::string& device,
                      std::vector<DeviceHandle>* handles);
 
-  void ReleaseXrtData(const std::string& device, int64 handle);
+  virtual void ReleaseXrtData(const std::string& device, int64 handle);
 
   void ReleaseXrtComputation(const std::string& compilation_device,
                              int64 handle);

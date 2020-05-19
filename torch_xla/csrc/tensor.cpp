@@ -43,7 +43,7 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-//#define WSE_REDIRECT
+#define WSE_REDIRECT
 
 namespace torch_xla {
 namespace {
@@ -1392,8 +1392,8 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;
 
-          std::cout << "Aliased paramter " << i << " with output "
-                     << output_index << ": " << parameters_data[i]->shape();
+//          std::cout << "Aliased paramter " << i << " with output "
+//                     << output_index << ": " << parameters_data[i]->shape();
           TF_VLOG(6) << "Aliased paramter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
         }
