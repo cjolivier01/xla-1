@@ -42,6 +42,8 @@ message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(/home/chriso/src/ml_frameworks/pytorch_xla/third_party/tensorflow)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-genfiles)

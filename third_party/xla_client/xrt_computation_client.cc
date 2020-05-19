@@ -590,6 +590,9 @@ XrtComputationClient::ExecuteComputation(
   XrtSession* session =
       GetSessionForDevice(session_cache_.get(), effective_device, &session_map);
   std::vector<tensorflow::Tensor> outputs;
+
+  auto my_session = session->session();
+
   util::CheckComputationStatus(
       session->session()->Run(feed_inputs, {exec_ops.front()}, &outputs),
       {&computation.computation()}, {&computation.program_shape().result()});
@@ -925,6 +928,9 @@ XrtSession* XrtComputationClient::GetSessionForTarget(
 XrtSession* XrtComputationClient::GetSessionForXrtDevice(
     XrtSessionCache* cache, const std::string& xrt_device,
     XrtSessionCache::SessionMap* session_map) {
+  if (strstr(xrt_device.c_str(), "WSE") != 0) {
+    std::cout << "GetSessionForXrtDevice( " << xrt_device << ")" << std::endl << std::flush;
+  }
   auto worker_hostport = GetWorkerForXrtDevice(xrt_device);
   return GetSessionForTarget(cache, worker_hostport.second, session_map);
 }
@@ -1075,6 +1081,7 @@ void XrtComputationClient::ReleaseHandles(
         XrtSession*, const tensorflow::Scope&, const std::string&)>&
         op_generator,
     metrics::Metric* timed_metric, metrics::Counter* destroy_counter) {
+  HEREX();
   std::vector<DeviceHandle> released_handles;
   {
     std::lock_guard<std::mutex> lock(lock_);
@@ -1162,6 +1169,7 @@ void XrtComputationClient::ReleaseXrtData(const std::string& device,
 
 void XrtComputationClient::ReleaseXrtComputation(
     const std::string& compilation_device, int64 handle) {
+  HEREX();
   ReleaseHandle(handle, compilation_device, &released_compile_handles_);
   ReleaseCompileHandlesCounter()->AddValue(1);
 }
@@ -1171,6 +1179,9 @@ XrtComputationClient::GetWorkerForXrtDevice(
     const std::string& xrt_device) const {
   tensorflow::DeviceNameUtils::ParsedName parsed_device =
       ParseFullXrtDevice(xrt_device);
+  if (parsed_device.task != 0) {
+    std::cout << "Device task != 1: " << xrt_device << std::endl << std::flush;
+  }
   auto worker_hostport =
       options_.workers_map.find(Worker(parsed_device.job, parsed_device.task));
   XLA_CHECK(worker_hostport != options_.workers_map.end()) << xrt_device;
@@ -1195,6 +1206,7 @@ const std::vector<int>& XrtComputationClient::GetDeviceMeshCoords(
 tensorflow::tpu::TopologyProto XrtComputationClient::InitializeAndFetchTopology(
     const std::string& job, int task_no, const std::string& worker_host_port,
     const tensorflow::ConfigProto& config) {
+  HERE();
   tensorflow::SessionOptions session_options;
   session_options.env = tensorflow::Env::Default();
   session_options.target = worker_host_port;
@@ -1349,8 +1361,10 @@ XrtComputationClient::GetComputationResults(
     const std::string& device) {
   std::vector<DataPtr> results;
   if (xrt_result.dims() == 1) {
+    std::cout << "result_shape: " << result_shape << ", output shape: " << xrt_result.shape().DebugString() << std::endl << std::flush;
     auto handles_vec = xrt_result.vec<int64>();
     for (int64 i = 0; i < handles_vec.size(); ++i) {
+      auto hv = handles_vec(i);
       results.push_back(std::make_shared<XrtData>(
           this, device, ShapeUtil::GetTupleElementShape(result_shape, i),
           handles_vec(i)));
@@ -1365,6 +1379,9 @@ XrtComputationClient::GetComputationResults(
 
 std::string XrtComputationClient::GetResourceDomain(
     const std::string& device) const {
+  if (strncmp(device.c_str(), "WSE:", 4) == 0) {
+    return "wse:0;grpc://localhost:40934";
+  }
   return GetWorkerForDevice(device).second;
 }
 

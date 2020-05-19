@@ -43,7 +43,7 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-//#define WSE_REDIRECT
+#define WSE_REDIRECT
 
 namespace torch_xla {
 namespace {
@@ -1055,6 +1055,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
         at_tensors.push_back(*tensor_data);
         devices.push_back(tensors[i].GetDevice().ToString());
         at_tensor_index.push_back(i);
+        //print_tensor("CollectSyncTensors", tensors[i]);
       }
     }
   }
@@ -1215,6 +1216,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
                  << async->device << " done!";
 
       for (size_t i = 0; i < results.size(); ++i) {
+        std::cout << "ExecuteComputation result " << i << results[i]->shape() << std::endl << std::flush;
         if (async->tensors_data[i] != nullptr) {
           async->tensors_data[i]->Assign(*results[i]);
         } else {

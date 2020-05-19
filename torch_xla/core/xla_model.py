@@ -492,6 +492,10 @@ def save(data, file_or_path, master_only=True, global_master=False):
     torch.save(cpu_data, file_or_path)
   rendezvous('torch_xla.core.xla_model.save')
 
+def sync_tensors(tensors):
+  torch_xla._XLAC._xla_sync_multi(
+    tensors, devices=[], wait=True, sync_xla_data=True)
+
 
 def _maybe_convert_to_cpu(data, convert=True):
 

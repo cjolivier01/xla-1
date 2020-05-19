@@ -356,6 +356,9 @@ Device CompileWatcher::GetDevice() {
 void CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
   if(!IsTrainingThread(tid)) {
     EPythonState state = GetPythonState(tid);
+    if (state == EPS_INVALID) {
+      return;
+    }
     assert(state == EPS_IN_TRAIN_LOOP);
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
