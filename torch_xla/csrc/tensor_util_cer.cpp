@@ -2,6 +2,7 @@
 #include "torch_xla/csrc/tensor_util_cer.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
 #include "tensorflow/core/util/util.h"
 
@@ -236,8 +237,32 @@ void test_python() {
     /* release python thread */
     PyGILState_Release(gstate);
 }
-
+static std::mutex init_devices_mutex;
 }  // namespace
+
+std::vector<std::string> CompileWatcher::wse_devices_;
+
+void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) {
+  wse_devices_.clear();
+  wse_devices_.reserve(all_devices.size());
+  for (const std::string& device_str : all_devices) {
+    const Device device(device_str);
+    if (device.hw_type == DeviceType::WSE) {
+      wse_devices_.push_back(device_str);
+    }
+  }
+}
+
+bool CompileWatcher::HasWseDevices() {
+  static bool got_devices = false;
+  if (!got_devices) {
+    std::lock_guard<std::mutex> lk(init_devices_mutex);
+    if (!got_devices) {
+      SetAllDevices(xla::XrtComputationClient::Get()->GetAllDevices());
+    }
+  }
+  return !wse_devices_.empty();
+}
 
 void CompileWatcher::SetLiveInterface(std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface) {
     xla::XrtComputationClientWse::SetExternalInterface(interface);
@@ -253,7 +278,7 @@ void CompileWatcher::NotifyCompile(
     hash_t hash,
     pid_t tid
 ) {
-  if (!IsTrainingThread(tid)) {
+  if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }
   if (IsWseRunReady(opaque, tid)) {
@@ -283,7 +308,7 @@ void CompileWatcher::NotifyCompile(
 }
 
 void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_t hash, pid_t tid) {
-  if (!IsTrainingThread(tid)) {
+  if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
@@ -348,9 +373,10 @@ void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::
 }
 
 Device CompileWatcher::GetDevice() {
-    //return "CPU:1";  // TODO: work out code path for unrecognized device type
-    //return "WSE:1";
-    return Device(DeviceType::WSE, 1);
+    if (HasWseDevices()) {
+      return Device(*wse_devices_.begin());
+    }
+    return Device(DeviceType::CPU, 0);
 }
 
 void CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
@@ -377,7 +403,7 @@ void CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
 
 // TODO: This should be based on the computation cache hash value
 bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid) {
-  if (!IsTrainingThread(tid)) {
+  if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
@@ -387,7 +413,7 @@ bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid) {
 }
 
 bool CompileWatcher::IsWseRunReady(compiler_t opaque, pid_t tid) {
-  if (!IsTrainingThread(tid)) {
+  if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
@@ -395,7 +421,7 @@ bool CompileWatcher::IsWseRunReady(compiler_t opaque, pid_t tid) {
 }
 
 bool CompileWatcher::IsWseRunning(compiler_t opaque, pid_t tid) {
-  if (!IsTrainingThread(tid)) {
+  if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
@@ -406,6 +432,9 @@ void CompileWatcher::SetInputsOutputs(compiler_t opaque,
                                       const std::vector<at::Tensor>& input_tensors,
                                       const std::vector<at::Tensor>& output_tensors,
                                       bool append) {
+  if (!HasWseDevices()) {
+    return;
+  }
   const pid_t tid = gettid();
   assert(IsTrainingThread(tid));
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);

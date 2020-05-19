@@ -21,12 +21,18 @@ std::vector<xla::int64> ComputeArrayStrides(absl::Span<const xla::int64> sizes);
 at::Tensor MakeTensorFromXlaLiteral(const xla::Literal& literal,
                                     at::ScalarType dest_element_type);
 
+std::vector<at::Tensor> XlaDataToTensors(
+    absl::Span<const xla::ComputationClient::DataPtr> xla_data,
+    at::ScalarType dest_element_type);
+
+bool TensorCompare(const at::Tensor& t1, const at::Tensor& t2);
+
 // Uploads an ATEN tensor data to the device and fetches the corresponding
 // device data handle.
 xla::ComputationClient::DataPtr TensorToXlaData(const at::Tensor& tensor,
                                                 const Device& device);
 
-size_t TensorHash(const at::Tensor& tensor);
+xla::hash_t TensorHash(const at::Tensor& tensor);
 
 // Retrieves the device data handles by parallel uploading data onto the
 // corresponding devices.
@@ -56,6 +62,8 @@ xla::Shape CreateComputationShapeFromTensor(const at::Tensor& tensor,
 
 at::ScalarType TensorTypeFromXlaType(xla::PrimitiveType xla_type);
 
+xla::PrimitiveType TensorTypeToRawXlaType(at::ScalarType scalar_type);
+
 // Maps an XLA type to the one which can be used on the given device (or the
 // default device, id device is nullptr).
 xla::PrimitiveType GetDevicePrimitiveType(xla::PrimitiveType type,
@@ -64,6 +72,8 @@ xla::PrimitiveType GetDevicePrimitiveType(xla::PrimitiveType type,
 // Converts the given scalar type to an XLA primitive type.
 xla::PrimitiveType MakeXlaPrimitiveType(at::ScalarType scalar_type,
                                         const Device* device);
+
+bool RequiresRawTypeCasting(at::ScalarType scalar_type, const Device* device);
 
 xla::PrimitiveType GetShapeDimensionType(const Device* device);
 

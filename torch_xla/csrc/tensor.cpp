@@ -43,7 +43,7 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-//#define WSE_REDIRECT
+#define WSE_REDIRECT
 
 namespace torch_xla {
 namespace {

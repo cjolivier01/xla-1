@@ -85,6 +85,10 @@ xla::PrimitiveType XlaTypeFromTensorType(at::ScalarType scalar_type,
       return xla::PrimitiveType::S32;
     case at::ScalarType::Long:
       return xla::PrimitiveType::S64;
+    case at::ScalarType::ComplexFloat:
+      return xla::PrimitiveType::C64;
+    case at::ScalarType::ComplexDouble:
+      return xla::PrimitiveType::C128;
     default:
       XLA_ERROR() << "Type not supported: " << scalar_type;
   }
@@ -237,6 +241,18 @@ void CopyData<tensorflow::bfloat16, at::BFloat16>(tensorflow::bfloat16* dest,
                                                   xla::int64 n,
                                                   const CopyCasted&) {
   CheckedMemcpy<tensorflow::bfloat16, at::BFloat16>(dest, source, n);
+}
+template <>
+void CopyData<std::complex<float>, std::complex<float>>(
+    std::complex<float>* dest, const std::complex<float>* source, xla::int64 n,
+    const CopyCasted&) {
+  std::memcpy(dest, source, n * sizeof(std::complex<float>));
+}
+template <>
+void CopyData<std::complex<double>, std::complex<double>>(
+    std::complex<double>* dest, const std::complex<double>* source,
+    xla::int64 n, const CopyCasted&) {
+  std::memcpy(dest, source, n * sizeof(std::complex<double>));
 }
 
 std::vector<xla::int64> GetIterationDimensions(const xla::Shape& shape) {
@@ -420,13 +436,33 @@ void TensorToBufferSType(const at::Tensor& tensor, const xla::Shape& dest_shape,
       TensorToBuffer<SType, xla::int16>(tensor, dest_shape, dest_buffer,
                                         dest_buffer_size, device);
       break;
+    case xla::PrimitiveType::U16:
+      TensorToBuffer<SType, xla::uint16>(tensor, dest_shape, dest_buffer,
+                                         dest_buffer_size, device);
+      break;
     case xla::PrimitiveType::S32:
       TensorToBuffer<SType, xla::int32>(tensor, dest_shape, dest_buffer,
                                         dest_buffer_size, device);
       break;
+    case xla::PrimitiveType::U32:
+      TensorToBuffer<SType, xla::uint32>(tensor, dest_shape, dest_buffer,
+                                         dest_buffer_size, device);
+      break;
     case xla::PrimitiveType::S64:
       TensorToBuffer<SType, xla::int64>(tensor, dest_shape, dest_buffer,
                                         dest_buffer_size, device);
+      break;
+    case xla::PrimitiveType::U64:
+      TensorToBuffer<SType, xla::uint64>(tensor, dest_shape, dest_buffer,
+                                         dest_buffer_size, device);
+      break;
+    case xla::PrimitiveType::C64:
+      TensorToBuffer<SType, xla::complex64>(tensor, dest_shape, dest_buffer,
+                                            dest_buffer_size, device);
+      break;
+    case xla::PrimitiveType::C128:
+      TensorToBuffer<SType, xla::complex128>(tensor, dest_shape, dest_buffer,
+                                             dest_buffer_size, device);
       break;
     default:
       XLA_ERROR() << "Destination shape type not supported: " << dest_shape;
@@ -476,6 +512,14 @@ void PopulateTensorBuffer(const at::Tensor& tensor,
     case at::ScalarType::Long:
       TensorToBufferSType<int64_t>(tensor, dest_shape, dest_buffer,
                                    dest_buffer_size, device);
+      break;
+    case at::ScalarType::ComplexFloat:
+      TensorToBufferSType<std::complex<float>>(tensor, dest_shape, dest_buffer,
+                                               dest_buffer_size, device);
+      break;
+    case at::ScalarType::ComplexDouble:
+      TensorToBufferSType<std::complex<double>>(tensor, dest_shape, dest_buffer,
+                                                dest_buffer_size, device);
       break;
     default:
       XLA_ERROR() << "Tensor type not supported: " << tensor.type();
@@ -596,10 +640,22 @@ at::Tensor MakeTensorFromXlaLiteral(const xla::Literal& literal,
       return XlaLiteralToTensorHelper<xla::int8>(literal, dest_element_type);
     case xla::PrimitiveType::S16:
       return XlaLiteralToTensorHelper<xla::int16>(literal, dest_element_type);
+    case xla::PrimitiveType::U16:
+      return XlaLiteralToTensorHelper<xla::uint16>(literal, dest_element_type);
     case xla::PrimitiveType::S32:
       return XlaLiteralToTensorHelper<xla::int32>(literal, dest_element_type);
+    case xla::PrimitiveType::U32:
+      return XlaLiteralToTensorHelper<xla::uint32>(literal, dest_element_type);
     case xla::PrimitiveType::S64:
       return XlaLiteralToTensorHelper<xla::int64>(literal, dest_element_type);
+    case xla::PrimitiveType::U64:
+      return XlaLiteralToTensorHelper<xla::uint64>(literal, dest_element_type);
+    case xla::PrimitiveType::C64:
+      return XlaLiteralToTensorHelper<xla::complex64>(literal,
+                                                      dest_element_type);
+    case xla::PrimitiveType::C128:
+      return XlaLiteralToTensorHelper<xla::complex128>(literal,
+                                                       dest_element_type);
     default:
       XLA_ERROR() << "Unsupported literal type: " << literal.shape();
   }
@@ -661,7 +717,20 @@ xla::Literal GetTensorLiteral(const at::Tensor& tensor, const xla::Shape* shape,
   return literal;
 }
 
-size_t TensorHash(const at::Tensor& tensor) {
+std::vector<at::Tensor> XlaDataToTensors(
+    absl::Span<const xla::ComputationClient::DataPtr> xla_data,
+    at::ScalarType dest_element_type) {
+  std::vector<xla::Literal> literals =
+      xla::ComputationClient::Get()->TransferFromServer(xla_data);
+  std::vector<at::Tensor> tensors;
+  tensors.reserve(literals.size());
+  for (auto& literal : literals) {
+    tensors.push_back(MakeTensorFromXlaLiteral(literal, dest_element_type));
+  }
+  return tensors;
+}
+
+xla::hash_t TensorHash(const at::Tensor& tensor) {
   at::Tensor ctensor = tensor.contiguous();
   int64_t size = ctensor.numel() * ctensor.element_size();
   switch (ctensor.scalar_type()) {
@@ -749,11 +818,18 @@ at::ScalarType TensorTypeFromXlaType(xla::PrimitiveType xla_type) {
     case xla::PrimitiveType::S8:
       return at::ScalarType::Char;
     case xla::PrimitiveType::S16:
+    case xla::PrimitiveType::U16:
       return at::ScalarType::Short;
     case xla::PrimitiveType::S32:
+    case xla::PrimitiveType::U32:
       return at::ScalarType::Int;
     case xla::PrimitiveType::S64:
+    case xla::PrimitiveType::U64:
       return at::ScalarType::Long;
+    case xla::PrimitiveType::C64:
+      return at::ScalarType::ComplexFloat;
+    case xla::PrimitiveType::C128:
+      return at::ScalarType::ComplexDouble;
     default:
       XLA_ERROR() << "XLA type not supported: " << xla_type;
   }
@@ -810,18 +886,23 @@ xla::PrimitiveType GetDevicePrimitiveType(xla::PrimitiveType type,
       return UseBF16() ? xla::PrimitiveType::BF16 : xla::PrimitiveType::F32;
     case xla::PrimitiveType::U8:
       return xla_device.hw_type != DeviceType::TPU ? xla::PrimitiveType::U8
-                                                   : xla::PrimitiveType::S32;
+                                                   : xla::PrimitiveType::U32;
     case xla::PrimitiveType::S8:
       return xla_device.hw_type != DeviceType::TPU ? xla::PrimitiveType::S8
                                                    : xla::PrimitiveType::S32;
     case xla::PrimitiveType::U16:
       return xla_device.hw_type != DeviceType::TPU ? xla::PrimitiveType::U16
-                                                   : xla::PrimitiveType::S32;
+                                                   : xla::PrimitiveType::U32;
     case xla::PrimitiveType::S16:
       return xla_device.hw_type != DeviceType::TPU ? xla::PrimitiveType::S16
                                                    : xla::PrimitiveType::S32;
     case xla::PrimitiveType::S64:
       return Use32BitLong() ? xla::PrimitiveType::S32 : xla::PrimitiveType::S64;
+    case xla::PrimitiveType::U64:
+      return Use32BitLong() ? xla::PrimitiveType::U32 : xla::PrimitiveType::U64;
+    case xla::PrimitiveType::C128:
+      return xla_device.hw_type != DeviceType::TPU ? xla::PrimitiveType::C128
+                                                   : xla::PrimitiveType::C64;
     default:
       return type;
   }
@@ -850,8 +931,24 @@ xla::PrimitiveType MakeXlaPrimitiveType(at::ScalarType scalar_type,
       return GetDevicePrimitiveType(xla::PrimitiveType::S32, device);
     case at::ScalarType::Long:
       return GetDevicePrimitiveType(xla::PrimitiveType::S64, device);
+    case at::ScalarType::ComplexFloat:
+      return GetDevicePrimitiveType(xla::PrimitiveType::C64, device);
+    case at::ScalarType::ComplexDouble:
+      return GetDevicePrimitiveType(xla::PrimitiveType::C128, device);
     default:
       XLA_ERROR() << "Type not supported: " << scalar_type;
+  }
+}
+
+bool RequiresRawTypeCasting(at::ScalarType scalar_type, const Device* device) {
+  switch (scalar_type) {
+    case at::ScalarType::Byte:
+    case at::ScalarType::Char:
+    case at::ScalarType::Short:
+      return MakeXlaPrimitiveType(scalar_type, device) !=
+             TensorTypeToRawXlaType(scalar_type);
+    default:
+      return false;
   }
 }
 

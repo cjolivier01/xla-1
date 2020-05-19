@@ -78,6 +78,10 @@ set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
 add_dependencies(ptxla link_torch link_torch_python link_c10 link_shm link_torch_global_deps)
 
+if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+    include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+endif()
+
 link_directories(${CMAKE_BINARY_DIR}/lib)
 
 set_target_properties(

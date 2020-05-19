@@ -120,7 +120,10 @@ public:
     static Device GetDevice();
     static bool IsTrainingThread(pid_t tid);
 private:
+  static void SetAllDevices(const std::vector<std::string>& all_devices);
+  static bool HasWseDevices();
   static void Reset(compiler_t opaque, pid_t tid, bool reset_hash);
+  static std::vector<std::string> wse_devices_;
 };
 
 inline pid_t gettid() {
