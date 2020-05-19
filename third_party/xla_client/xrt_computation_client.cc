@@ -215,6 +215,10 @@ int64 GetMaxTensorsPartitionSize() {
 
 }  // namespace
 
+tensorflow::Allocator *XrtComputationClient::GetTensorAllocator() {
+  return TensorAllocator::Get();
+}
+
 void XrtComputationClient::XrtData::Assign(const Data& data) {
   const XrtData& xrt_data = dynamic_cast<const XrtData&>(data);
   if (&xrt_data != this) {
@@ -1081,7 +1085,6 @@ void XrtComputationClient::ReleaseHandles(
         XrtSession*, const tensorflow::Scope&, const std::string&)>&
         op_generator,
     metrics::Metric* timed_metric, metrics::Counter* destroy_counter) {
-  HEREX();
   std::vector<DeviceHandle> released_handles;
   {
     std::lock_guard<std::mutex> lock(lock_);
@@ -1721,29 +1724,29 @@ const XrtSession::CachedNode& XrtComputationClient::GetSubTupleNode(
 tensorflow::DataType XrtComputationClient::XlaTypeToDataType(
     PrimitiveType dtype) {
   switch (dtype) {
-    case PRED:
+    case PrimitiveType::PRED:
       return tensorflow::DT_BOOL;
-    case S8:
+    case PrimitiveType::S8:
       return tensorflow::DT_INT8;
-    case U8:
+    case PrimitiveType::U8:
       return tensorflow::DT_UINT8;
-    case S16:
+    case PrimitiveType::S16:
       return tensorflow::DT_INT16;
-    case U16:
+    case PrimitiveType::U16:
       return tensorflow::DT_UINT16;
-    case S32:
+    case PrimitiveType::S32:
       return tensorflow::DT_INT32;
-    case U32:
+    case PrimitiveType::U32:
       return tensorflow::DT_UINT32;
-    case S64:
+    case PrimitiveType::S64:
       return tensorflow::DT_INT64;
-    case U64:
+    case PrimitiveType::U64:
       return tensorflow::DT_UINT64;
-    case F32:
+    case PrimitiveType::F32:
       return tensorflow::DT_FLOAT;
-    case F64:
+    case PrimitiveType::F64:
       return tensorflow::DT_DOUBLE;
-    case BF16:
+    case PrimitiveType::BF16:
       return tensorflow::DT_BFLOAT16;
     case PrimitiveType::F16:
       return tensorflow::DT_HALF;

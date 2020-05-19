@@ -3,6 +3,8 @@
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
+#include "tensorflow/compiler/xla/xla_client/thread_pool.h"
+#include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/core/util/util.h"
 
 #include "tensorflow/core/protobuf/tpu/topology.pb.h"
@@ -43,6 +45,15 @@ bool is_device(const std::string& found_device, const std::string& want_device) 
   }
   return false;
 }
+
+struct TensorBuffer {
+  void allocate(size_t size) {
+    data_.reset(new char[size]);
+    size_ = size;
+  }
+  std::size_t size_;
+  std::unique_ptr<char[]> data_;
+};
 
 }  // namespace
 
@@ -203,20 +214,20 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
 //        }
 //    }
   //HEREX();
-  bool wse_device = false;
-  const std::vector<std::string>& devices = computation.devices();
+  std::string wse_device_str;
+  const std::vector<std::string> &devices = computation.devices();
   //std::cout << "devices: ";
   for (const std::string this_device : devices) {
     //std::cout << device << ", ";
     if (is_device(this_device, "WSE")) {
       assert(devices.size() == 1);  // What to do if not one? replicas?
-      wse_device = true;
+      wse_device_str = this_device;
       break;
     }
   }
   //std::cout << std::endl << std::flush;
 
-  if (false && wse_device) {
+  if (!wse_device_str.empty()) {
     std::vector<ComputationClient::DataPtr> result;
     for (DataPtr dp : arguments) {
       std::cout << "argument: " << dp->shape() << std::endl;
@@ -225,37 +236,71 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
     std::cout << std::endl << std::flush;
 
     std::cout << "program shape: " << computation.program_shape().ToString() << std::endl;
-    std::cout << "program shape result: " << computation.program_shape().result().ToString() << std::endl;
+    std::cout << "program shape result: " << computation.program_shape().result().ToString()
+              << std::endl;
 
-    const Shape& result_shape = computation.program_shape().result();
+    const Shape &result_shape = computation.program_shape().result();
     if (result_shape.IsTuple()) {
       for (int i = 0, n = result_shape.tuple_shapes_size(); i < n; ++i) {
-        const Shape& output_shape = result_shape.tuple_shapes(i);
-        std::cout << "Tuple index " << i << ": " << output_shape.DebugString() << std::endl << std::flush;
+        const Shape &output_shape = result_shape.tuple_shapes(i);
+        std::cout << "Tuple index " << i << ": " << output_shape.ShortDebugString() << std::endl
+                  << std::flush;
       }
     } else {
       throw std::runtime_error("Expected result shape to be a tuple");
     }
 
-    std::vector<ComputationClient::DataPtr> results;
+    std::vector<ComputationClient::DataPtr> results(result_shape.tuple_shapes_size());
 
     XrtSessionCache::SessionMap session_map;
-    std::map<XrtSession*, SessionWork> session_work_map;
+    std::map<XrtSession *, SessionWork> session_work_map;
+
     //std::vector<int64> tuple_elements_count(tuples.size());
-    //const XrtData& xrt_data = dynamic_cast<const XrtData&>(*tuples[i]);
-    const XrtData xrt_data(device, result_shape);
-    XrtSession* session = GetSessionForDevice(session_cache_.get(),
-                                              xrt_data.device(), &session_map);
-    SessionWork* session_work = &session_work_map[session];
+    //assert(tuples.size() == 1);
+    //const XrtData& xrt_data = dynamic_cast<const XrtData&>(*tuples[0]);
+
+//    const XrtData xrt_data(device, result_shape);
+//    XrtSession *session = GetSessionForDevice(
+//      session_cache_.get(),
+//      xrt_data.device(), &session_map
+//    );
+//    SessionWork *session_work = &session_work_map[session];
+
     //session_work->index_mapping.push_back(i);
 
-    tensorflow::Scope device_scope =
-      session->root()->WithDevice(TorchDeviceToXrtDevice(xrt_data.device()));
-    int64 count = ShapeUtil::TupleElementCount(xrt_data.shape());
+//    tensorflow::Scope device_scope =
+//      session->root()->WithDevice(TorchDeviceToXrtDevice(xrt_data.device()));
+    //const std::size_t count = ShapeUtil::TupleElementCount(xrt_data.shape());
+
     //tuple_elements_count[i] = count;
+
+    const size_t count = result_shape.tuple_shapes_size();
+
+    std::vector<TensorSource> tensors;
+    tensors.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+      const Shape &output_shape = result_shape.tuple_shapes(i);
+
+      auto populate_fn =
+        [&, i](
+          const xla::ComputationClient::TensorSource &source_tensor,
+          void *dest_buffer, size_t dest_buffer_size
+        ) {
+          std::cout << "dest buffer: " << dest_buffer << ", size=" << dest_buffer_size << ENDL;
+          memset(dest_buffer, i, dest_buffer_size);
+//          PopulateTensorBuffer(tensor, source_tensor.shape, dest_buffer,
+//                               dest_buffer_size, device);
+        };
+      tensors.emplace_back(output_shape, device, std::move(populate_fn));
+    }
+
+    std::mutex lock;
+    int64 total_size = 0;
+    util::MultiWait mwait(tensors.size());
+
     for (int64 j = 0; j < count; ++j) {
-      const XrtSession::CachedNode& cached_node =
-        GetSubTupleNode(session, device_scope, xrt_data.device());
+//      const XrtSession::CachedNode &cached_node =
+//        GetSubTupleNode(session, device_scope, device);
 //      session_work->feed_inputs.insert(
 //        {cached_node.holders[0], xrt_data.get_handle()});
 //      tensorflow::Tensor index_tensor(tensorflow::DT_INT32,
@@ -264,24 +309,85 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputa
 //      session_work->feed_inputs.insert({cached_node.holders[1], index_tensor});
 //      std::cout << "output tuple handle " << j << ": " << std::endl << std::flush;
 
-      const tensorflow::Output& output = cached_node.outputs[0];
+//      const tensorflow::Output &output = cached_node.outputs[0];
 
       //session_work->outputs_handles.push_back(handle);
 
       //XrtComputationClient* self, std::string device, Shape device_shape, int64 handle
 
-      const Shape& output_shape = result_shape.tuple_shapes(j);
+      //const Shape &output_shape = result_shape.tuple_shapes(j);
 
-      results.push_back(
-        std::make_shared<XrtData>(
+      const bool debug_sync = true;
+      std::mutex debug_sync_mutex;
+
+      auto converter = [&, j]() {
+        std::unique_ptr<std::lock_guard<std::mutex>>(
+          debug_sync ? new std::lock_guard<std::mutex>(debug_sync_mutex) : nullptr
+        );
+        std::cout << "locked in converter" << ENDL;
+        std::string device = GetEffectiveDevice(wse_device_str);
+        const std::string &xrt_device = TorchDeviceToXrtDevice(device);
+        tensorflow::Tensor tensor(
+          GetTensorAllocator(),
+          XlaTypeToDataType(tensors[j].shape.element_type()),
+          MakeEquivalentTensorShape(tensors[j].shape));
+        auto tdata = tensor.tensor_data();
+        tensors[j].populate_fn(tensors[j], const_cast<char *>(tdata.data()), tdata.size());
+        {
+          std::lock_guard<std::mutex> slock(lock);
+          XrtSession *session = GetSessionForXrtDevice(
+            alloc_session_cache_.get(), xrt_device, &session_map
+          );
+          SessionWork *session_work = &session_work_map[session];
+          tensorflow::Scope device_scope =
+            session->root()->WithDevice(xrt_device);
+          const XrtSession::CachedNode &cached_node =
+            GetAllocateNode(session, device_scope, device, tensors[j].shape);
+          session_work->feed_inputs.insert({cached_node.holders[0], tensor});
+          session_work->outputs_handles.push_back(cached_node.outputs[0]);
+          session_work->index_mapping.push_back(j);
+
+          total_size += tdata.size();
+        }
+
+        results[j] = std::make_shared<XrtData>(
           this,
-          device,
-          output_shape,
-          //handle
-          j
-        )
-      );
+          device,  // should be CPU device? main device in call parameters?
+          tensors[j].shape,
+          tensor.scalar<int64>()()
+        );
+      };
+      if (!debug_sync) {
+        env::ScheduleClosure(mwait.Completer(std::move(converter)));
+      } else {
+        converter();
+      }
     }
+    mwait.Wait();
+
+//    mwait.Reset(session_work_map.size());
+//    std::vector<DataPtr> results(tensors.size());
+//    for (auto& session_session_work : session_work_map) {
+//      XrtSession* session = session_session_work.first;
+//      SessionWork* session_work = &session_session_work.second;
+//      auto runner = [&, session, session_work]() {
+//        std::vector<tensorflow::Tensor> outputs;
+//        XLA_CHECK_OK(session->session()->Run(
+//          session_work->feed_inputs, session_work->outputs_handles, &outputs));
+//        XLA_CHECK_EQ(outputs.size(), session_work->outputs_handles.size());
+//
+//        for (size_t i = 0; i < outputs.size(); ++i) {
+//          size_t li = session_work->index_mapping[i];
+//          results[li] = std::make_shared<XrtData>(
+//            this, GetEffectiveDevice(tensors[li].device), tensors[li].shape,
+//            outputs[i].scalar<int64>()());
+//        }
+//        CreateDataHandlesCounter()->AddValue(outputs.size());
+//      };
+//      env::ScheduleIoClosure(mwait.Completer(std::move(runner)));
+//    }
+//    mwait.Wait();
+
 
     return results;
   }

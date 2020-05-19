@@ -463,6 +463,8 @@ class XrtComputationClient : public ComputationClient {
   static void MaybeCreateLocalService(
       const XrtComputationClient::Options& options);
 
+  tensorflow::Allocator *GetTensorAllocator();
+
   Options options_;
   std::mutex lock_;
   std::map<std::string, std::vector<int>> device_mesh_coords_;

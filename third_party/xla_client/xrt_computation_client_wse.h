@@ -19,7 +19,8 @@ public:
    */
   XrtComputationClientWse(
       Options options,
-      std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto);
+      std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
+  );
   /**
    * @brief Destroy the XrtComputationClientWse object
    */
