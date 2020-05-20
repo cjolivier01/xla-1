@@ -240,62 +240,6 @@ std::vector <ComputationClient::DataPtr> XrtComputationClientWse::TransferToServ
   return Super::TransferToServer(tensors);
 }
 
-// Reads the tensor literal values stored at TPU server sites, behind the
-// supplied handles.
-std::vector <Literal> XrtComputationClientWse::TransferFromServer(
-  absl::Span<const DataPtr> handles
-) {
-  const bool has_wse_device = std::any_of(
-    handles.begin(),
-    handles.end(),
-    [](const DataPtr& d){return is_wse_device(d); }
-  );
-  if (!has_wse_device) {
-    return Super::TransferFromServer(handles);
-  }
-
-  // TODO: For checkpoints, need to recognize they're not normal outputs
-  //       (they actually will be the ones not filled in from the execute,
-  //       so that should be sufficient)
-  //       pull whole checkpoint and then put in the handle cache for any
-  //       subsequent fetches until the next execute
-  std::vector<Literal> results(handles.size());
-
-  std::vector<std::size_t> wse_indexes, other_indexes;
-  std::vector<xla::ComputationClient::DataPtr> other_handles;
-  wse_indexes.reserve(handles.size());
-  other_indexes.reserve(handles.size());
-  std::size_t index = 0;
-  for (const DataPtr data_ptr : handles) {
-    if (is_wse_device(data_ptr)) {
-      results[index] = memory_manager_->GetLiteral(data_ptr->GetOpaqueHandle());
-      wse_indexes.emplace_back(index);
-    } else {
-      other_indexes.emplace_back(index);
-      other_handles.emplace_back(data_ptr);
-    }
-    ++index;
-  }
-  if (!other_indexes.empty()) {
-    std::vector<Literal> other_results = Super::TransferFromServer(
-      other_handles
-    );
-    size_t i = 0;
-    for (Literal& literal : other_results) {
-      results[other_indexes[i]] = std::move(literal);
-      ++i;
-    }
-  }
-//    if (callback_interface_) {
-//        std::vector<ptxla::XDataPtr> x_handles;
-//        std::pair<ptxla::EIntent, std::vector<ptxla::XLiteral>> result =
-//            callback_interface_->TransferFromServer(GetOpaque(this), x_handles);
-//        if (result.first != ptxla::EI_DEFER) {
-//            return std::vector<Literal>();
-//        }
-//    }
-  return std::move(results);
-}
 
 template<
   typename RESULT_T,
@@ -341,6 +285,51 @@ RESULT_T split_types(
   }
   for (std::size_t i = 0; i < false_indexes.size(); ++i) {
     results[false_indexes[i]] = std::move(false_results[i]);
+  }
+  return std::move(results);
+}
+
+// Reads the tensor literal values stored at TPU server sites, behind the
+// supplied handles.
+std::vector<Literal> XrtComputationClientWse::TransferFromServer(
+  absl::Span<const DataPtr> handles
+) {
+  // TODO: For checkpoints, need to recognize they're not normal outputs
+  //       (they actually will be the ones not filled in from the execute,
+  //       so that should be sufficient)
+  //       pull whole checkpoint and then put in the handle cache for any
+  //       subsequent fetches until the next execute
+  std::vector<DataPtr> all_handles(handles.begin(), handles.end());
+  std::vector<Literal> results = split_types<std::vector <Literal>>(
+    all_handles,
+    [](const DataPtr& data_ptr){
+      // won't work, actually... need proper device set on data ptr
+      return is_wse_device(data_ptr);
+    },
+    [this](std::vector<DataPtr>& wse_handles) {
+      // WSE (true)
+      std::vector<Literal> local_results;
+      local_results.reserve(wse_handles.size());
+      for (DataPtr& data_ptr : wse_handles) {
+        local_results.emplace_back(
+          memory_manager_->GetLiteral(data_ptr->GetOpaqueHandle())
+        );
+      }
+      return std::move(local_results);
+    },
+    [this](std::vector<DataPtr>& other_handles) {
+      // CPU or other (false)
+      return Super::TransferFromServer(other_handles);
+    }
+  );
+  return std::move(results);
+  const bool has_wse_device = std::any_of(
+    handles.begin(),
+    handles.end(),
+    [](const DataPtr& d){return is_wse_device(d); }
+  );
+  if (!has_wse_device) {
+    return Super::TransferFromServer(handles);
   }
   return std::move(results);
 }
@@ -392,13 +381,6 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
     );
   return std::move(results);
 }
-
-//void DataToXrtMemory() {
-//  ResourceMgr* rm;
-//  //tensorflow::ResourceMgr::
-//  RefPtr<XRTMemoryManager> xrt_memory_manager = XRTMemoryManager::Get(rm);
-//
-//}
 
 // Executes computation with arguments and returns the result.
 // The passed device must match the common device of the arguments Data.
