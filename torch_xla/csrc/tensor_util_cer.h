@@ -119,6 +119,7 @@ public:
     //static std::string GetDevice();
     static Device GetDevice();
     static bool IsTrainingThread(pid_t tid);
+    static bool PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, pid_t tid);
 private:
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();

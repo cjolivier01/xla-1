@@ -18,6 +18,9 @@
 #include "tensorflow/compiler/tf2xla/xla_op_registry.h"
 #include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
 
+#include "tensorflow/compiler/xla/service/hlo.pb.h"
+#include "tensorflow/compiler/xla/xla_data.pb.h"
+
 #include "absl/types/span.h"
 
 #include <stdexcept>
@@ -51,9 +54,13 @@ std::vector<std::string> split(const std::string& str, const char delim) {
 }
 
 bool is_device(const std::string& found_device, const std::string& want_device) {
-  const std::vector<std::string> parts = split(found_device, ':');
-  if (!parts.empty()) {
-    return parts[0] == want_device;
+  // Check for blank in order to help out
+  // when is_wse_proxy_device() returns blank
+  if (!found_device.empty()) {
+    const std::vector<std::string> parts = split(found_device, ':');
+    if (!parts.empty()) {
+      return parts[0] == want_device;
+    }
   }
   return false;
 }
@@ -70,6 +77,30 @@ bool is_wse_device(const XrtComputationClient::DataPtr& data_ptr) {
   return is_wse_device(data_ptr->device());
 }
 
+std::string get_proxy_device(const xla::HloModuleProto& module) {
+  //save_msg(module.ToProto(), "my_hlo_module.json");
+  const int64 entry_computation_id = module.entry_computation_id();
+  if (entry_computation_id) {
+    const xla::HloComputationProto& computation =
+      module.computations()[entry_computation_id];
+    const int64 root_id = computation.root_id();
+    if (root_id) {
+      const xla::HloInstructionProto &root_instruction =
+        computation.instructions()[root_id];
+      const xla::FrontendAttributes &frontend_attributes =
+        root_instruction.frontend_attributes();
+      auto iter = frontend_attributes.map().find("PROXY_DEVICE");
+      if (iter != frontend_attributes.map().end()) {
+        return iter->second;
+      }
+    }
+  }
+  return "";
+}
+
+bool is_wse_proxy_device(const xla::HloModuleProto& module) {
+  return is_wse_device(get_proxy_device(module));
+}
 
 //struct TensorBuffer {
 //  void allocate(size_t size) {
@@ -122,10 +153,13 @@ public:
     assert(tensor_map_.count(handle) != 0);
     return tensor_map_.find(handle)->second->tensor_;
   }
-  void  Free(int64 handle) {
+  bool Free(int64 handle) {
     std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
-    assert(tensor_map_.count(handle) != 0);
-    tensor_map_.erase(handle);
+    if(tensor_map_.count(handle)) {
+      tensor_map_.erase(handle);
+      return true;
+    }
+    return false;
   }
 private:
 
@@ -180,15 +214,14 @@ void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 ha
   // is it a wse device?
   assert(!is_wse_device(device));  // better if this is true, but think it's not?
   // if it's true, then use it
-  if (memory_manager_->IsIn(handle)) {
-    memory_manager_->Free(handle);
+  if (memory_manager_->Free(handle)) {
     return;
   }
 }
 
 ComputationClient::DataPtr
 XrtComputationClientWse::CreateDataPlaceholder(std::string device, Shape shape) {
-  // In case we wish to create a special type ofd DataPtr
+  // In case we wish to create a special type of DataPtr
   return Super::CreateDataPlaceholder(device, shape);
 }
 
@@ -264,68 +297,100 @@ std::vector <Literal> XrtComputationClientWse::TransferFromServer(
   return std::move(results);
 }
 
-// Compiles a set of computations.
-std::vector <ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
-  std::vector <CompileInstance> instances
+template<
+  typename RESULT_T,
+  typename CONTAINER_T,
+  typename FUNC_T,
+  typename CALL_T1,
+  typename CALL_T2>
+RESULT_T split_types(
+  CONTAINER_T& all,
+  FUNC_T predicate,
+  CALL_T1 true_call,
+  CALL_T2 false_call
 ) {
-  std::set<std::size_t> index_of;
-  std::vector<ComputationClient::ComputationPtr> results;
-  results.reserve(instances.size());
+  std::vector<std::size_t> true_indexes;
+  std::vector<std::size_t> false_indexes;
+  std::vector<typename CONTAINER_T::value_type> true_items;
+  std::vector<typename CONTAINER_T::value_type> false_items;
 
-  size_t this_index = 0;
-  for (CompileInstance& instance : instances) {
-    bool is_registered_device = is_wse_device(instance.compilation_device);
-    if (is_registered_device) {
-      ColorScope clr(Color::FG_RED);
-      std::cout << "WSE DEVICE REQUESTED" << std::endl << std::flush;
-    }
-    // TODO: callback should be device registered
-    if (!is_registered_device) {
-      for (const std::string &device : instance.devices) {
-        is_registered_device = is_wse_device(device);
-        if (is_registered_device) {
-          break;
-        }
-      }
-    }
-    if (is_registered_device) {
-      ColorScope clr(Color::FG_RED);
-      std::cout << "WSE DEVICE COMPILE" << std::endl << std::flush;
-      if (callback_interface_) {
-        const ptxla::ECompileResult comp_result = callback_interface_->OnCompile(
-          GetOpaque(this),
-          instance.computation.proto().id(),  // good enough or need hash from PTXLA layer?
-          instance.computation.proto(),
-          instance.devices,
-          ptxla::ECS_BEFORE_COMPILE
-        );
-        if (comp_result == ptxla::ECR_ACCEPT) {
-          assert(false);  // need to finish this
-          // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
-          ComputationClient::ComputationPtr computation_ptr =
-            std::make_shared<ComputationClient::Computation>(
-              XlaComputation(instance.computation.proto()),
-              ProgramShape(instance.computation.proto().host_program_shape()),
-              instance.devices
-            );
-          index_of.insert(this_index);
-          results.push_back(computation_ptr);
-        } else {
-          is_registered_device = false;
-        }
-      } else {
-        // TEMPORARY: defer
-//                std::cout << "No callback, deferring to CPU" << std::endl << std::flush;
-//                instance.compilation_device = "CPU:0";
-//                instance.devices[0] = "CPU:0";
-        return Super::Compile(std::move(instances));
-        //ComputationClient::ComputationPtr computation_ptr = std::make_shared<ComputationClient::Computation>();
-      }
+  true_indexes.reserve(all.size());
+  false_indexes.reserve(all.size());
+  true_items.reserve(all.size());
+  false_items.reserve(all.size());
+  std::size_t index = 0;
+  for(auto& item : all) {
+    if (predicate(item)) {
+      true_indexes.emplace_back(index);
+      true_items.emplace_back(std::move(item));
     } else {
-
+      false_indexes.emplace_back(index);
+      false_items.emplace_back(std::move(item));
     }
+    ++index;
   }
-  return Super::Compile(std::move(instances));
+
+  // TODO: 2-way multi-wait
+  RESULT_T true_results = true_call(true_items);
+  RESULT_T false_results = false_call(true_items);
+
+  RESULT_T results(all.size());
+
+  for (std::size_t i = 0; i < true_indexes.size(); ++i) {
+    results[true_indexes[i]] = std::move(true_results[i]);
+  }
+  for (std::size_t i = 0; i < false_indexes.size(); ++i) {
+    results[false_indexes[i]] = std::move(false_results[i]);
+  }
+  return std::move(results);
+}
+
+// Compiles a set of computations.
+std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
+  std::vector<CompileInstance> instances
+) {
+
+  std::vector<ComputationClient::ComputationPtr> results =
+    split_types<std::vector<ComputationClient::ComputationPtr>>(
+      instances,
+      [](const CompileInstance& instance) -> bool {
+        return callback_interface_ && is_wse_proxy_device(instance.computation.proto());
+      },
+      [this](std::vector<CompileInstance>& instances) {
+        // WSE (true)
+        assert(callback_interface_.get());
+        std::vector<ComputationClient::ComputationPtr> local_results(instances.size());
+        for (CompileInstance& instance : instances) {
+          const ptxla::ECompileResult comp_result = callback_interface_->OnCompile(
+            GetOpaque(this),
+            instance.computation.proto().id(),  // good enough or need hash from PTXLA layer?
+            instance.computation.proto(),
+            instance.devices,
+            ptxla::ECS_BEFORE_COMPILE
+          );
+          if (comp_result == ptxla::ECR_ACCEPT) {
+            // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
+            ComputationClient::ComputationPtr computation_ptr =
+              std::make_shared<ComputationClient::Computation>(
+                XlaComputation(instance.computation.proto()),
+                ProgramShape(instance.computation.proto().host_program_shape()),
+                instance.devices
+              );
+            local_results.push_back(computation_ptr);
+          } else {
+            std::vector<CompileInstance> one_item;
+            one_item.emplace_back(std::move(instance));
+            local_results.push_back(Super::Compile(std::move(one_item))[0]);
+          }
+        }
+        return std::move(local_results);
+      },
+      [this](std::vector<CompileInstance>& instances) {
+        // CPU or other (false)
+        return std::move(Super::Compile(std::move(instances)));
+      }
+    );
+  return std::move(results);
 }
 
 //void DataToXrtMemory() {

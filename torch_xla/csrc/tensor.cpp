@@ -43,7 +43,7 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-#define WSE_REDIRECT
+//#define WSE_REDIRECT
 
 namespace torch_xla {
 namespace {
@@ -1461,6 +1461,12 @@ XLATensor::CompilationResult XLATensor::Compile(
     // turn everything into DEVICE_DATA, so we can activate aliasing.
     BuildInputOutputAliases(tensors, coll.indices, &lowering_ctx);
   }
+  // Might add a proxy device to the Hlo
+  CompileWatcher::PreProcessHlo(
+    xla::ComputationClient::Get(),
+    lowering_ctx.builder(),
+    coll.requesting_tid
+  );
 
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());

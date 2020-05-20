@@ -253,6 +253,17 @@ void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) 
   }
 }
 
+bool CompileWatcher::PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, pid_t tid) {
+  if (!HasWseDevices() || !IsTrainingThread(tid) || !IsWseRunReady(opaque, tid)) {
+    return false;
+  }
+  xla::FrontendAttributes frontend_attributes;
+  frontend_attributes.CopyFrom(builder->frontend_attributes());
+  (*frontend_attributes.mutable_map())["PROXY_DEVICE"] = GetDevice().ToString();
+  builder->SetFrontendAttributes(frontend_attributes);
+  return true;
+}
+
 bool CompileWatcher::HasWseDevices() {
   static bool got_devices = false;
   if (!got_devices) {
