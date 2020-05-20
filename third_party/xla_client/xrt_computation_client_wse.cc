@@ -2,7 +2,7 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_in`tf.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/literal.h"
@@ -110,6 +110,10 @@ bool is_wse_proxy_device(const xla::HloModuleProto& module) {
 //  std::size_t size_;
 //  std::unique_ptr<char[]> data_;
 //};
+
+class CS1Simulator : public xla::ptxla::XrtComputationClientExternalInterface {
+
+};
 
 }  // namespace
 
@@ -275,8 +279,13 @@ RESULT_T split_types(
   }
 
   // TODO: 2-way multi-wait
-  RESULT_T true_results = true_call(true_items);
-  RESULT_T false_results = false_call(true_items);
+  RESULT_T true_results = !true_items.empty() ?
+    true_call(true_items) : RESULT_T();
+  RESULT_T false_results = !false_items.empty() ?
+    false_call(false_items) : RESULT_T();
+      
+  assert(true_results.size() == true_items.size());
+  assert(false_results.size() == false_items.size());
 
   RESULT_T results(all.size());
 
@@ -338,12 +347,11 @@ std::vector<Literal> XrtComputationClientWse::TransferFromServer(
 std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
   std::vector<CompileInstance> instances
 ) {
-
-  std::vector<ComputationClient::ComputationPtr> results =
-    split_types<std::vector<ComputationClient::ComputationPtr>>(
+  auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
       instances,
       [](const CompileInstance& instance) -> bool {
-        return callback_interface_ && is_wse_proxy_device(instance.computation.proto());
+        return callback_interface_.get() &&
+          is_wse_proxy_device(instance.computation.proto());
       },
       [this](std::vector<CompileInstance>& instances) {
         // WSE (true)
@@ -566,3 +574,4 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
 }
 
 }  // namespace xla
+
