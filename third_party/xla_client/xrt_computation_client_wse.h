@@ -60,6 +60,7 @@ public:
 
 private:
   void ReleaseXrtData(const std::string& device, int64 handle) override;
+
   std::unique_ptr<MemoryManager> memory_manager_;
 };
 

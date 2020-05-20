@@ -2,7 +2,7 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_in`tf.h"
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/literal.h"
@@ -12,6 +12,8 @@
 #include "tensorflow/core/util/util.h"
 
 #include "tensorflow/core/protobuf/tpu/topology.pb.h"
+
+#include "tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h"
 
 #include "tensorflow/core/framework/tensor.pb.h"
 
@@ -23,9 +25,18 @@
 
 #include "absl/types/span.h"
 
+#include <grpc/grpc.h>
+#include <grpcpp/channel.h>
+#include <grpcpp/client_context.h>
+#include <grpcpp/create_channel.h>
+#include <grpcpp/security/credentials.h>
+
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <strstream>
+
+#define START_GRPC_SERVICE
 
 /**
  * TODO: Non-TF-linking portions of this to be moved to
@@ -34,6 +45,9 @@
 using namespace tensorflow;
 
 namespace xla {
+
+int StartLocalXlaService(int port);
+
 namespace {
 
 std::shared_ptr <ptxla::XrtComputationClientExternalInterface> callback_interface_{nullptr};
@@ -102,18 +116,32 @@ bool is_wse_proxy_device(const xla::HloModuleProto& module) {
   return is_wse_device(get_proxy_device(module));
 }
 
-//struct TensorBuffer {
-//  void allocate(size_t size) {
-//    data_.reset(new char[size]);
-//    size_ = size;
-//  }
-//  std::size_t size_;
-//  std::unique_ptr<char[]> data_;
-//};
+constexpr int XLA_SERVICE_GRPC_PORT = 50421;
 
-class CS1Simulator : public xla::ptxla::XrtComputationClientExternalInterface {
+using XlaClient = xla::grpc::XlaService::Stub;
 
-};
+std::mutex xla_server_mtx_;
+std::shared_ptr<XlaClient> xla_client_;
+
+
+std::shared_ptr<XlaClient> CreateXlaClientInternal(int port) {
+  std::strstream ss;
+  ss << "0.0.0.0" << ":" << port;
+  const std::string address = ss.str();
+  auto xla_service = xla::grpc::XlaService::NewStub(
+    ::grpc::CreateChannel(ss.str(), ::grpc::InsecureChannelCredentials())
+  );
+  return xla_service;
+}
+
+std::shared_ptr<XlaClient> GetXlaClient() {
+  std::lock_guard<std::mutex> lk(xla_server_mtx_);
+  if (!xla_client_.get()) {
+    xla_client_ = CreateXlaClientInternal(XLA_SERVICE_GRPC_PORT);
+  }
+  return xla_client_;
+}
+
 
 }  // namespace
 
@@ -190,6 +218,11 @@ XrtComputationClientWse::XrtComputationClientWse(
   if (callback_interface_) {
     callback_interface_->OnCreate(GetOpaque(this));
   }
+
+#ifdef START_GRPC_SERVICE
+  xla::StartLocalXlaService(XLA_SERVICE_GRPC_PORT);
+  GetXlaClient();
+#endif
 }
 
 XrtComputationClientWse::~XrtComputationClientWse() {
@@ -197,6 +230,7 @@ XrtComputationClientWse::~XrtComputationClientWse() {
   if (callback_interface_) {
     callback_interface_->OnDestroy(GetOpaque(this));
   }
+  xla_client_.reset();
 }
 
 void XrtComputationClientWse::SetExternalInterface(

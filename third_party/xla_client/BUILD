@@ -165,6 +165,7 @@ cc_library(
         "xla_util.cc",
         "xrt_computation_client.cc",
         "xrt_computation_client_wse.cc",
+        "xrt_computation_client_ext_intf.cc",
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
@@ -244,6 +245,7 @@ cc_library(
         "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
         "//tensorflow/compiler/xla/client:xla_builder",
         "//tensorflow/core/platform/cloud:gcs_file_system",
+        "//tensorflow/compiler/xla/rpc:grpc_service",
 
     ] + if_cuda_is_configured([
     "//tensorflow/compiler/jit:xla_gpu_device"
