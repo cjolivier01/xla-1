@@ -56,12 +56,8 @@ public:
       std::shared_ptr<ptxla::XrtComputationClientExternalInterface> callback_interface
    );
 
-  class MemoryManager;
-
 private:
   void ReleaseXrtData(const std::string& device, int64 handle) override;
-
-  std::unique_ptr<MemoryManager> memory_manager_;
 };
 
 }  // namespace xla
