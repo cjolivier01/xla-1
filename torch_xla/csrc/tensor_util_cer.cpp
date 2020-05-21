@@ -264,6 +264,16 @@ bool CompileWatcher::PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, 
   return true;
 }
 
+void CompileWatcher::SetDeviceProxyAddress(
+  const std::string& device, const std::string& proxy_address) {
+  xla::XrtComputationClientWse *computation_client =
+    dynamic_cast<xla::XrtComputationClientWse *>(xla::XrtComputationClient::Get());
+  if (computation_client) {
+
+  }
+  HEREX();
+}
+
 bool CompileWatcher::HasWseDevices() {
   static bool got_devices = false;
   if (!got_devices) {

@@ -103,6 +103,7 @@ public:
     const std::vector<std::string>&
     devices
   );
+  static void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
   static bool IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid);
   static bool IsWseRunReady(compiler_t opaque, pid_t tid);
   static bool IsWseRunning(compiler_t opaque, pid_t tid);

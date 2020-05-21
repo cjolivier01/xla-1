@@ -56,7 +56,17 @@ public:
       std::shared_ptr<ptxla::XrtComputationClientExternalInterface> callback_interface
    );
 
+  void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
+
 private:
+  class XlaClientInfo;
+  mutable std::mutex xla_client_map_mtx_;
+  std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
+
+  template<typename CLIENT_T>
+  std::shared_ptr<CLIENT_T> GetXlaClient(const std::string& device, bool create = true);
+  bool IsProxyDevice(const std::string& device) const;
+
   void ReleaseXrtData(const std::string& device, int64 handle) override;
 };
 

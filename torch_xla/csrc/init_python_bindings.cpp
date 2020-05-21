@@ -187,6 +187,12 @@ void SetInputsOutputs(const std::vector<at::Tensor>& input_tensors,
   );
 }
 
+void SetDeviceAddress(const std::string& device, const std::string& proxy_address) {
+  std::vector<std::string> devices = xla::ComputationClient::Get()->GetAllDevices();
+
+  CompileWatcher::SetDeviceProxyAddress(device, proxy_address);
+}
+
 std::string GetLiveTensorsReport(size_t nodes_threshold,
                                  const std::string& device_str) {
   auto opt_device = GetOptionalDevice(device_str);
@@ -704,6 +710,10 @@ void InitXlaModuleBindings(py::module m) {
         []() {
     PopPythonState();
   });
+  m.def("_xla_device_proxy_interface",
+  [](const std::string& device, const std::string& proxy_address) {
+    SetDeviceAddress(device, proxy_address);
+  }, py::arg("device"), py::arg("proxy_address"));
   m.def("_xla_set_live_interface",
         [](ptrdiff_t p) {
       // TODO: TEMPORARY -- Make this grpc
