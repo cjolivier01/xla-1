@@ -351,10 +351,10 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
 
 void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices) {
   const pid_t tid = gettid();
-  assert(IsTrainingThread(tid));
-  if (!IsTrainingThread(tid)) {
-    return;
-  }
+//  assert(IsTrainingThread(tid));
+//  if (!IsTrainingThread(tid)) {
+//    return;
+//  }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   //if (!compile_info->output_ids_.empty()) {
     const size_t total_steps = ++compile_info->mark_step_;
