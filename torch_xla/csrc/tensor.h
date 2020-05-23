@@ -1055,7 +1055,8 @@ class XLATensor {
     CachedComputation(
         std::shared_ptr<xla::ComputationClient::Computation> computation,
         size_t num_parameters)
-        : computation(std::move(computation)), num_parameters(num_parameters) {}
+        : computation(std::move(computation)), num_parameters(num_parameters) {
+    }
 
     std::shared_ptr<xla::ComputationClient::Computation> computation;
     size_t num_parameters;

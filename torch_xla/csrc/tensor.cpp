@@ -1217,7 +1217,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
                  << async->device << " done!";
 
       for (size_t i = 0; i < results.size(); ++i) {
-        std::cout << "ExecuteComputation result " << i << results[i]->shape() << std::endl << std::flush;
+        //std::cout << "ExecuteComputation result " << i << results[i]->shape() << std::endl << std::flush;
         if (async->tensors_data[i] != nullptr) {
           async->tensors_data[i]->Assign(*results[i]);
         } else {

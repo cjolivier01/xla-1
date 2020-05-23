@@ -1363,7 +1363,7 @@ XrtComputationClient::GetComputationResults(
     const tensorflow::Tensor& xrt_result, const Shape& result_shape,
     const std::string& device) {
   std::vector<DataPtr> results;
-  std::cout << "result_shape: " << result_shape << ", output shape: " << xrt_result.shape().DebugString() << std::endl << std::flush;
+  //std::cout << "result_shape: " << result_shape << ", output shape: " << xrt_result.shape().DebugString() << std::endl << std::flush;
   if (xrt_result.dims() == 1) {
     auto handles_vec = xrt_result.vec<int64>();
     for (int64 i = 0; i < handles_vec.size(); ++i) {

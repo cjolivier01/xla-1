@@ -2,6 +2,7 @@
 #define XLA_CLIENT_XRT_COMPUTATION_CLIENT_WSE_H_
 
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
+#include "tensorflow/compiler/xla/xla_data.pb.h"
 
 #include <memory>
 
@@ -60,13 +61,24 @@ public:
 
 private:
   class XlaClientInfo;
-  mutable std::mutex xla_client_map_mtx_;
+  mutable std::recursive_mutex xla_client_map_mtx_;
   std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
 
   template<typename CLIENT_T>
   std::shared_ptr<CLIENT_T> GetXlaClient(const std::string& device, bool create = true);
+  xla::DeviceHandle GetDeviceHandle(const std::string& device);
+  /**
+   * @brief Is device capable of proxy?
+   * @param device
+   * @return
+   */
   bool IsProxyDevice(const std::string& device) const;
-
+  /**
+   * @brief Should this device be proxied right now?
+   * @param device
+   * @return
+   */
+  bool UseProxyForDevice(const std::string& device) const;
   void ReleaseXrtData(const std::string& device, int64 handle) override;
 };
 

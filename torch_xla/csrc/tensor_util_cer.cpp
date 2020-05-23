@@ -207,36 +207,6 @@ std::shared_ptr<CompileInfo> GetCompileInfo(pid_t opaque) {
 const size_t MARK_STEPS_TILL_COMPILE = 15;
 const size_t RUNS_TILL_COMPILE = 15;
 
-void test_python() {
-    //pybind11::module sys = pybind11::module::import("sys");
-    //pybind11::print(sys.attr("path"));
-    //Py_Initialize();
-    //PyEval_InitThreads();
-
-
-    PyGILState_STATE gstate;
-
-    /* aquire python thread */
-    gstate = PyGILState_Ensure();
-
-    //...access python objects...
-
-    PyRun_SimpleString ("import sys; sys.path.insert(0, '/cb/toolchains/buildroot/monolith-tf/202005071849-2-6df3f4e4/rootfs-tf-x86_64/usr/lib/python3.7/site-packages/')");
-    PyObject * pModule = NULL;
-    PyObject * pFunc   = NULL;
-
-    pModule = PyImport_ImportModule("sys");
-    pFunc   = PyObject_GetAttrString(pModule, "Hello");
-    if(pFunc != NULL) {
-        PyEval_CallObject(pFunc, NULL);
-        Py_Finalize();
-    }
-    else {
-        printf("pFunc returned NULL\n");
-    }
-    /* release python thread */
-    PyGILState_Release(gstate);
-}
 static std::mutex init_devices_mutex;
 }  // namespace
 
@@ -269,7 +239,9 @@ void CompileWatcher::SetDeviceProxyAddress(
   xla::XrtComputationClientWse *computation_client =
     dynamic_cast<xla::XrtComputationClientWse *>(xla::XrtComputationClient::Get());
   if (computation_client) {
-
+    computation_client->SetDeviceProxyAddress(device, proxy_address);
+  } else {
+    throw std::runtime_error("Device proxying is not enabled");
   }
   HEREX();
 }
@@ -302,6 +274,7 @@ void CompileWatcher::NotifyCompile(
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }
+  HEREX();
   if (IsWseRunReady(opaque, tid)) {
 //      {
 //          ColorScope clr(Color::FG_GREEN);
@@ -314,9 +287,6 @@ void CompileWatcher::NotifyCompile(
 //      assert(devices.size() == 1);
 //      devices.push_back(GetDevice());
   } else if (!IsWseRunning(opaque, tid)) {
-
-      //test_python();
-
     std::cout << "Compiling hash=" << hash << ENDL;
     assert(opaque != nullptr);
     Reset(opaque, tid, true);
@@ -371,10 +341,11 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
       // TODO: need to recognize ineligible (i.e. dataset fetch) vis python scope check
       std::cout << "No hash" << std::endl;
     }
-    std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_.load()
-              << ", hash " << *compile_info->hash_ << " -> " << hash
-              << ", device=" << device << std::endl << std::flush;
-    Reset(opaque, !new_hash, tid);
+    if (Reset(opaque, !new_hash, tid)) {
+      std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_.load()
+                << ", hash " << *compile_info->hash_ << " -> " << hash
+                << ", device=" << device << std::endl << std::flush;
+    }
   }
 }
 
@@ -400,11 +371,11 @@ Device CompileWatcher::GetDevice() {
     return Device(DeviceType::CPU, 0);
 }
 
-void CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
+bool CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
   if(!IsTrainingThread(tid)) {
     EPythonState state = GetPythonState(tid);
     if (state == EPS_INVALID) {
-      return;
+      return false;
     }
     assert(state == EPS_IN_TRAIN_LOOP);
   }
@@ -420,6 +391,7 @@ void CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
     compile_info->hash_.reset();
   }
   // reset mark_step_, or that's the same thing as run_count_?
+  return true;
 }
 
 // TODO: This should be based on the computation cache hash value
@@ -438,7 +410,11 @@ bool CompileWatcher::IsWseRunReady(compiler_t opaque, pid_t tid) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  return compile_info->run_count_ == RUNS_TILL_COMPILE;
+  const bool ready = compile_info->run_count_ == RUNS_TILL_COMPILE;
+  if (ready) {
+    std::cout << "WseRunReady" << std::endl << std::flush;
+  }
+  return ready;
 }
 
 bool CompileWatcher::IsWseRunning(compiler_t opaque, pid_t tid) {

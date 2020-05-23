@@ -54,14 +54,27 @@ class XrtComputationClient : public ComputationClient {
 
   struct XrtData : public Data {
     XrtData(std::string device, Shape device_shape)
-        : Data(std::move(device), std::move(device_shape)) {}
+        : Data(std::move(device), std::move(device_shape)) {
+      if(Data::device().empty()) {
+        std::cout << "XrtData given empty device" << std::endl << std::flush;
+        assert(false);
+      }
+    }
     XrtData(XrtComputationClient* self, std::string device, Shape device_shape,
             int64 handle)
         : Data(std::move(device), std::move(device_shape)),
           handle_ptr(std::make_shared<XrtHandle>(
               handle, [self, device = this->device(), handle]() {
                 self->ReleaseXrtData(device, handle);
-              })) {}
+              })) {
+      if(Data::device().empty()) {
+        std::cout << "XrtData given empty device" << std::endl << std::flush;
+        assert(false);
+      }
+//      if (handle == 9) {
+//        std::cout << "Created XrtData with handle: " << handle << std::endl << std::flush;
+//      }
+    }
 
     int64 get_handle() const { return handle_ptr->handle; }
 

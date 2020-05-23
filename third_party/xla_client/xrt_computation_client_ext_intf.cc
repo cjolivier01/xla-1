@@ -9,6 +9,8 @@
 #include "tensorflow/core/util/command_line_flags.h"
 #include "tensorflow/core/util/util.h"
 
+#include "tensorflow/compiler/xla/service/hlo.pb.h"
+#include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h"
 
 // /home/chriso/src/ml_frameworks/pytorch_xla/third_party/tensorflow/bazel-out/k8-opt/bin/tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h
@@ -41,6 +43,21 @@
 namespace xla {
 
 namespace {
+
+// We use kDeviceBits to store the device ordinal in the handle. We store the
+// device in the upper part of the int64 handle to make sure the random bits are
+// in the lower part which is better when storing the handle as a key for
+// unordered maps.
+//const int kDeviceBits = 12;
+//
+//int64 MakeDeviceHandle(int64 device_ordinal, int64 rnd_value) {
+//  const int64 kUidMask = (static_cast<int64>(1) << (64 - kDeviceBits)) - 1;
+//  return (device_ordinal << (64 - kDeviceBits)) | (rnd_value & kUidMask);
+//}
+//
+//int GetDeviceFromHandle(int64 handle) {
+//  return (handle >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
+//}
 
 // Quick version of XRTMemoryManager until we can get on
 // the other side of a grpc boundary
@@ -106,8 +123,6 @@ private:
 };
 
 
-}
-
 class WseXlaService : public xla::grpc::XlaService::Service {
   typedef xla::grpc::XlaService::Service Super;
 public:
@@ -137,11 +152,10 @@ protected:
 
   ::grpc::Status Compile(::grpc::ServerContext* context, const ::xla::CompileRequest* request, ::xla::CompileResponse* response) override {
     HEREX();
-    return Super::Compile(context, request, response);
-  }
-
-  ::grpc::Status GetShape(::grpc::ServerContext* context, const ::xla::GetShapeRequest* request, ::xla::GetShapeResponse* response) override {
-    assert(false);  // get from memory manager
+    ExecutorInfoPtr exec = std::make_shared<ExecutorInfo>(*request, ++next_executor_handle_);
+    std::lock_guard<std::mutex> lk(executor_map_mtx_);
+    executor_info_map_.emplace(std::make_pair(exec->handle(), exec));
+    response->mutable_handle()->set_handle(exec->handle());
     return ::grpc::Status::OK;
   }
 
@@ -255,7 +269,7 @@ protected:
         {
           std::lock_guard<std::mutex> slock(lock);
           XrtSession *session = GetSessionForXrtDevice(
-            alloc_session_cache_.get(), xrt_device, &session_map
+            alloc_session_cache_`.get(), xrt_device, &session_map
           );
           SessionWork *session_work = &session_work_map[session];
           tensorflow::Scope device_scope =
@@ -318,12 +332,90 @@ protected:
       ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Not found");
   }
 
+  ::grpc::Status GetDeviceHandles(::grpc::ServerContext* context,
+                                  const GetDeviceHandlesRequest* request,
+                                  GetDeviceHandlesResponse* response) override {
+    HEREX();
+    return Super::GetDeviceHandles(context, request, response);
+  }
+
+  ::grpc::Status ExecuteGraphParallel(::grpc::ServerContext* context,
+                                      const ExecuteGraphParallelRequest* request,
+                                      ExecuteParallelResponse* response) override {
+    assert(false);
+    return ::grpc::Status::OK;
+  }
+
+  ::grpc::Status WaitForExecution(::grpc::ServerContext* context,
+                                  const WaitForExecutionRequest* request,
+                                  WaitForExecutionResponse* response) override {
+    assert(false);
+    return ::grpc::Status::OK;
+  }
+
+  ::grpc::Status TransferToInfeed(::grpc::ServerContext* context,
+                                  const TransferToInfeedRequest* request,
+                                  TransferToInfeedResponse* response) override {
+    assert(false);
+    return ::grpc::Status::OK;
+  }
+
+  ::grpc::Status TransferFromOutfeed(
+      ::grpc::ServerContext* context, const TransferFromOutfeedRequest* request,
+      TransferFromOutfeedResponse* response) override {
+    assert(false);
+    return ::grpc::Status::OK;
+  }
+
+  ::grpc::Status ResetDevice(::grpc::ServerContext* context,
+                             const ResetDeviceRequest* request,
+                             ResetDeviceResponse* response) override {
+    {
+      std::lock_guard<std::mutex> lk(compile_map_mtx_);
+      compile_info_map_.clear();
+    }
+    {
+      std::lock_guard<std::mutex> lk(executor_map_mtx_);
+      executor_info_map_.clear();
+    }
+    return ::grpc::Status::OK;
+  }
+
+  ::grpc::Status GetShape(::grpc::ServerContext* context,
+                          const GetShapeRequest* request,
+                          GetShapeResponse* response) override {
+    assert(false);
+    return ::grpc::Status::OK;
+  }
+
 private:
   std::unique_ptr<::grpc::Server> server_;
   std::unique_ptr<MemoryManager> memory_manager_;
-};
 
-namespace {
+  struct CompileInfo {};
+  using CompileInfoPtr = std::shared_ptr<CompileInfo>;
+
+  class ExecutorInfo {
+  public:
+    ExecutorInfo(xla::CompileRequest compile_request, std::size_t handle)
+    : compile_request_(compile_request),
+      handle_(handle) {
+    }
+    std::size_t handle() const { return handle_; }
+  private:
+    const xla::CompileRequest compile_request_;
+    const std::size_t handle_;
+  };
+  using ExecutorInfoPtr = std::shared_ptr<ExecutorInfo>;
+
+  std::mutex compile_map_mtx_;
+  std::unordered_map<std::size_t, CompileInfoPtr> compile_info_map_;
+
+  std::mutex executor_map_mtx_;
+  std::unordered_map<std::size_t, ExecutorInfoPtr> executor_info_map_;
+  std::atomic<std::size_t> next_executor_handle_{0};
+
+};
 
 std::shared_ptr<WseXlaService> wse_xla_service{nullptr};
 
@@ -333,6 +425,30 @@ int StartLocalXlaService(int port) {
   wse_xla_service = std::make_shared<WseXlaService>();
   wse_xla_service->Start(port, false);
   return 0;
+}
+
+// haven't gotten this to work yet in the same process for some reason won't connect
+int StartLocalCPUService() {
+  int32 port = 1685;
+  bool any_address = false;
+  string platform_str = "WSE";
+  se::Platform *platform = nullptr;
+  if (!platform_str.empty()) {
+    platform = PlatformUtil::GetPlatform(platform_str).ValueOrDie();
+  }
+  std::unique_ptr<xla::GRPCService> service =
+    xla::GRPCService::NewService(platform).ConsumeValueOrDie();
+
+  ::grpc::ServerBuilder builder;
+  string server_address(
+    absl::StrFormat("%s:%d", any_address ? "[::]" : "localhost", port));
+
+  builder.SetMaxReceiveMessageSize(INT_MAX);
+  builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
+  builder.RegisterService(service.get());
+  std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
+
+  LOG(INFO) << "Server listening on " << server_address;
 }
 
 }  // namespace xla
