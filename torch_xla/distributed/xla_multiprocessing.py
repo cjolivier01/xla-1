@@ -44,7 +44,9 @@ def _parse_tpu_config(config):
 
 
 def _get_devices_per_worker():
-  return int(os.environ.get(xenv.TPU_NUM_DEVICES, '8'))
+  devices_per_worker = int(os.environ.get(xenv.TPU_NUM_DEVICES, '8'))
+  if devices_per_worker == 0:
+    return int(os.environ.get("XRT_NUM_DEVICES", '0'))
 
 
 def _get_multiprocessing_device():
@@ -86,7 +88,8 @@ def _pre_fork_setup(num_devices):
 def _prepare_env_for_index(index, num_devices):
   _setup_world_size(num_devices)
   gindex = _local_index_to_global(index)
-  os.environ[xenv.MP_DEVICE] = 'TPU:{}'.format(gindex)
+  mp_device_type = os.environ.get("MP_DEVICE_TYPE", "TPU")
+  os.environ[xenv.MP_DEVICE] = '{}:{}'.format(mp_device_type, gindex)
   os.environ[xenv.ORDINAL] = str(gindex)
   os.environ[xenv.LOCAL_ORDINAL] = str(index)
   if xenv.LOCAL_WORKER not in os.environ:

@@ -1,12 +1,13 @@
 import args_parse
 
 FLAGS = args_parse.parse_common_options(
-    datadir='/tmp/mnist-data',
-    batch_size=128,
-    momentum=0.5,
-    lr=0.01,
-    target_accuracy=98.0,
-    num_epochs=18)
+  datadir='/tmp/mnist-data',
+  batch_size=128,
+  momentum=0.5,
+  lr=0.01,
+  target_accuracy=98.0,
+  num_epochs=18,
+)
 
 import os
 import shutil
@@ -25,6 +26,7 @@ import torch_xla.utils.utils as xu
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.xla_multiprocessing as xmp
 import torch_xla.test.test_utils as test_utils
+#import torch_xla.core.xla_env_vars as xenv
 
 
 class MNIST(nn.Module):
@@ -176,6 +178,67 @@ def _mp_fn(index, flags):
                                                   FLAGS.target_accuracy))
     sys.exit(21)
 
-
 if __name__ == '__main__':
-  xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  import os
+  #xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  os.environ["TPU_NUM_DEVICES"] = "0"
+  os.environ["CPU_NUM_DEVICES"] = "0"
+  os.environ["WSE_NUM_DEVICES"] = "2"
+  os.environ["XRT_NUM_DEVICES"] = "1"
+
+  # os.environ["XRT_DEVICE_MAP"]=\
+  #   "CPU:0;/job:localservice/replica:0/task:0/device:XLA_CPU:0"\
+  #   "|CPU:1;/job:localservice/replica:0/task:1/device:XLA_CPU:1"
+
+  os.environ["XRT_MESH_SERVICE_ADDRESS"] = "localhost:41269"
+
+  os.environ["MP_DEVICE_TYPE"]="WSE"
+
+  MASTER_HAS_WORKER = True
+
+  if FLAGS.master:
+    # XRT_TPU_CONFIG will be the global master mesh config
+    if MASTER_HAS_WORKER:
+      os.environ["XRT_LOCAL_WORKER"] = "wse_worker_1:0"
+    else:
+      if "XRT_LOCAL_WORKER" in os.environ:
+        del os.environ["XRT_LOCAL_WORKER"]
+
+    # os.environ["XRT_WORKERS"] = "|".join([
+    #   "wse_worker_0:0;grpc://chriso-monster:8471",
+    #   "wse_worker_1:0;grpc://chriso-monster:8472",
+    # ])
+
+    # os.environ["XRT_DEVICE_MAP"] = "|".join([
+    #   "WSE:0;/job:wse_worker_0/replica:0/task:0/device:XLA_WSE:0"
+    #   "WSE:1;/job:wse_worker_1/replica:0/task:0/device:XLA_WSE:1",
+    # ])
+
+    os.environ["XRT_TPU_CONFIG"] = "|".join([
+      "wse_worker_0;0;grpc://chriso-monster:8471",
+      "wse_worker_1;0;grpc://chriso-monster:8472" #if not MASTER_HAS_WORKER
+      #else "localservice;0;grpc://localhost:8472"
+    ])
+
+  else:
+    # This is the task that the starting worker will
+    # use to match against the mesg config item
+    os.environ["XRT_LOCAL_WORKER"] = "wse_worker_0:0"
+
+    # os.environ["XRT_WORKERS"] = "|".join([
+    #   "wse_worker_0:0;grpc://chriso-monster:8471",
+    #   "wse_worker_1:0;grpc://chriso-monster:8472",
+    # ])
+
+    # os.environ["XRT_DEVICE_MAP"] = "|".join([
+    #   "WSE:0;/job:wse_worker_0/replica:0/task:0/device:XLA_WSE:0"
+    #   "WSE:1;/job:wse_worker_1/replica:0/task:0/device:XLA_WSE:1",
+    # ])
+
+  xmp.spawn(
+    _mp_fn,
+    args=(FLAGS,),
+    nprocs=FLAGS.num_cores,
+    daemon=True,
+    #start_method="fork"
+  )

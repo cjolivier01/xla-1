@@ -8,6 +8,8 @@
 #include <sstream>
 #include <unordered_map>
 
+#include <unistd.h>
+
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "tensorflow/cc/ops/const_op.h"
@@ -16,15 +18,20 @@
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
+#include "tensorflow/compiler/xla/xla_client/env_vars.h"
 #include "tensorflow/compiler/xla/xla_client/unique.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_local_service.h"
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
 #include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/util.h"
 
 namespace xla {
+
+XrtComputationClient::Worker ParseWorker(const std::string& worker);
+
 namespace {
 
 bool verbose = true;
@@ -33,6 +40,15 @@ thread_local std::vector<std::string> g_replication_devices;
 
 pid_t gettid() {
     return syscall(__NR_gettid);
+}
+
+bool IsMeshable(std::string device) {
+  const char *start = device.c_str();
+  const char *colon = strchr(start, ':');
+  if (colon) {
+    device.resize(colon - start);
+  }
+  return device == "TPU" || device == "WSE" || device == "XLA_WSE";
 }
 
 // A simple Tensorflow Allocator which caches Tensor allocations in order to
@@ -292,19 +308,6 @@ std::vector<size_t> XrtComputationClient::PartitionTransferToServer(
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
     absl::Span<const TensorSource> tensors) {
-  if (verbose) {
-      ColorScope clr(Color::FG_BLUE);
-      std::cout << gettid() << " XrtComputationClient::TransferToServer( ";
-      size_t i = 0;
-      for (const TensorSource& t : tensors) {
-          if (i++) {
-              std::cout << ", ";
-          }
-          std::cout << t.shape << "@" << t.device << " ";
-      }
-      std::cout << ")" << std::endl << std::flush;
-  }
-
   auto partitions = PartitionTransferToServer(tensors);
   if (partitions.size() == 1) {
     // Fast path in case of single partition. Avoid creating threads and
@@ -333,10 +336,32 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
   return results;
 }
 
+std::string XrtComputationClient::DeviceSummary(const std::string& device) const {
+  std::stringstream ss;
+  const auto worker_pair = GetWorkerForDevice(device);
+  ss << device << "@" << TorchDeviceToXrtDevice(device)
+     << " -> " << worker_pair.first.name << " task_no=" << worker_pair.first.task_no
+     << ", " << worker_pair.second;
+  return ss.str();
+}
+
 std::vector<ComputationClient::DataPtr>
 XrtComputationClient::TransferToServerInternal(
     absl::Span<const TensorSource> tensors) {
   metrics::TimedSection timed(TransferToServerMetric());
+
+  if (verbose) {
+    ColorScope clr(Color::FG_BLUE);
+    std::cout << getpid() << " XrtComputationClient::TransferToServerInternal( ";
+    size_t i = 0;
+    for (const TensorSource& t : tensors) {
+      if (i++) {
+        std::cout << ", ";
+      }
+      std::cout << t.shape << "@" << DeviceSummary(t.device);
+    }
+    std::cout << ")" << std::endl << std::flush;
+  }
 
   std::mutex lock;
   XrtSessionCache::SessionMap session_map;
@@ -362,6 +387,7 @@ XrtComputationClient::TransferToServerInternal(
           std::lock_guard<std::mutex> slock(lock);
           XrtSession* session = GetSessionForXrtDevice(
               alloc_session_cache_.get(), xrt_device, &session_map);
+          std::cout << "Session target: " << session->target();
           SessionWork* session_work = &session_work_map[session];
           tensorflow::Scope device_scope =
               session->root()->WithDevice(xrt_device);
@@ -410,7 +436,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
 
   if (verbose) {
       ColorScope clr(Color::FG_MAGENTA);
-      std::cout << gettid() << " XrtComputationClient::TransferFromServer( ";
+      std::cout << getpid() << " XrtComputationClient::TransferFromServer( ";
       size_t i = 0;
       for (const DataPtr& dp : handles) {
           if (i++) {
@@ -1254,16 +1280,21 @@ void XrtComputationClient::InitializeDevices(
     std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto) {
   bool is_master = topology_proto == nullptr;
   if (is_master) {
+    {
+      ColorScope clr(Color::FG_MAGENTA);
+      std::cout << "Initializing devices on an MASTER"
+                << std::endl << std::flush;
+    }
     std::set<Worker> tpu_workers;
     std::set<Worker> wse_workers;  // TODO: probably don't need this
     for (const auto& dev_target : options_.global_device_map) {
       tensorflow::DeviceNameUtils::ParsedName parsed_device =
           ParseFullXrtDevice(dev_target.second);
-      if (parsed_device.type == "TPU") {
+      if (IsMeshable(parsed_device.type)) {
         tpu_workers.emplace(parsed_device.job, parsed_device.task);
-      } else if (parsed_device.type == "XLA_WSE") {
-        wse_workers.emplace(parsed_device.job, parsed_device.task);
-      }
+      } //else if (parsed_device.type == "WSE") {
+        //wse_workers.emplace(parsed_device.job, parsed_device.task);
+      //}
     }
     if (!tpu_workers.empty()) {
       const Worker& worker = *tpu_workers.begin();
@@ -1273,7 +1304,7 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          InitializeAndFetchTopology(
+          XrtComputationClientWse::InitializeAndFetchTopology(
               worker.name, worker.task_no, it->second,
               session_cache_->GetConfig());
       if (topology_proto == nullptr) {
@@ -1284,11 +1315,17 @@ void XrtComputationClient::InitializeDevices(
     if (topology_proto != nullptr) {
       TF_VLOG(1) << "TPU topology: " << topology_proto->DebugString();
     }
+  } else {
+    {
+      ColorScope clr(Color::FG_MAGENTA);
+      std::cout << "Initializing devices on an WORKER or STANDALONE"
+                << std::endl << std::flush;
+    }
   }
   for (const auto& dev_target : options_.global_device_map) {
     tensorflow::DeviceNameUtils::ParsedName parsed_device =
         ParseFullXrtDevice(dev_target.second);
-    if (parsed_device.type != "TPU") {
+    if (!IsMeshable(parsed_device.type)) {
       continue;
     }
     XLA_CHECK_LE(parsed_device.task, topology_proto->num_tasks());
@@ -1398,7 +1435,7 @@ size_t XrtComputationClient::GetNumDevices() const {
 
 std::vector<std::string> XrtComputationClient::GetLocalDevices() const {
   return std::vector<std::string>(options_.devices.begin(),
-                                  options_.devices.end());
+                                   options_.devices.end());
 }
 
 std::vector<std::string> XrtComputationClient::GetAllDevices() const {
@@ -1799,24 +1836,59 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
   return config;
 }
 
-void XrtComputationClient::MaybeCreateLocalService(
-    const XrtComputationClient::Options& options) {
-  static const std::string* const grpc_root =
-      new std::string("grpc://localhost:");
-  int task_index = -1;
-  std::string job_name;
-  std::string cluster_spec;
-  for (auto& worker_target : options.workers_map) {
-    if (worker_target.second.compare(0, grpc_root->size(), *grpc_root) == 0 &&
-        worker_target.first.name == "localservice") {
-      job_name = worker_target.first.name;
-      task_index = worker_target.first.task_no;
-      cluster_spec = absl::StrCat(
-          worker_target.first.name,
-          "|localhost:", worker_target.second.substr(grpc_root->size()));
+XrtComputationClient::Worker XrtComputationClient::ParseWorker(
+    const std::string& worker) {
+  std::vector<std::string> parts = absl::StrSplit(worker, ':');
+  XLA_CHECK(parts.size() == 1 || parts.size() == 2) << worker;
+  return parts.size() == 1 ? Worker(parts[0], 0)
+                           : Worker(parts[0], std::stoi(parts[1]));
+}
+
+std::string XrtComputationClient::GetLocalTarget(const Options& options) {
+  std::string local_worker = sys_util::GetEnvString(env::kEnvLocalWorker, "");
+  std::string local_target;
+  if (!local_worker.empty()) {
+    XrtComputationClient::Worker worker = ParseWorker(local_worker);
+    if (worker.name == "localservice") {
+      auto it = options.workers_map.find(worker);
+      if (it != options.workers_map.end()) {
+        local_target = it->second;
+      }
     }
   }
-  if (!cluster_spec.empty()) {
+  return local_target;
+}
+
+void XrtComputationClient::MaybeCreateLocalService(const Options& options) {
+  std::string grpc_root("grpc://");
+  std::string local_worker = sys_util::GetEnvString(env::kEnvLocalWorker, "");
+  XrtComputationClient::Worker worker("", -1);
+  if (!local_worker.empty()) {
+    worker = ParseWorker(local_worker);
+  }
+  int task_index = -1;
+  std::string job_name;
+  std::vector<std::string> hosts;
+  for (auto& worker_target : options.workers_map) {
+    if (worker_target.first == worker ||
+      (
+        worker_target.first.name == "localservice" &&
+        worker_target.second.compare(0, grpc_root.size(), grpc_root) == 0
+      )) {
+      hosts.push_back(worker_target.second.substr(grpc_root.size()));
+      if (worker.task_no < 0 || worker_target.first == worker) {
+        XLA_CHECK_EQ(task_index, -1)
+            << "Multiple workers matching the local one: '" << local_worker
+            << "'";
+        job_name = worker_target.first.name;
+        task_index = worker_target.first.task_no;
+      }
+    }
+  }
+  if (task_index >= 0 && !job_name.empty()) {
+    std::string cluster_spec =
+        absl::StrCat(job_name, "|", absl::StrJoin(hosts, ";"));
+    TF_VLOG(2) << "Local Service Cluster Spec: " << cluster_spec;
     XrtLocalService* service =
         new XrtLocalService(cluster_spec, job_name, task_index);
     service->Start();

@@ -59,6 +59,10 @@ public:
 
   void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
 
+  static tensorflow::tpu::TopologyProto InitializeAndFetchTopology(
+    const std::string& job, int task_no, const std::string& worker_host_port,
+    const tensorflow::ConfigProto& config);
+
 private:
   class XlaClientInfo;
   mutable std::recursive_mutex xla_client_map_mtx_;

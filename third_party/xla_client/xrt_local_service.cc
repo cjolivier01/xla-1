@@ -50,10 +50,14 @@ void FillServerDef(const std::string& cluster_spec, const std::string& job_name,
 
 }  // namespace
 
+
 XrtLocalService::XrtLocalService(const std::string& cluster_spec,
                                  const std::string& job_name, int task_index) {
   tensorflow::ServerDef server_def;
   FillServerDef(cluster_spec, job_name, task_index, &server_def);
+  std::cout << "XrtLocalService::XrtLocalService() cluster_spec=" << cluster_spec
+            << ", job_name=" << cluster_spec << ", task_index="
+            << task_index << std::endl << std::flush;
   TF_CHECK_OK(tensorflow::NewServer(server_def, &server_));
 }
 

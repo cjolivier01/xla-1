@@ -8,6 +8,7 @@
 #include <mutex>
 #include <string>
 #include <utility>
+#include <sstream>
 
 #include "absl/types/optional.h"
 #include "tensorflow/cc/client/client_session.h"
@@ -120,6 +121,12 @@ class XrtComputationClient : public ComputationClient {
       return task_no == rhs.task_no && name == rhs.name;
     }
 
+    std::string ToString() const {
+      std::stringstream ss;
+      ss << name << ", task_no=" << task_no;
+      return ss.str();
+    }
+
     std::string name;
     int task_no;
   };
@@ -195,6 +202,8 @@ class XrtComputationClient : public ComputationClient {
   void SetRngSeed(size_t seed) override;
 
   std::map<std::string, Metric> GetMetrics() const override;
+
+  static Worker ParseWorker(const std::string& worker);
 
   static std::string GetMultiProcessingDevice();
 
@@ -442,6 +451,8 @@ class XrtComputationClient : public ComputationClient {
       XrtSession* session, const tensorflow::Scope& scope,
       const std::string& device) const;
 
+  std::string DeviceSummary(const std::string& device) const;
+
   // Checks the result of a compile operation, and dumps the XLA computation
   // graphs in case of error.
   static void CheckCompileStatus(const Status& status,
@@ -472,9 +483,10 @@ class XrtComputationClient : public ComputationClient {
       const std::string& job, int task_no, const std::string& worker_host_port,
       const tensorflow::ConfigProto& config);
 
+  static std::string GetLocalTarget(const Options& options);
+
   // Checks whether a local GRPC service is required, and starts it if need it.
-  static void MaybeCreateLocalService(
-      const XrtComputationClient::Options& options);
+  static void MaybeCreateLocalService(const Options& options);
 
   tensorflow::Allocator *GetTensorAllocator();
 

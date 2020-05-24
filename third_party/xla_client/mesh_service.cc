@@ -168,6 +168,9 @@ struct MeshService::Impl {
     builder.AddListeningPort(address, ::grpc::InsecureServerCredentials());
     builder.RegisterService(&impl);
     server = builder.BuildAndStart();
+    std::cout << "Mesh service listening on at address: "
+              << "XRT_MESH_SERVICE_ADDRESS=" << address
+              << std::endl << std::flush;
   }
 
   MeshServiceImpl impl;

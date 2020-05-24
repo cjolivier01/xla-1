@@ -782,5 +782,53 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
   return std::move(results);
 }
 
+namespace {
+int get_env_int(const char *s, const int dflt) {
+  const char* v = getenv(s);
+  if (v && *v) {
+    return atoi(v);
+  }
+  return dflt;
+}
+}
+
+tensorflow::tpu::TopologyProto XrtComputationClientWse::InitializeAndFetchTopology(
+  const std::string& job,
+  int task_no,
+  const std::string& worker_host_port,
+  const tensorflow::ConfigProto& config
+) {
+  std::cout << "InitializeAndFetchTopology( job=" << job
+            << ", task_no= << " << task_no
+            << ", worker_host_port=" << worker_host_port
+            << ", config=" << msg_to_json(config)
+            << std::endl << std::flush;
+  const int wse_num_devices = get_env_int("WSE_NUM_DEVICES", 0);
+  const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
+  if (!wse_num_devices) {
+    return Super::InitializeAndFetchTopology(
+      job, task_no, worker_host_port, config
+    );
+  }
+  //assert(wse_num_devices == cpu_num_devices);
+  tensorflow::tpu::TopologyProto topology_proto;
+//  for (int i = 0; i < wse_num_devices; ++i) {
+//    for(int j = 0; j < (cpu_num_devices ? cpu_num_devices : 1); ++j) {
+//
+//    }
+//  }
+  topology_proto.add_mesh_shape(wse_num_devices + cpu_num_devices);
+  topology_proto.add_mesh_shape(1);
+  topology_proto.add_mesh_shape(1);
+  topology_proto.set_num_tasks(wse_num_devices);
+  topology_proto.set_num_tpu_devices_per_task(wse_num_devices);
+  for (int i = 0; i < wse_num_devices + cpu_num_devices; ++i) {
+    topology_proto.add_device_coordinates(i);
+    topology_proto.add_device_coordinates(1);
+    topology_proto.add_device_coordinates(1);
+  }
+  return std::move(topology_proto);
+}
+
 }  // namespace xla
 

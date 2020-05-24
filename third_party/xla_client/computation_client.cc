@@ -122,6 +122,9 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
       if (!IsLocalDevice(worker, parsed_device, dev_task_map)) {
         continue;
       }
+      std::cout << "Found local device: " << device_xrt_device.first
+                <<  " (" << device_xrt_device.second
+                << std::endl << std::flush;
     }
     options->devices.insert(device_xrt_device.first);
 
@@ -134,6 +137,9 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
     auto it = min_ordinals.find(kind);
     if (it != min_ordinals.end()) {
       options->default_device = absl::StrCat(kind, ":", it->second);
+      std::cout << "Setting default local device to: "
+                << options->default_device
+                << std::endl << std::flush;
       break;
     }
   }
@@ -150,7 +156,7 @@ void AddXrtHostDevices(const std::string& worker_name, int task_no,
   } const devices[] = {
       {"TPU", "TPU", (int)sys_util::GetEnvInt("TPU_NUM_DEVICES", 8)},
       {"CPU", "XLA_CPU", (int)sys_util::GetEnvInt("CPU_NUM_DEVICES", 1)},
-      {"WSE", "XLA_WSE", (int)sys_util::GetEnvInt("WSE_NUM_DEVICES", 1)},
+      {"WSE", "XLA_WSE", (int)sys_util::GetEnvInt("WSE_NUM_DEVICES", 0)},
   };
   options->workers_map.emplace(
       XrtComputationClient::Worker(worker_name, task_no),
@@ -207,16 +213,24 @@ bool ParseMeshConfig(
     XrtComputationClient::Worker worker(config_worker.name(),
                                         config_worker.task_no());
     options->workers_map.emplace(worker, config_worker.address());
+    std::cout << "Found worker in config: " << config_worker.name()
+              << ", task_no=" << config_worker.task_no()
+              << std::endl << std::flush;
 
     for (auto& device : config_worker.devices()) {
       Device local_device = ParseDevice(device.local_name());
+      std::cout << "\tFound worker's global device in config: " << device.global_name()
+                << std::endl << std::flush;
       options->global_device_map.emplace(
           device.global_name(),
           GetXrtDevicePath(worker.name, worker.task_no, local_device.kind,
                            local_device.ordinal));
       if (local_worker == worker &&
           (mp_device.empty() || device.global_name() == mp_device)) {
+        std::cout << "\t+Matched local worker device: " << device.global_name() << std::endl << std::flush;
         options->devices.insert(device.global_name());
+      } else {
+        std::cout << "\t-Discarded unmatched local worker device: " << device.global_name() << std::endl << std::flush;
       }
     }
   }

@@ -125,9 +125,10 @@ void XLATensor::print_all_tensors(const std::string& label, const std::vector<XL
 struct SPythonState {
   std::stack<EPythonState> states;
 
-  void push(EPythonState new_state) {
+  void push(EPythonState new_state, pid_t __tid=0) {
     std::lock_guard<std::mutex> lk(python_state_map_mtx);
-    python_state_map[gettid()].states.push(new_state);
+    const pid_t tid = __tid ? __tid : gettid();
+    python_state_map[tid].states.push(new_state);
   }
   void pop() {
     std::lock_guard<std::mutex> lk(python_state_map_mtx);
@@ -160,8 +161,12 @@ EPythonState GetPythonState(pid_t tid) {
   return python_state.get(tid);
 }
 
+static void _PushPythonState(EPythonState state, pid_t __tid=0) {
+  python_state.push(state, __tid);
+}
+
 void PushPythonState(EPythonState state) {
-  python_state.push(state);
+  _PushPythonState(state);
 }
 
 void PopPythonState() {
@@ -355,6 +360,11 @@ void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::
 //  if (!IsTrainingThread(tid)) {
 //    return;
 //  }
+  if (!IsTrainingThread(tid)) {
+    assert(GetPythonState(tid) == EPS_INVALID);
+    // The assumption is that only the training thread can call _XLAC._mark_step()
+    _PushPythonState(EPS_IN_TRAIN_LOOP, tid);
+  }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   //if (!compile_info->output_ids_.empty()) {
     const size_t total_steps = ++compile_info->mark_step_;
