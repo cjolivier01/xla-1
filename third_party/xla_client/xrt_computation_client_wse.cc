@@ -679,16 +679,16 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
     xla::ExecuteRequest request;
     xla::ExecuteResponse response;
 
-    std::cout << "Execution handle: " << computation.execution_handle()
-              << " " << computation.program_shape().ToString()
-              << ENDL;
+//    std::cout << "Execution handle: " << computation.execution_handle()
+//              << " " << computation.program_shape().ToString()
+//              << ENDL;
 
     auto execution_handle = std::make_unique<xla::ExecutionHandle>();
     execution_handle->set_handle(computation.execution_handle());
     request.set_allocated_handle(execution_handle.release());
 
     for (const DataPtr argument : arguments) {
-      std::cout << "argument handle: " << argument->GetOpaqueHandle() << ENDL;
+      //std::cout << "argument handle: " << argument->GetOpaqueHandle() << ENDL;
       request.add_arguments()->set_handle(argument->GetOpaqueHandle());
     }
 
