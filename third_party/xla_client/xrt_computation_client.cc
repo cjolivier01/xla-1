@@ -908,7 +908,8 @@ XrtComputationClient::ExecuteChainedSplit(
 }
 
 std::vector<std::vector<ComputationClient::DataPtr>>
-XrtComputationClient::DeconstructTuple(absl::Span<const DataPtr> tuples) {
+XrtComputationClient
+::DeconstructTuple(absl::Span<const DataPtr> tuples) {
   metrics::TimedSection timed(DeconstructTupleMetric());
 
   XrtSessionCache::SessionMap session_map;

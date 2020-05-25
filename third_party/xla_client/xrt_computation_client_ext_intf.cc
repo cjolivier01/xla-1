@@ -30,19 +30,18 @@
 #include "grpcpp/create_channel.h"
 #include "grpcpp/security/credentials.h"
 
-#include "absl/strings/str_format.h"
-#include "tensorflow/compiler/xla/client/client.h"
-#include "tensorflow/compiler/xla/client/xla_builder.h"
-#include "tensorflow/compiler/xla/literal.h"
-#include "tensorflow/compiler/xla/rpc/grpc_stub.h"
-#include "tensorflow/core/lib/io/path.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/net.h"
-#include "tensorflow/core/platform/subprocess.h"
+//#include "absl/strings/str_format.h"
+//#include "tensorflow/compiler/xla/client/client.h"
+//#include "tensorflow/core/lib/io/path.h"
+//#include "tensorflow/core/platform/logging.h"
+//#include "tensorflow/core/platform/net.h"
+//#include "tensorflow/core/platform/subprocess.h"
 
 namespace xla {
 
 namespace {
+
+typedef int64 handle_t;
 
 // We use kDeviceBits to store the device ordinal in the handle. We store the
 // device in the upper part of the int64 handle to make sure the random bits are
@@ -59,20 +58,36 @@ int GetDeviceFromHandle(int64 handle) {
   return (handle >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
 }
 
+std::size_t GetElementCount(const xla::ShapeProto& shape) {
+  std::size_t element_count = 1;
+  for (auto dim : shape.dimensions()) {
+    element_count *= dim;
+  }
+  return element_count;
+}
+
+template<typename FILL_FUN_T>
+void FillLiteral(xla::LiteralProto& literal, FILL_FUN_T fill_fn) {
+  const std::size_t element_count = GetElementCount(literal.shape());
+  for (std::size_t i = 0; i < element_count; ++i) {
+    fill_fn(literal);
+  }
+}
+
 // Quick version of XRTMemoryManager until we can get on
 // the other side of a grpc boundary
 class MemoryManager {
   struct LiteralDataEntry {
 
     LiteralDataEntry(
-      std::shared_ptr<xla::Literal> literal,
+      std::shared_ptr<xla::LiteralProto> literal,
       const DeviceHandle& device_handle,
       bool has_data
     ) : literal_(literal),
         device_handle_(device_handle),
         has_data_(has_data) {}
 
-    std::shared_ptr<xla::Literal> literal_;
+    std::shared_ptr<xla::LiteralProto> literal_;
     DeviceHandle device_handle_;
     bool has_data_;
   };
@@ -95,8 +110,8 @@ public:
    * @param has_data
    * @return
    */
-  int64 Register(
-    std::shared_ptr<xla::Literal> literal,
+  handle_t Register(
+    std::shared_ptr<xla::LiteralProto> literal,
     const xla::DeviceHandle& device_handle,
     bool has_data
   ) {
@@ -122,10 +137,13 @@ public:
    * @param handle
    * @return
    */
-  std::shared_ptr<xla::Literal> Get(int64 handle) const {
+  std::shared_ptr<xla::LiteralProto> Get(handle_t handle) const {
     std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
-    assert(literal_map_.count(handle) != 0);
-    return literal_map_.find(handle)->second->literal_;
+    auto found = literal_map_.find(handle);
+    if (found == literal_map_.end()) {
+      return nullptr;
+    }
+    return found->second->literal_;
   }
 
   /**
@@ -133,7 +151,7 @@ public:
    * @param handle
    * @return
    */
-  bool Free(int64 handle) {
+  bool Free(handle_t handle) {
     std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
     if(literal_map_.count(handle)) {
       literal_map_.erase(handle);
@@ -157,6 +175,23 @@ public:
     return std::move(results);
   }
 
+  xla::DeviceHandle GetDeviceHandleFromDataHandle(const handle_t data_handle) const {
+    std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
+    const auto found = literal_handle_to_device_handle_.find(data_handle);
+    if (found != literal_handle_to_device_handle_.end()) {
+      return found->second;
+    }
+    return xla::DeviceHandle();
+  }
+
+  void Reset() {
+    std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
+    literal_map_.clear();
+    literal_handle_to_device_handle_.clear();
+    device_handles_allocated_ = 0;
+    next_memory_handle_ = 0;
+  }
+
   static int64 InvalidKey() { return 0; }
   int64 CreateUid() {
     int64 uid;
@@ -178,11 +213,7 @@ class WseXlaService : public xla::grpc::XlaService::Service {
 public:
   WseXlaService() : memory_manager_(std::make_unique<MemoryManager>()) {}
 
-  virtual ~WseXlaService() {
-    if (server_) {
-      //server_->
-    }
-  }
+  virtual ~WseXlaService() {}
 
   bool Start(int port, bool wait) {
     std::strstream ss;
@@ -210,12 +241,161 @@ protected:
   }
 
   ::grpc::Status Execute(::grpc::ServerContext* context, const ::xla::ExecuteRequest* request, ::xla::ExecuteResponse* response) override {
+    // Get the executable
+    ExecutorInfoPtr executable;
+    const handle_t execution_handle = request->handle().handle();
+    {
+      std::lock_guard<std::mutex> lk(executor_map_mtx_);
+      auto found = executor_info_map_.find(execution_handle);
+      if (found == executor_info_map_.end()) {
+        return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Executable not found");
+      }
+      executable = found->second;
+    }
+
+    xla::DeviceHandle device_handle;
+
+    // Parse the arguments
+    for (const xla::GlobalDataHandle& argument : request->arguments()) {
+      const handle_t arg_handle = argument.handle();
+      if (!memory_manager_->IsIn(arg_handle)) {
+        return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Argument handle not found");
+      }
+      if (!device_handle.handle()) {
+        device_handle = memory_manager_->GetDeviceHandleFromDataHandle(arg_handle);
+      }
+    }
+    std::vector<xla::LiteralProto> results;
+
+    // Create the results and return the global data handles for them
+    const xla::ProgramShapeProto& program_shape = executable->get_program_shape();
+
+    //std::cout << "Result xla::ProgramShapeProto: " << msg_to_json(program_shape) << std::endl << std::flush;
+
+    const xla::ShapeProto& result = program_shape.result();
+
+    //std::cout << "Result xla::ShapeProto: " << msg_to_json(result) << std::endl << std::flush;
+
+    std::list<xla::ShapeProto> result_shapes;
+    const xla::PrimitiveType result_element_type = result.element_type();
+    if (result_element_type == xla::PrimitiveType::TUPLE) {
+      for (const xla::ShapeProto& tuple_item_shape : result.tuple_shapes()) {
+        // Don't currently support nested tuples in results
+        assert(tuple_item_shape.element_type() != xla::PrimitiveType::TUPLE);
+        result_shapes.push_back(tuple_item_shape);
+      }
+    } else {
+      result_shapes.push_back(result);
+    }
+
+    // Go through results, create buffers and allocate
+    std::vector<handle_t> result_handles;
+    result_handles.reserve(result_shapes.size());
+    for (const xla::ShapeProto& result_shape : result_shapes) {
+      std::shared_ptr<xla::LiteralProto> literal = std::make_shared<xla::LiteralProto>();
+      *literal->mutable_shape() = result_shape;
+      const xla::PrimitiveType xla_type = result_shape.element_type();
+      switch (xla_type) {
+        case xla::PrimitiveType::F32:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_f32s(0.01); });
+          break;
+        case xla::PrimitiveType::F64:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_f64s(0.01); });
+          break;
+        case xla::PrimitiveType::S32:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_s32s(1); });
+          break;
+        case xla::PrimitiveType::U32:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_u32s(1); });
+          break;
+        case xla::PrimitiveType::S64:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_s64s(1); });
+          break;
+        case xla::PrimitiveType::U64:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_s32s(1); });
+          break;
+        case xla::PrimitiveType::PRED:
+          FillLiteral(*literal, [](xla::LiteralProto& l) { l.add_preds(false); });
+          break;
+        case xla::PrimitiveType::TUPLE:
+        case xla::PrimitiveType::F16:
+        case xla::PrimitiveType::S16:
+        case xla::PrimitiveType::U16:
+        case xla::PrimitiveType::BF16:
+        case xla::PrimitiveType::U8:
+        case xla::PrimitiveType::S8:
+        case xla::PrimitiveType::C64:
+        case xla::PrimitiveType::C128:
+        default:
+          return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "Xla type not implemented");
+      }
+      const handle_t result_handle = memory_manager_->Register(
+        literal, device_handle, true
+      );
+      result_handles.push_back(result_handle);
+    }
+
+    if (result_handles.size() == 1) {
+      response->mutable_output()->set_handle(result_handles[0]);
+    } else {
+      // Return a tuple for multiple return shapes
+      xla::ShapeProto tuple_shape;
+      tuple_shape.set_element_type(xla::PrimitiveType::TUPLE);
+      //tuple_shape.add_dimensions(result_handles.size());
+      auto tuple_literal = std::make_shared<xla::LiteralProto>();
+      *tuple_literal->mutable_shape() = tuple_shape;
+      //tuple_item_shape.add_dimensions(result_handles.size());
+      for (size_t item = 0; item < result_handles.size(); ++item) {
+        const handle_t item_handle = result_handles[item];
+        xla::ShapeProto tis;
+        tis.add_dimensions(1);
+        tis.set_element_type(xla::PrimitiveType::S64);
+        *tuple_literal->mutable_shape()->add_tuple_shapes() = tis;
+        assert(item_handle);
+        std::cout << "Adding handle to tuple: " << item_handle << std::endl << std::flush;
+        tuple_literal->add_s64s(item_handle);
+      }
+      const handle_t tuple_handle = memory_manager_->Register(
+        tuple_literal,
+        device_handle,
+        true
+      );
+      assert(tuple_handle);
+      std::cout << "handle for tuple: " << tuple_handle << std::endl << std::flush;
+      response->mutable_output()->set_handle(tuple_handle);
+    }
+
+    ::xla::ExecutionProfile profile;
+    *response->mutable_profile() = profile;
+
     return ::grpc::Status::OK;
   }
 
   ::grpc::Status DeconstructTuple(::grpc::ServerContext* context, const ::xla::DeconstructTupleRequest* request, ::xla::DeconstructTupleResponse* response) override {
     HEREX();
-    return Super::DeconstructTuple(context, request, response);
+
+    const xla::GlobalDataHandle tuple_handle = request->tuple_handle();
+
+    std::shared_ptr<xla::LiteralProto> tuple_literal = memory_manager_->Get(tuple_handle.handle());
+    if (!tuple_literal) {
+      ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Memory handle not found when querying shape");
+    }
+    const xla::ShapeProto tuple_shape = tuple_literal->shape();
+    if (tuple_shape.element_type() != xla::PrimitiveType::TUPLE) {
+      return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Handle supplie dis not a tuple");
+    }
+
+    int64 count = tuple_shape.tuple_shapes_size();
+    assert(tuple_literal->s64s_size() == count);
+    for (int64 j = 0; j < count; ++j) {
+      const handle_t item_handle = tuple_literal->s64s(j);
+      xla::GlobalDataHandle gdh;
+      assert(item_handle);
+      gdh.set_handle(item_handle);
+      *response->add_element_handles() = gdh;
+    }
+
+    return ::grpc::Status::OK;
   }
 
   ::grpc::Status TransferToClient(::grpc::ServerContext* context, const ::xla::TransferToClientRequest* request, ::xla::TransferToClientResponse* response) override {
@@ -226,7 +406,7 @@ protected:
   // allocation, which is returned.
   ::grpc::Status TransferToServer(::grpc::ServerContext* context, const ::xla::TransferToServerRequest* request, ::xla::TransferToServerResponse* response) {
     HEREX();
-    auto literal = std::make_shared<xla::Literal>(xla::Literal::CreateFromProto(request->literal()).ValueOrDie());
+    auto literal = std::make_shared<xla::LiteralProto>(request->literal());
     const int64 handle = memory_manager_->Register(literal, request->device_handle(), true);
     response->mutable_data()->set_handle(handle);
     return ::grpc::Status::OK;
@@ -298,13 +478,22 @@ protected:
       std::lock_guard<std::mutex> lk(executor_map_mtx_);
       executor_info_map_.clear();
     }
+    memory_manager_->Reset();
     return ::grpc::Status::OK;
   }
 
   ::grpc::Status GetShape(::grpc::ServerContext* context,
                           const GetShapeRequest* request,
                           GetShapeResponse* response) override {
-    assert(false);
+    const handle_t handle = request->data().handle();
+    if (!handle) {
+      return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid NULL handle in call to GetShape");
+    }
+    std::shared_ptr<xla::LiteralProto> literal = memory_manager_->Get(handle);
+    if (!literal) {
+      return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Memory handle not found when querying shape");
+    }
+    *response->mutable_shape() = literal->shape();
     return ::grpc::Status::OK;
   }
 
@@ -322,6 +511,11 @@ private:
       handle_(handle) {
     }
     std::size_t handle() const { return handle_; }
+
+    const xla::ProgramShapeProto& get_program_shape() const {
+      return compile_request_.computation().host_program_shape();
+    }
+
   private:
     const xla::CompileRequest compile_request_;
     const std::size_t handle_;
@@ -348,28 +542,28 @@ int StartLocalWseXlaService(int port) {
 }
 
 // haven't gotten this to work yet in the same process for some reason won't connect
-int StartLocalCPUService() {
-  int32 port = 1685;
-  bool any_address = false;
-  string platform_str = "WSE";
-  se::Platform *platform = nullptr;
-  if (!platform_str.empty()) {
-    platform = PlatformUtil::GetPlatform(platform_str).ValueOrDie();
-  }
-  std::unique_ptr<xla::GRPCService> service =
-    xla::GRPCService::NewService(platform).ConsumeValueOrDie();
-
-  ::grpc::ServerBuilder builder;
-  string server_address(
-    absl::StrFormat("%s:%d", any_address ? "[::]" : "localhost", port));
-
-  builder.SetMaxReceiveMessageSize(INT_MAX);
-  builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
-  builder.RegisterService(service.get());
-  std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-
-  LOG(INFO) << "Server listening on " << server_address;
-}
+//int StartLocalCPUService() {
+//  int32 port = 1685;
+//  bool any_address = false;
+//  string platform_str = "WSE";
+//  se::Platform *platform = nullptr;
+//  if (!platform_str.empty()) {
+//    platform = PlatformUtil::GetPlatform(platform_str).ValueOrDie();
+//  }
+//  std::unique_ptr<xla::GRPCService> service =
+//    xla::GRPCService::NewService(platform).ConsumeValueOrDie();
+//
+//  ::grpc::ServerBuilder builder;
+//  string server_address(
+//    absl::StrFormat("%s:%d", any_address ? "[::]" : "localhost", port));
+//
+//  builder.SetMaxReceiveMessageSize(INT_MAX);
+//  builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
+//  builder.RegisterService(service.get());
+//  std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
+//
+//  LOG(INFO) << "Server listening on " << server_address;
+//}
 
 #if 0
 std::vector<ComputationClient::DataPtr> result;
@@ -447,7 +641,7 @@ std::vector<ComputationClient::DataPtr> result;
 //        GetSubTupleNode(session, device_scope, device);
 //      session_work->feed_inputs.insert(
 //        {cached_node.holders[0], xrt_data.get_handle()});
-//      xla::Literal index_tensor(tensorflow::DT_INT32,
+//      xla::LiteralProto index_tensor(tensorflow::DT_INT32,
 //                                      tensorflow::TensorShape({1}));
 //      index_tensor.flat<tensorflow::int32>()(0) = j;
 //      session_work->feed_inputs.insert({cached_node.holders[1], index_tensor});
@@ -471,7 +665,7 @@ std::vector<ComputationClient::DataPtr> result;
         std::cout << "locked in converter" << ENDL;
         std::string device = GetEffectiveDevice(wse_device_str);
         const std::string &xrt_device = TorchDeviceToXrtDevice(device);
-        auto tensor_ptr = std::make_shared<xla::Literal>(
+        auto tensor_ptr = std::make_shared<xla::LiteralProto>(
           GetTensorAllocator(),
           XlaTypeToDataType(tensors[j].shape.element_type()),
           MakeEquivalentTensorShape(tensors[j].shape));

@@ -679,10 +679,6 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
     xla::ExecuteRequest request;
     xla::ExecuteResponse response;
 
-    //const int64 device_ordinal = GetDeviceOrdinal(effective_device);
-
-    //xla::DeviceHandle device_handle =
-
     std::cout << "Execution handle: " << computation.execution_handle()
               << " " << computation.program_shape().ToString()
               << ENDL;
@@ -700,11 +696,6 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
     *eo.mutable_debug_options() = GetDebugOptionsFromFlags();
     *eo.add_device_handles() = GetDeviceHandle(effective_device);
 
-//    if (options.output_shape != nullptr) {
-//      *eo.mutable_shape_with_output_layout() = options.output_shape->ToProto();
-//    }
-
-
     auto xla_client = GetXlaClient<XlaClient>(effective_device);
 
     ::grpc::Status status = xla_client->Execute(&client_context_e, request, &response);
@@ -713,68 +704,68 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
       throw std::runtime_error(status.error_message());
     }
 
-//    if (wait_for_execution) {
-//      ::grpc::ClientContext wfe_client_context;
-//      xla::WaitForExecutionRequest wfe_request;
-//      xla::WaitForExecution wfe_response;
-//
-//      wfe_request.set_allocated_execution(new ::xla::ExecutionHandle());
-//      wfe_request.mutable_execution()->set_handle(response.out);
-//
-//      ::grpc::Status status = xla_client->WaitForExecution(
-//        &wfe_client_context,
-//        wfe_request,
-//        &wfe_response
-//      );
-//      if (!status.ok()) {
-//        throw std::runtime_error(status.error_message());
-//      }
-//    }
+    xla::GetShapeRequest gs_request;
 
-    xla::DeconstructTupleRequest dt_request;
-    xla::DeconstructTupleResponse dt_response;
-
-    auto tuple_handle = std::make_unique<xla::GlobalDataHandle>();
-    tuple_handle->set_handle(response.output().handle());
-    dt_request.set_allocated_tuple_handle(tuple_handle.release());
-
-    ::grpc::ClientContext client_context_dt;
-    status = xla_client->DeconstructTuple(&client_context_dt, dt_request, &dt_response);
-
-    if (!status.ok()) {
-      throw std::runtime_error(status.error_message());
-    }
-
-    // TODO: Use BufferIn/BufferOut APIs
     std::vector<ComputationClient::DataPtr> results;  // tuple results
-    results.reserve(dt_response.element_handles_size());
+    std::vector<xla::GlobalDataHandle> result_handles;
 
-    std::size_t result_item = 0;
-    for (const ::xla::GlobalDataHandle& element_handle : dt_response.element_handles()) {
-      // TODO: do in parallel?
-      std::cout << "\tExecute result index " << result_item
-                << " handle: " << element_handle.handle()
-                << ENDL;
-      auto pb_element_handle = std::make_unique<xla::GlobalDataHandle>();
-      pb_element_handle->set_handle(element_handle.handle());
-
-      ::xla::GetShapeRequest request;
-      ::xla::GetShapeResponse response;
-      request.set_allocated_data(pb_element_handle.release());
-      ::grpc::ClientContext client_context;
-      status = xla_client->GetShape(&client_context, request, &response);
+    xla::ShapeProto response_shape;
+    gs_request.mutable_data()->set_handle(response.output().handle());
+    {
+      ::grpc::ClientContext cc;
+      xla::GetShapeResponse gs_response;
+      assert(gs_request.data().handle());
+      status = xla_client->GetShape(&cc, gs_request, &gs_response);
       if (!status.ok()) {
         throw std::runtime_error(status.error_message());
       }
+      response_shape = gs_response.shape();
+    }
+
+    if (response_shape.element_type() == xla::PrimitiveType::TUPLE) {
+      xla::DeconstructTupleRequest dt_request;
+      xla::DeconstructTupleResponse dt_response;
+
+      dt_request.mutable_tuple_handle()->set_handle(response.output().handle());
+
+      ::grpc::ClientContext client_context_dt;
+      status = xla_client->DeconstructTuple(&client_context_dt, dt_request, &dt_response);
+
+      if (!status.ok()) {
+        throw std::runtime_error(status.error_message());
+      }
+
+      results.reserve(dt_response.element_handles_size());
+      result_handles.reserve(dt_response.element_handles_size());
+      for (const ::xla::GlobalDataHandle& element_handle : dt_response.element_handles()) {
+//        std::cout << "Tuple returned element handle: " << element_handle.handle()
+//                  << std::endl << std::flush;
+        result_handles.push_back(element_handle);
+      }
+      for (const ::xla::GlobalDataHandle& element_handle : result_handles) {
+        // TODO: do in parallel?
+        ::xla::GetShapeRequest request;
+        ::xla::GetShapeResponse response;
+        ::grpc::ClientContext client_context;
+        assert(element_handle.handle());
+        *request.mutable_data() = element_handle;
+        status = xla_client->GetShape(&client_context, request, &response);
+        if (!status.ok()) {
+          throw std::runtime_error(status.error_message());
+        }
+        results.emplace_back(
+          std::make_shared<XrtData>(
+            this,
+            effective_device,
+            Shape(response.shape()),
+            element_handle.handle()
+          )
+        );
+      }
+    } else {
       results.emplace_back(
-        std::make_shared<XrtData>(
-          this,
-          effective_device,
-          Shape(response.shape()),
-          element_handle.handle()
-        )
+        std::make_shared<XrtData>(this, effective_device, Shape(response_shape), response.output().handle())
       );
-      ++result_item;
     }
     return std::move(results);
   }
