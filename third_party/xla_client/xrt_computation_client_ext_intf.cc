@@ -1,15 +1,15 @@
 #include "grpcpp/security/server_credentials.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
-#include "absl/strings/str_format.h"
+//#include "absl/strings/str_format.h"
 #include "tensorflow/compiler/xla/rpc/grpc_service.h"
-#include "tensorflow/compiler/xla/service/platform_util.h"
-#include "tensorflow/core/platform/init_main.h"
+//#include "tensorflow/compiler/xla/service/platform_util.h"
+//#include "tensorflow/core/platform/init_main.h"
 #include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/util/command_line_flags.h"
+//#include "tensorflow/core/util/command_line_flags.h"
 #include "tensorflow/core/util/util.h"
 
-#include "tensorflow/compiler/xla/service/hlo.pb.h"
+//#include "tensorflow/compiler/xla/service/hlo.pb.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h"
 
@@ -22,13 +22,13 @@
 #include <strstream>
 
 #include <grpc/grpc.h>
-#include <grpcpp/channel.h>
+//#include <grpcpp/channel.h>
 #include <grpcpp/client_context.h>
-#include <grpcpp/create_channel.h>
+//#include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 
-#include "grpcpp/create_channel.h"
-#include "grpcpp/security/credentials.h"
+//#include "grpcpp/create_channel.h"
+//#include "grpcpp/security/credentials.h"
 
 //#include "absl/strings/str_format.h"
 //#include "tensorflow/compiler/xla/client/client.h"
@@ -542,7 +542,7 @@ int StartLocalWseXlaService(int port) {
 }
 
 // haven't gotten this to work yet in the same process for some reason won't connect
-//int StartLocalCPUService() {
+//int StartLocalCPUService(int port) {
 //  int32 port = 1685;
 //  bool any_address = false;
 //  string platform_str = "WSE";

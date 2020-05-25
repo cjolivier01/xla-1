@@ -45,7 +45,7 @@ int StartLocalWseXlaService(int port);
 #endif
 
 #ifdef START_LOCAL_CPU_SERVICE
-int StartLocalCPUService();
+int StartLocalCPUService(int port);
 #endif
 
 namespace {
@@ -237,7 +237,7 @@ XrtComputationClientWse::XrtComputationClientWse(
   xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
 #endif
 #ifdef START_LOCAL_CPU_SERVICE
-  StartLocalCPUService();
+  StartLocalCPUService(XLA_SERVICE_GRPC_PORT);
 #endif
   if (always_use_proxy) {
     if (!IsProxyDevice(ALWAYS_USE_PROXY_DEFAULT_DEVICE)) {
