@@ -2,8 +2,11 @@
 
 #include "tensorflow/compiler/xla/xla_client/metrics.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
+#include "tensorflow/core/util/util.h"
 
 namespace xla {
+
+static bool verbose = true;
 
 XrtSessionCache::XrtSessionCache(tensorflow::ConfigProto config,
                                  std::function<void(XrtSession*)> initfn)
@@ -42,6 +45,12 @@ std::shared_ptr<XrtSession> XrtSessionCache::CreateSession(
   session_options.env = tensorflow::Env::Default();
   session_options.target = target;
   session_options.config = config_;
+
+  if (verbose) {
+    std::cout << "XrtSessionCache::CreateSession(): config = "
+              << msg_to_json(config_)
+              << ENDL;
+  }
 
   tensorflow::RPCOptions* rpc_options =
       session_options.config.mutable_rpc_options();

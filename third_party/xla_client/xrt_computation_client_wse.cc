@@ -29,7 +29,7 @@
 #include <vector>
 #include <strstream>
 
-//#define START_GRPC_SERVICE
+#define START_LOCAL_WSE_XLA_SERVICE
 //#define START_LOCAL_CPU_SERVICE
 
 /**
@@ -40,8 +40,8 @@ using namespace tensorflow;
 
 namespace xla {
 
-#ifdef START_GRPC_SERVICE
-int StartLocalXlaService(int port);
+#ifdef START_LOCAL_WSE_XLA_SERVICE
+int StartLocalWseXlaService(int port);
 #endif
 
 #ifdef START_LOCAL_CPU_SERVICE
@@ -54,8 +54,10 @@ namespace {
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool always_use_proxy = false;
-const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
+bool always_use_proxy = true;
+bool wse_set_topology = false;
+//const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
+const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:0";
 
 std::shared_ptr <ptxla::XrtComputationClientExternalInterface> callback_interface_{nullptr};
 
@@ -130,6 +132,8 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
         root_instruction->frontend_attributes();
       auto iter = frontend_attributes.map().find("PROXY_DEVICE");
       if (iter != frontend_attributes.map().end()) {
+        // A compile may have failed, in which case it
+        // gets delegated back to the default device
         auto cancel_iter = frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
         if (cancel_iter != frontend_attributes.map().end()) {
           if (cancel_iter->second == iter->second) {
@@ -229,8 +233,8 @@ XrtComputationClientWse::XrtComputationClientWse(
     callback_interface_->OnCreate(GetOpaque(this));
   }
 
-#ifdef START_GRPC_SERVICE
-  xla::StartLocalXlaService(XLA_SERVICE_GRPC_PORT);
+#ifdef START_LOCAL_WSE_XLA_SERVICE
+  xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
 #endif
 #ifdef START_LOCAL_CPU_SERVICE
   StartLocalCPUService();
@@ -357,7 +361,7 @@ bool XrtComputationClientWse::UseProxyForDevice(const std::string& device) const
 
 void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 handle) {
   // is it a wse device?
-#if 0
+#if 1
   assert(!device.empty());
   if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
     auto client = GetXlaClient<XlaClient>(device, always_use_proxy);
@@ -805,18 +809,12 @@ tensorflow::tpu::TopologyProto XrtComputationClientWse::InitializeAndFetchTopolo
             << std::endl << std::flush;
   const int wse_num_devices = get_env_int("WSE_NUM_DEVICES", 0);
   const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
-  if (!wse_num_devices) {
+  if (!wse_set_topology || !wse_num_devices) {
     return Super::InitializeAndFetchTopology(
       job, task_no, worker_host_port, config
     );
   }
-  //assert(wse_num_devices == cpu_num_devices);
   tensorflow::tpu::TopologyProto topology_proto;
-//  for (int i = 0; i < wse_num_devices; ++i) {
-//    for(int j = 0; j < (cpu_num_devices ? cpu_num_devices : 1); ++j) {
-//
-//    }
-//  }
   topology_proto.add_mesh_shape(wse_num_devices + cpu_num_devices);
   topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(1);

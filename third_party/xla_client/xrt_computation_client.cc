@@ -48,7 +48,7 @@ bool IsMeshable(std::string device) {
   if (colon) {
     device.resize(colon - start);
   }
-  return device == "TPU" || device == "WSE" || device == "XLA_WSE";
+  return device == "TPU" /*|| device == "WSE" || device == "XLA_WSE"*/;
 }
 
 // A simple Tensorflow Allocator which caches Tensor allocations in order to
@@ -308,6 +308,20 @@ std::vector<size_t> XrtComputationClient::PartitionTransferToServer(
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
     absl::Span<const TensorSource> tensors) {
+
+  if (verbose) {
+    ColorScope clr(Color::FG_BLUE);
+    std::cout << getpid() << " XrtComputationClient::TransferToServer( ";
+    size_t i = 0;
+    for (const TensorSource& t : tensors) {
+      if (i++) {
+        std::cout << ", ";
+      }
+      std::cout << t.shape << "@" << DeviceSummary(t.device);
+    }
+    std::cout << ")" << std::endl << std::flush;
+  }
+
   auto partitions = PartitionTransferToServer(tensors);
   if (partitions.size() == 1) {
     // Fast path in case of single partition. Avoid creating threads and
@@ -350,18 +364,18 @@ XrtComputationClient::TransferToServerInternal(
     absl::Span<const TensorSource> tensors) {
   metrics::TimedSection timed(TransferToServerMetric());
 
-  if (verbose) {
-    ColorScope clr(Color::FG_BLUE);
-    std::cout << getpid() << " XrtComputationClient::TransferToServerInternal( ";
-    size_t i = 0;
-    for (const TensorSource& t : tensors) {
-      if (i++) {
-        std::cout << ", ";
-      }
-      std::cout << t.shape << "@" << DeviceSummary(t.device);
-    }
-    std::cout << ")" << std::endl << std::flush;
-  }
+//  if (verbose) {
+//    ColorScope clr(Color::FG_BLUE);
+//    std::cout << getpid() << " XrtComputationClient::TransferToServerInternal( ";
+//    size_t i = 0;
+//    for (const TensorSource& t : tensors) {
+//      if (i++) {
+//        std::cout << ", ";
+//      }
+//      std::cout << t.shape << "@" << DeviceSummary(t.device);
+//    }
+//    std::cout << ")" << std::endl << std::flush;
+//  }
 
   std::mutex lock;
   XrtSessionCache::SessionMap session_map;
@@ -387,7 +401,7 @@ XrtComputationClient::TransferToServerInternal(
           std::lock_guard<std::mutex> slock(lock);
           XrtSession* session = GetSessionForXrtDevice(
               alloc_session_cache_.get(), xrt_device, &session_map);
-          std::cout << "Session target: " << session->target();
+          std::cout << "Session target: " << session->target() << ENDL;
           SessionWork* session_work = &session_work_map[session];
           tensorflow::Scope device_scope =
               session->root()->WithDevice(xrt_device);
@@ -1819,6 +1833,7 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
   static const std::string* const grpc_proto = new std::string("grpc://");
   tensorflow::ConfigProto config;
   if (options.workers_map.size() > 1) {
+    std::cout << "Cluster, since more than one worker" << ENDL;
     tensorflow::ClusterDef* cluster_def = config.mutable_cluster_def();
     std::map<std::string, tensorflow::JobDef*> jobs;
     for (auto& worker_target : options.workers_map) {
@@ -1832,6 +1847,11 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
       (*job->mutable_tasks())[worker_target.first.task_no] =
           StripPrefix(worker_target.second, *grpc_proto);
     }
+  }
+  if (verbose) {
+    std::cout << "CreateConfigProto(): "
+              << msg_to_json(config)
+              << ENDL;
   }
   return config;
 }

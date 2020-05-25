@@ -4,6 +4,7 @@
 
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
+#include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/core/util/util.h"
 
 #include <string>
@@ -18,9 +19,10 @@
  * Most of this can eventually move to monolith
  */
 namespace torch_xla {
-std::atomic<size_t> active_parameter_count{0};
+//std::atomic<size_t> active_parameter_count{0};
 
 bool verbose = false;
+const bool IGNORE_FIRST_MARK_STEP = true;
 
 bool is_true(const char *s) {
   if (s && *s) {
@@ -209,8 +211,17 @@ std::shared_ptr<CompileInfo> GetCompileInfo(pid_t opaque) {
   return std::move(sp);
 }
 
-const size_t MARK_STEPS_TILL_COMPILE = 15;
-const size_t RUNS_TILL_COMPILE = 15;
+//const size_t MARK_STEPS_TILL_COMPILE = 15;
+
+size_t get_runs_till_compile() {
+  const size_t DEFAULT_RUNS_TILL_COMPILE = 15;
+  static size_t rtc =
+    xla::sys_util::GetEnvInt(
+      "XLA_RUNS_TILL_COMPILE",
+      DEFAULT_RUNS_TILL_COMPILE
+    );
+  return rtc;
+}
 
 static std::mutex init_devices_mutex;
 }  // namespace
@@ -316,7 +327,7 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
   if (opaque == compile_info->last_opaque_ &&
       compile_info->hash_.get() && hash == *compile_info->hash_) {
     // Here we can determine if more runs than steps are occuring
-    if (compile_info->run_count_++ == RUNS_TILL_COMPILE) {
+    if (compile_info->run_count_++ == get_runs_till_compile()) {
       if (compile_info->run_count_ <= compile_info->mark_steps_since_reset_) {
         ColorScope clr(Color::FG_GREEN);
         // TODO: Should also have a check that everything required is available,
@@ -354,12 +365,17 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
   }
 }
 
+static __thread std::atomic<unsigned long long> total_mark_steps{0};
+
 void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices) {
   const pid_t tid = gettid();
 //  assert(IsTrainingThread(tid));
 //  if (!IsTrainingThread(tid)) {
 //    return;
 //  }
+  if (++total_mark_steps == 1 && IGNORE_FIRST_MARK_STEP) {
+    return;
+  }
   if (!IsTrainingThread(tid)) {
     assert(GetPythonState(tid) == EPS_INVALID);
     // The assumption is that only the training thread can call _XLAC._mark_step()
@@ -410,7 +426,7 @@ bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  return compile_info->run_count_ == RUNS_TILL_COMPILE &&
+  return compile_info->run_count_ == get_runs_till_compile() &&
       compile_info->hash_.get() &&
       *compile_info->hash_ == hash;
 }
@@ -420,7 +436,7 @@ bool CompileWatcher::IsWseRunReady(compiler_t opaque, pid_t tid) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  const bool ready = compile_info->run_count_ == RUNS_TILL_COMPILE;
+  const bool ready = compile_info->run_count_ == get_runs_till_compile();
   if (ready) {
     std::cout << "WseRunReady" << std::endl << std::flush;
   }
@@ -432,7 +448,7 @@ bool CompileWatcher::IsWseRunning(compiler_t opaque, pid_t tid) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  return compile_info->run_count_ >= RUNS_TILL_COMPILE;
+  return compile_info->run_count_ >= get_runs_till_compile();
 }
 
 void CompileWatcher::SetInputsOutputs(compiler_t opaque,

@@ -164,7 +164,7 @@ def train_mnist():
   test_utils.close_summary_writer(writer)
   xm.master_print('Max Accuracy: {:.2f}%'.format(max_accuracy))
   return max_accuracy
-
+pwd
 
 def _mp_fn(index, flags):
   global FLAGS
@@ -186,15 +186,17 @@ if __name__ == '__main__':
   os.environ["WSE_NUM_DEVICES"] = "2"
   os.environ["XRT_NUM_DEVICES"] = "1"
 
-  # os.environ["XRT_DEVICE_MAP"]=\
-  #   "CPU:0;/job:localservice/replica:0/task:0/device:XLA_CPU:0"\
-  #   "|CPU:1;/job:localservice/replica:0/task:1/device:XLA_CPU:1"
+  os.environ["XRT_DEVICE_MAP"]="|".join([
+    "CPU:0;/job:localservice/replica:0/task:0/device:XLA_CPU:0",
+    "WSE:0;/job:wse_worker_0/replica:0/task:0/device:XLA_WSE:0",
+    "WSE:1;/job:wse_worker_1/replica:0/task:0/device:XLA_WSE:1",
+  ])
 
   os.environ["XRT_MESH_SERVICE_ADDRESS"] = "localhost:41269"
 
   os.environ["MP_DEVICE_TYPE"]="WSE"
 
-  MASTER_HAS_WORKER = True
+  MASTER_HAS_WORKER = False
 
   if FLAGS.master:
     # XRT_TPU_CONFIG will be the global master mesh config
@@ -216,8 +218,7 @@ if __name__ == '__main__':
 
     os.environ["XRT_TPU_CONFIG"] = "|".join([
       "wse_worker_0;0;grpc://chriso-monster:8471",
-      "wse_worker_1;0;grpc://chriso-monster:8472" #if not MASTER_HAS_WORKER
-      #else "localservice;0;grpc://localhost:8472"
+      "wse_worker_1;0;grpc://chriso-monster:8472"
     ])
 
   else:
