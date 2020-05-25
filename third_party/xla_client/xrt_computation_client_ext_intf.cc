@@ -1,41 +1,16 @@
-#include "grpcpp/security/server_credentials.h"
-#include "grpcpp/server.h"
-#include "grpcpp/server_builder.h"
-//#include "absl/strings/str_format.h"
 #include "tensorflow/compiler/xla/rpc/grpc_service.h"
-//#include "tensorflow/compiler/xla/service/platform_util.h"
-//#include "tensorflow/core/platform/init_main.h"
-#include "tensorflow/core/platform/logging.h"
-//#include "tensorflow/core/util/command_line_flags.h"
-#include "tensorflow/core/util/util.h"
-
-//#include "tensorflow/compiler/xla/service/hlo.pb.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h"
-
-// /home/chriso/src/ml_frameworks/pytorch_xla/third_party/tensorflow/bazel-out/k8-opt/bin/tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h
-
-#include "tensorflow/core/lib/random/random.h"
 
 #include <memory>
 #include <vector>
 #include <strstream>
 
-#include <grpc/grpc.h>
-//#include <grpcpp/channel.h>
+#include <grpcpp/security/server_credentials.h>
+#include <grpcpp/server.h>
+#include <grpcpp/server_builder.h>
 #include <grpcpp/client_context.h>
-//#include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
-
-//#include "grpcpp/create_channel.h"
-//#include "grpcpp/security/credentials.h"
-
-//#include "absl/strings/str_format.h"
-//#include "tensorflow/compiler/xla/client/client.h"
-//#include "tensorflow/core/lib/io/path.h"
-//#include "tensorflow/core/platform/logging.h"
-//#include "tensorflow/core/platform/net.h"
-//#include "tensorflow/core/platform/subprocess.h"
 
 namespace xla {
 
@@ -92,6 +67,8 @@ class MemoryManager {
     bool has_data_;
   };
 public:
+
+  MemoryManager(): distribution_(1, (1 << kDeviceBits) - 1) {}
 
   /**
    * @brief Check for valid handle
@@ -196,7 +173,7 @@ public:
   int64 CreateUid() {
     int64 uid;
     do {
-      uid = tensorflow::random::New64() & INT64_MAX;
+      uid = distribution_(generator_);
     } while (uid == InvalidKey());
     return -uid + 4;  // Change a little from what XRTMemoryManager generates
   }
@@ -206,6 +183,9 @@ public:
   std::unordered_map<int64, xla::DeviceHandle> literal_handle_to_device_handle_;
   std::atomic<int64> next_memory_handle_{0};
   std::atomic<int64> device_handles_allocated_{0};
+
+  std::default_random_engine generator_;
+  std::uniform_int_distribution<int> distribution_;
 };
 
 class WseXlaService : public xla::grpc::XlaService::Service {
@@ -232,7 +212,6 @@ public:
 protected:
 
   ::grpc::Status Compile(::grpc::ServerContext* context, const ::xla::CompileRequest* request, ::xla::CompileResponse* response) override {
-    HEREX();
     ExecutorInfoPtr exec = std::make_shared<ExecutorInfo>(*request, ++next_executor_handle_);
     std::lock_guard<std::mutex> lk(executor_map_mtx_);
     executor_info_map_.emplace(std::make_pair(exec->handle(), exec));
@@ -352,7 +331,7 @@ protected:
         tis.set_element_type(xla::PrimitiveType::S64);
         *tuple_literal->mutable_shape()->add_tuple_shapes() = tis;
         assert(item_handle);
-        std::cout << "Adding handle to tuple: " << item_handle << std::endl << std::flush;
+        //std::cout << "Adding handle to tuple: " << item_handle << std::endl << std::flush;
         tuple_literal->add_s64s(item_handle);
       }
       const handle_t tuple_handle = memory_manager_->Register(
@@ -361,7 +340,7 @@ protected:
         true
       );
       assert(tuple_handle);
-      std::cout << "handle for tuple: " << tuple_handle << std::endl << std::flush;
+      //std::cout << "handle for tuple: " << tuple_handle << std::endl << std::flush;
       response->mutable_output()->set_handle(tuple_handle);
     }
 
@@ -372,8 +351,6 @@ protected:
   }
 
   ::grpc::Status DeconstructTuple(::grpc::ServerContext* context, const ::xla::DeconstructTupleRequest* request, ::xla::DeconstructTupleResponse* response) override {
-    HEREX();
-
     const xla::GlobalDataHandle tuple_handle = request->tuple_handle();
 
     std::shared_ptr<xla::LiteralProto> tuple_literal = memory_manager_->Get(tuple_handle.handle());
@@ -399,13 +376,11 @@ protected:
   }
 
   ::grpc::Status TransferToClient(::grpc::ServerContext* context, const ::xla::TransferToClientRequest* request, ::xla::TransferToClientResponse* response) override {
-    HEREX();
     return Super::TransferToClient(context, request, response);
   }
   // Transfers the given literal to the server to be stored in a global
   // allocation, which is returned.
   ::grpc::Status TransferToServer(::grpc::ServerContext* context, const ::xla::TransferToServerRequest* request, ::xla::TransferToServerResponse* response) {
-    HEREX();
     auto literal = std::make_shared<xla::LiteralProto>(request->literal());
     const int64 handle = memory_manager_->Register(literal, request->device_handle(), true);
     response->mutable_data()->set_handle(handle);
@@ -414,7 +389,6 @@ protected:
 
   // Methods used by GlobalData.
   ::grpc::Status Unregister(::grpc::ServerContext* context, const ::xla::UnregisterRequest* request, ::xla::UnregisterResponse* response) override {
-    HEREX();
     // if it's true, then use it
     bool all_ok = true;
     for (const auto& data : request->data()) {
@@ -430,7 +404,6 @@ protected:
   ::grpc::Status GetDeviceHandles(::grpc::ServerContext* context,
                                   const GetDeviceHandlesRequest* request,
                                   GetDeviceHandlesResponse* response) override {
-    HEREX();
     std::vector<xla::DeviceHandle> device_handles =
       memory_manager_->CreateDeviceHandles(request->device_count());
     for (const xla::DeviceHandle& device_handle : device_handles) {
@@ -674,7 +647,7 @@ std::vector<ComputationClient::DataPtr> result;
         {
           std::lock_guard<std::mutex> slock(lock);
           XrtSession *session = GetSessionForXrtDevice(
-            alloc_session_cache_`.get(), xrt_device, &session_map
+            alloc_session_cache_.get(), xrt_device, &session_map
           );
           SessionWork *session_work = &session_work_map[session];
           tensorflow::Scope device_scope =
