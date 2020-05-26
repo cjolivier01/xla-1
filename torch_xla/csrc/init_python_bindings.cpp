@@ -35,7 +35,6 @@
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
 #include "torch_xla/csrc/tensor_util_cer.h"
-#include "third_party/xla_client/xrt_computation_client_ext_intf.h"
 
 namespace torch_xla {
 namespace {
@@ -714,15 +713,6 @@ void InitXlaModuleBindings(py::module m) {
   [](const std::string& device, const std::string& proxy_address) {
     SetDeviceAddress(device, proxy_address);
   }, py::arg("device"), py::arg("proxy_address"));
-  m.def("_xla_set_live_interface",
-        [](ptrdiff_t p) {
-      // TODO: TEMPORARY -- Make this grpc
-      CompileWatcher::SetLiveInterface(
-          reinterpret_cast<xla::ptxla::XrtComputationClientExternalInterface *>(
-              p
-          )->shared_from_this()
-      );
-  });
 }
 
 }  // namespace

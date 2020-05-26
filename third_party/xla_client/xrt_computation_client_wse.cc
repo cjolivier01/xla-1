@@ -1,7 +1,6 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/literal.h"
@@ -30,7 +29,10 @@
 #include <strstream>
 
 #define START_LOCAL_WSE_XLA_SERVICE
-//#define START_LOCAL_CPU_SERVICE
+
+#ifdef START_LOCAL_WSE_XLA_SERVICE
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
+#endif
 
 /**
  * TODO: Non-TF-linking portions of this to be moved to
@@ -42,10 +44,6 @@ namespace xla {
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
 int StartLocalWseXlaService(int port);
-#endif
-
-#ifdef START_LOCAL_CPU_SERVICE
-int StartLocalCPUService(int port);
 #endif
 
 namespace {
@@ -235,9 +233,6 @@ XrtComputationClientWse::XrtComputationClientWse(
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
   xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
-#endif
-#ifdef START_LOCAL_CPU_SERVICE
-  StartLocalCPUService(XLA_SERVICE_GRPC_PORT);
 #endif
   if (always_use_proxy) {
     if (!IsProxyDevice(ALWAYS_USE_PROXY_DEFAULT_DEVICE)) {

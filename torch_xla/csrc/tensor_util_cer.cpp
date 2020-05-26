@@ -273,10 +273,6 @@ bool CompileWatcher::HasWseDevices() {
   return !wse_devices_.empty();
 }
 
-void CompileWatcher::SetLiveInterface(std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface) {
-    xla::XrtComputationClientWse::SetExternalInterface(interface);
-}
-
 bool CompileWatcher::IsTrainingThread(pid_t tid) {
   return GetPythonState(tid) == EPS_IN_TRAIN_LOOP;
 }

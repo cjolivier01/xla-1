@@ -1,3 +1,5 @@
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
+
 #include "tensorflow/compiler/xla/rpc/grpc_service.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h"
@@ -15,7 +17,7 @@
 namespace xla {
 
 namespace {
-
+#if 0
 typedef int64 handle_t;
 
 // We use kDeviceBits to store the device ordinal in the handle. We store the
@@ -503,40 +505,16 @@ private:
   std::atomic<std::size_t> next_executor_handle_{0};
 
 };
-
-std::shared_ptr<WseXlaService> wse_xla_service{nullptr};
+#endif
+std::shared_ptr<xla::ptxla::WseXlaService> wse_xla_service{nullptr};
 
 }
 
 int StartLocalWseXlaService(int port) {
-  wse_xla_service = std::make_shared<WseXlaService>();
+  wse_xla_service = std::make_shared<xla::ptxla::WseXlaService>();
   wse_xla_service->Start(port, false);
   return 0;
 }
-
-// haven't gotten this to work yet in the same process for some reason won't connect
-//int StartLocalCPUService(int port) {
-//  int32 port = 1685;
-//  bool any_address = false;
-//  string platform_str = "WSE";
-//  se::Platform *platform = nullptr;
-//  if (!platform_str.empty()) {
-//    platform = PlatformUtil::GetPlatform(platform_str).ValueOrDie();
-//  }
-//  std::unique_ptr<xla::GRPCService> service =
-//    xla::GRPCService::NewService(platform).ConsumeValueOrDie();
-//
-//  ::grpc::ServerBuilder builder;
-//  string server_address(
-//    absl::StrFormat("%s:%d", any_address ? "[::]" : "localhost", port));
-//
-//  builder.SetMaxReceiveMessageSize(INT_MAX);
-//  builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
-//  builder.RegisterService(service.get());
-//  std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-//
-//  LOG(INFO) << "Server listening on " << server_address;
-//}
 
 #if 0
 std::vector<ComputationClient::DataPtr> result;

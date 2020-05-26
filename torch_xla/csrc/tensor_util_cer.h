@@ -6,7 +6,6 @@
 
 #include "torch_xla/csrc/tensor.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
-#include "third_party/xla_client/xrt_computation_client_ext_intf.h"
 
 namespace torch_xla {
 enum EPythonState {
@@ -83,9 +82,6 @@ class CompileWatcher {
 public:
   typedef void *compiler_t;  // TODO: make this the device
   typedef size_t hash_t;
-  static void SetLiveInterface(
-      std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface
-  );
   static void NotifyCompile(
     compiler_t opaque,
     std::vector<xla::ComputationClient::CompileInstance>& instances,
