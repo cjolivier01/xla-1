@@ -28,7 +28,7 @@
 #include <vector>
 #include <strstream>
 
-#define START_LOCAL_WSE_XLA_SERVICE
+//#define START_LOCAL_WSE_XLA_SERVICE
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"

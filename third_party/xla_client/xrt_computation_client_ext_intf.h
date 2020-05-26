@@ -3,9 +3,7 @@
 #ifndef XLA_CLIENT_XRT_COMPUTATION_CLIENT_EXT_INTF_H_
 #define XLA_CLIENT_XRT_COMPUTATION_CLIENT_EXT_INTF_H_
 
-//#include <cstddef>
 #include <vector>
-//#include <functional>
 #include <memory>
 #include <vector>
 #include <sstream>
@@ -483,30 +481,30 @@ protected:
     return ::grpc::Status::OK;
   }
 
-private:
-  std::unique_ptr<::grpc::Server> server_;
-  std::unique_ptr<MemoryManager> memory_manager_;
-
-  struct CompileInfo {};
-  using CompileInfoPtr = std::shared_ptr<CompileInfo>;
-
+protected:
   class ExecutorInfo {
   public:
     ExecutorInfo(xla::CompileRequest compile_request, std::size_t handle)
       : compile_request_(compile_request),
         handle_(handle) {
     }
+
     std::size_t handle() const { return handle_; }
 
-    const xla::ProgramShapeProto& get_program_shape() const {
+    const xla::ProgramShapeProto &get_program_shape() const {
       return compile_request_.computation().host_program_shape();
     }
-
   private:
     const xla::CompileRequest compile_request_;
     const std::size_t handle_;
   };
   using ExecutorInfoPtr = std::shared_ptr<ExecutorInfo>;
+
+  std::unique_ptr<::grpc::Server> server_;
+  std::unique_ptr<MemoryManager> memory_manager_;
+
+  struct CompileInfo {};
+  using CompileInfoPtr = std::shared_ptr<CompileInfo>;
 
   std::mutex compile_map_mtx_;
   std::unordered_map<std::size_t, CompileInfoPtr> compile_info_map_;
@@ -514,7 +512,6 @@ private:
   std::mutex executor_map_mtx_;
   std::unordered_map<std::size_t, ExecutorInfoPtr> executor_info_map_;
   std::atomic<std::size_t> next_executor_handle_{0};
-
 };
 
 
