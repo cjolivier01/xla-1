@@ -160,6 +160,26 @@ NodePtr TransposeOp(const Value& input, xla::int64 dim0, xla::int64 dim1) {
                                       /*rank=*/input.shape().rank()));
 }
 
+NodePtr HardSigmoid(const Value& input) {
+  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
+    xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
+    return node.ReturnOp(BuildHardSigmoid(xla_input), loctx);
+  };
+  return GenericOp(OpKind(at::aten::hardsigmoid), {input}, input.shape(),
+                   std::move(lower_fn));
+}
+
+NodePtr HardSigmoidBackward(const Value& grad_output, const Value& input) {
+  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
+    xla::XlaOp xla_grad_output = loctx->GetOutputOp(node.operand(0));
+    xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(1));
+    return node.ReturnOp(BuildHardSigmoidBackward(xla_grad_output, xla_input),
+                         loctx);
+  };
+  return GenericOp(OpKind(at::aten::hardsigmoid_backward), {grad_output, input},
+                   input.shape(), std::move(lower_fn));
+}
+
 std::tuple<NodePtr, NodePtr> LogSigmoid(const Value& input) {
   ScopePusher ir_scope(at::aten::log_sigmoid.toQualString());
   // Use log-sum-exp trick to avoid overflow.
@@ -214,63 +234,66 @@ NodePtr Clamp(const Value& input, const Value& min, const Value& max) {
     xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
     xla::XlaOp xla_min = loctx->GetOutputOp(node.operand(1));
     xla::XlaOp xla_max = loctx->GetOutputOp(node.operand(2));
+    xla::PrimitiveType input_type = XlaHelpers::TypeOfXlaOp(xla_input);
+    xla_min = ConvertTo(xla_min, XlaHelpers::TypeOfXlaOp(xla_min), input_type,
+                        /*device=*/nullptr);
+    xla_max = ConvertTo(xla_max, XlaHelpers::TypeOfXlaOp(xla_max), input_type,
+                        /*device=*/nullptr);
     return node.ReturnOp(xla::Clamp(xla_min, xla_input, xla_max), loctx);
   };
   return GenericOp(OpKind(at::aten::clamp), {input, min, max}, input.shape(),
                    std::move(lower_fn));
 }
 
-NodePtr AddMatMulOp(const Value& input, const Value& weight,
-                    const Value& bias) {
-  const xla::PrecisionConfig::Precision precision_level =
-      XlaHelpers::mat_mul_precision();
-  auto lower_fn = [precision_level](const Node& node,
-                                    LoweringContext* loctx) -> XlaOpVector {
-    XLA_CHECK_EQ(node.operands().size(), 3) << "Unexpected number of operands";
+NodePtr Ger(const Value& input, const Value& other) {
+  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
     xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
-    xla::XlaOp xla_weight = loctx->GetOutputOp(node.operand(1));
-    xla::XlaOp xla_bias = loctx->GetOutputOp(node.operand(2));
-    const auto bias_sizes = XlaHelpers::SizesOfXlaOp(xla_bias);
-    xla::PrecisionConfig precision_config =
-        XlaHelpers::BuildPrecisionConfig(precision_level);
-    xla::XlaOp xla_dot = xla::Dot(xla_input, xla_weight, &precision_config);
-    const auto dot_sizes = XlaHelpers::SizesOfXlaOp(xla_dot);
-    if (bias_sizes != dot_sizes) {
-      xla_bias = BuildExpand(xla_bias, dot_sizes);
-    }
-    xla::XlaOp xla_output = xla_dot + xla_bias;
-    return node.ReturnOp(xla_output, loctx);
+    xla::XlaOp xla_other = loctx->GetOutputOp(node.operand(1));
+    return node.ReturnOp(BuildGer(xla_input, xla_other), loctx);
   };
   auto lower_for_shape_fn =
       [](absl::Span<const xla::XlaOp> operands) -> xla::XlaOp {
-    XLA_CHECK_EQ(operands.size(), 2) << "Unexpected number of operands";
-    return xla::Dot(operands[0], operands[1]);
+    return BuildGer(operands[0], operands[1]);
   };
-  return GenericOp(OpKind(at::aten::addmm), {input, weight, bias},
+  return GenericOp(OpKind(at::aten::ger), {input, other},
                    [&]() {
-                     return InferOutputShape({input.shape(), weight.shape()},
+                     return InferOutputShape({input.shape(), other.shape()},
                                              lower_for_shape_fn);
                    },
                    std::move(lower_fn));
 }
 
-NodePtr Dot(const Value& input, const Value& weight) {
-  const xla::PrecisionConfig::Precision precision_level =
-      XlaHelpers::mat_mul_precision();
-  auto lower_fn = [precision_level](const Node& node,
-                                    LoweringContext* loctx) -> XlaOpVector {
-    XLA_CHECK_EQ(node.operands().size(), 2) << "Unexpected number of operands";
+NodePtr AddMatMulOp(const Value& input, const Value& weight,
+                    const Value& bias) {
+  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
+    XLA_CHECK_EQ(node.operands().size(), 3) << "Unexpected number of operands";
     xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
     xla::XlaOp xla_weight = loctx->GetOutputOp(node.operand(1));
-    xla::PrecisionConfig precision_config =
-        XlaHelpers::BuildPrecisionConfig(precision_level);
-    return node.ReturnOp(xla::Dot(xla_input, xla_weight, &precision_config),
-                         loctx);
+    xla::XlaOp xla_bias = loctx->GetOutputOp(node.operand(2));
+    return node.ReturnOp(BuildMatMul(xla_input, xla_weight, xla_bias), loctx);
   };
   auto lower_for_shape_fn =
       [](absl::Span<const xla::XlaOp> operands) -> xla::XlaOp {
-    XLA_CHECK_EQ(operands.size(), 2) << "Unexpected number of operands";
-    return xla::Dot(operands[0], operands[1]);
+    return BuildMatMul(operands[0], operands[1], operands[2]);
+  };
+  return GenericOp(OpKind(at::aten::addmm), {input, weight, bias},
+                   [&]() {
+                     return InferOutputShape(
+                         {input.shape(), weight.shape(), bias.shape()},
+                         lower_for_shape_fn);
+                   },
+                   std::move(lower_fn));
+}
+
+NodePtr Dot(const Value& input, const Value& weight) {
+  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
+    xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
+    xla::XlaOp xla_weight = loctx->GetOutputOp(node.operand(1));
+    return node.ReturnOp(BuildDot(xla_input, xla_weight), loctx);
+  };
+  auto lower_for_shape_fn =
+      [](absl::Span<const xla::XlaOp> operands) -> xla::XlaOp {
+    return BuildDot(operands[0], operands[1]);
   };
   return GenericOp(OpKind(at::aten::mm), {input, weight},
                    [&]() {
@@ -284,6 +307,8 @@ NodePtr MatMul(const Value& lhs, const Value& rhs) {
   auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
     xla::XlaOp xla_lhs = loctx->GetOutputOp(node.operand(0));
     xla::XlaOp xla_rhs = loctx->GetOutputOp(node.operand(1));
+    std::tie(xla_lhs, xla_rhs) = XlaHelpers::PromoteValues(xla_lhs, xla_rhs);
+
     return node.ReturnOp(CreateMatMul(xla_lhs, xla_rhs), loctx);
   };
   auto lower_for_shape_fn =
@@ -396,13 +421,25 @@ NodePtr ARange(at::Scalar start, at::Scalar end, at::Scalar step,
       values = XlaHelpers::Range<xla::int16>(start.toShort(), end.toShort(),
                                              step.toShort());
       break;
+    case xla::PrimitiveType::U16:
+      values = XlaHelpers::Range<xla::uint16>(start.toInt(), end.toInt(),
+                                              step.toInt());
+      break;
     case xla::PrimitiveType::S32:
       values = XlaHelpers::Range<xla::int32>(start.toInt(), end.toInt(),
                                              step.toInt());
       break;
+    case xla::PrimitiveType::U32:
+      values = XlaHelpers::Range<xla::uint32>(start.toLong(), end.toLong(),
+                                              step.toLong());
+      break;
     case xla::PrimitiveType::S64:
       values = XlaHelpers::Range<xla::int64>(start.toLong(), end.toLong(),
                                              step.toLong());
+      break;
+    case xla::PrimitiveType::U64:
+      values = XlaHelpers::Range<xla::uint64>(start.toLong(), end.toLong(),
+                                              step.toLong());
       break;
     default:
       XLA_ERROR() << "XLA type not supported: " << type;
@@ -591,20 +628,6 @@ NodePtr MinUnary(const Value& input) {
   return GenericOp(OpKind(at::aten::min), {input},
                    xla::ShapeUtil::MakeShape(input.shape().element_type(), {}),
                    std::move(lower_fn));
-}
-
-NodePtr Bernoulli(const Value& input, const Value& probability) {
-  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
-    xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
-    xla::XlaOp xla_probability = loctx->GetOutputOp(node.operand(1));
-    xla::XlaOp result =
-        BuildBernoulli(xla_probability, XlaHelpers::ShapeOfXlaOp(xla_input));
-    return node.ReturnOp(result, loctx);
-  };
-  NodePtr probability_expanded = MakeNode<Expand>(
-      probability, xla::util::ToVector<xla::int64>(input.shape().dimensions()));
-  return GenericOp(OpKind(at::aten::bernoulli), {input, probability_expanded},
-                   input.shape(), std::move(lower_fn));
 }
 
 NodePtr Take(const Value& input, const Value& index) {

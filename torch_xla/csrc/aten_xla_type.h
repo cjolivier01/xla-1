@@ -52,6 +52,9 @@ class AtenXlaType {
                                                int64_t dim,
                                                const at::Tensor& self);
 
+  static std::tuple<at::Tensor, at::Tensor> _pack_padded_sequence(
+      const at::Tensor& input, const at::Tensor& lengths, bool batch_first);
+
   static at::Tensor _s_where(const at::Tensor& condition,
                              const at::Tensor& self, const at::Tensor& other);
 
@@ -167,11 +170,12 @@ class AtenXlaType {
       at::IntArrayRef padding, bool ceil_mode, bool count_include_pad,
       c10::optional<int64_t> divisor_override);
 
-  static at::Tensor bernoulli(const at::Tensor& self, at::Generator* generator);
+  static at::Tensor bernoulli(const at::Tensor& self,
+                              c10::optional<at::Generator> generator);
   static at::Tensor& bernoulli_(at::Tensor& self, double p,
-                                at::Generator* generator);
+                                c10::optional<at::Generator> generator);
   static at::Tensor& bernoulli_(at::Tensor& self, const at::Tensor& p,
-                                at::Generator* generator);
+                                c10::optional<at::Generator> generator);
 
   // binary_cross_entropy is still in PyTorch TH legacy, which means both are
   // overrideable for XLA. But overriding one set is sufficient. Currently
@@ -350,6 +354,9 @@ class AtenXlaType {
 
   static at::Tensor& expm1_(at::Tensor& self);
 
+  static at::Tensor& exponential_(at::Tensor& self, double lambd,
+                                  c10::optional<at::Generator> generator);
+
   static at::Tensor& eye_out(at::Tensor& out, int64_t n);
 
   static at::Tensor& eye_out(at::Tensor& out, int64_t n, int64_t m);
@@ -392,6 +399,8 @@ class AtenXlaType {
   static at::Tensor gelu_backward(const at::Tensor& grad,
                                   const at::Tensor& self);
 
+  static at::Tensor ger(const at::Tensor& self, const at::Tensor& vec2);
+
   static at::Tensor gt(const at::Tensor& self, at::Scalar other);
 
   static at::Tensor gt(const at::Tensor& self, const at::Tensor& other);
@@ -405,6 +414,13 @@ class AtenXlaType {
   static at::Tensor hardshrink_backward(const at::Tensor& grad_out,
                                         const at::Tensor& self,
                                         at::Scalar lambda);
+
+  static at::Tensor hardsigmoid(const at::Tensor& self);
+
+  static at::Tensor& hardsigmoid_(at::Tensor& self);
+
+  static at::Tensor hardsigmoid_backward(const at::Tensor& grad_output,
+                                         const at::Tensor& self);
 
   static at::Tensor hardtanh(const at::Tensor& self, at::Scalar min_val,
                              at::Scalar max_val);
@@ -442,12 +458,12 @@ class AtenXlaType {
   static at::Tensor inverse(const at::Tensor& self);
 
   static at::Tensor kl_div(const at::Tensor& self, const at::Tensor& target,
-                           int64_t reduction);
+                           int64_t reduction, bool log_target);
 
   static at::Tensor kl_div_backward(const at::Tensor& grad_output,
                                     const at::Tensor& self,
-                                    const at::Tensor& target,
-                                    int64_t reduction);
+                                    const at::Tensor& target, int64_t reduction,
+                                    bool log_target);
 
   static std::tuple<at::Tensor, at::Tensor> kthvalue(const at::Tensor& self,
                                                      int64_t k, int64_t dim,
@@ -670,16 +686,16 @@ class AtenXlaType {
                          at::IntArrayRef dim, bool keepdim);
 
   static at::Tensor normal(const at::Tensor& mean, double std,
-                           at::Generator* generator);
+                           c10::optional<at::Generator> generator);
 
   static at::Tensor normal(double mean, const at::Tensor& std,
-                           at::Generator* generator);
+                           c10::optional<at::Generator> generator);
 
   static at::Tensor normal(const at::Tensor& mean, const at::Tensor& std,
-                           at::Generator* generator);
+                           c10::optional<at::Generator> generator);
 
   static at::Tensor& normal_(at::Tensor& self, double mean, double std,
-                             at::Generator* generator);
+                             c10::optional<at::Generator> generator);
 
   static at::Tensor permute(const at::Tensor& self, at::IntArrayRef dims);
 
@@ -730,13 +746,25 @@ class AtenXlaType {
 
   static at::Tensor repeat(const at::Tensor& self, at::IntArrayRef repeats);
 
+  static at::Tensor replication_pad1d(const at::Tensor& self,
+                                      at::IntArrayRef padding);
+  static at::Tensor replication_pad1d_backward(const at::Tensor& grad_output,
+                                               const at::Tensor& self,
+                                               at::IntArrayRef padding);
+
+  static at::Tensor replication_pad2d(const at::Tensor& self,
+                                      at::IntArrayRef padding);
+  static at::Tensor replication_pad2d_backward(const at::Tensor& grad_output,
+                                               const at::Tensor& self,
+                                               at::IntArrayRef padding);
+
   static at::Tensor& resize_(at::Tensor& self, at::IntArrayRef size,
                              c10::optional<at::MemoryFormat> memory_format);
 
   static at::Tensor rrelu_with_noise(const at::Tensor& self,
                                      const at::Tensor& noise, at::Scalar lower,
                                      at::Scalar upper, bool training,
-                                     at::Generator* generator);
+                                     c10::optional<at::Generator> generator);
 
   static at::Tensor rrelu_with_noise_backward(const at::Tensor& grad_output,
                                               const at::Tensor& self,
@@ -914,11 +942,19 @@ class AtenXlaType {
 
   static at::Tensor& triu_(at::Tensor& self, int64_t diagonal);
 
+  static at::Tensor true_divide(const at::Tensor& self,
+                                const at::Tensor& other);
+
+  static at::Tensor true_divide(const at::Tensor& self, at::Scalar other);
+
   static at::Tensor trunc(const at::Tensor& self);
 
   static at::Tensor& trunc_(at::Tensor& self);
 
   static std::vector<at::Tensor> unbind(const at::Tensor& self, int64_t dim);
+
+  static at::Tensor& uniform_(at::Tensor& self, double from, double to,
+                              c10::optional<at::Generator> generator);
 
   static at::Tensor unsqueeze(const at::Tensor& self, int64_t dim);
 

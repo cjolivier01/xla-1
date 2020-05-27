@@ -16,10 +16,10 @@ running on Cloud TPUs and learn how to use Cloud TPUs as PyTorch devices:
 * [Getting Started with PyTorch on Cloud TPUs](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/getting-started.ipynb)
 * [Training AlexNet on Fashion MNIST with a single Cloud TPU Core](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/single-core-alexnet-fashion-mnist.ipynb)
 * [Training AlexNet on Fashion MNIST with multiple Cloud TPU Cores](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/multi-core-alexnet-fashion-mnist.ipynb)
-* [Fast Neural Style Transfer (NeurIPS 2019 Demo)](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/style_transfer_inference-xrt-1-15.ipynb)
-* [Training A Simple Convolutional Network on MNIST](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/mnist-training-xrt-1-15.ipynb)
-* [Training a ResNet18 Network on CIFAR10](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/resnet18-training-xrt-1-15.ipynb)
-* [ImageNet Inference with ResNet50](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/resnet50-inference-xrt-1-15.ipynb)
+* [Fast Neural Style Transfer (NeurIPS 2019 Demo)](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/style_transfer_inference.ipynb)
+* [Training A Simple Convolutional Network on MNIST](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/mnist-training.ipynb)
+* [Training a ResNet18 Network on CIFAR10](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/resnet18-training.ipynb)
+* [ImageNet Inference with ResNet50](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/resnet50-inference.ipynb)
 
 The rest of this README covers:
 
@@ -38,7 +38,7 @@ semantics and functions, is available at [PyTorch.org](http://pytorch.org/xla/).
 Google Cloud Platform lets you deploy PyTorch networks running on Cloud TPUs.
 This guide is split into two parts:
 
-* [Runnining on a single Cloud TPU](#CloudSingle)
+* [Running on a single Cloud TPU](#CloudSingle)
 * [Running on a Cloud TPU Pod](#Pod)
 
 ## <a name="CloudSingle"></a> Running on a Single Cloud TPU
@@ -208,6 +208,12 @@ post](https://cloud.google.com/blog/products/ai-machine-learning/googles-scalabl
 [Cloud TPU System Architecture](https://cloud.google.com/tpu/docs/system-architecture) page.
 
 ## <a name="API"></a> API & Best Practices
+
+In general PyTorch/XLA follows PyTorch APIs, some additional torch_xla specific APIs are available at:
+
+[Documentation for the latest release](https://pytorch.org/xla)
+
+[Documentation for master branch](https://pytorch.org/xla/master)
 
 See the [API Guide](API_GUIDE.md) for best practices when writing networks that
 run on Cloud TPUs and Cloud TPU Pods.

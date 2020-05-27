@@ -30,6 +30,9 @@ class PerDeviceLoader(object):
   def __next__(self):
     return self.next()
 
+  def __len__(self):
+    return self._loader.per_device_samples()
+
   def next(self):
     xm.mark_step()
     item = self._loader.next_item(self._device)
@@ -74,6 +77,7 @@ class ParallelLoader(object):
     self._devices = [torch.device(x) for x in devices]
     self._batchdim = batchdim
     self._fixed_batch_size = fixed_batch_size
+    self._per_device_samples = len(loader) // len(devices)
     self._done = False
     self._queues = dict()
     for device in self._devices:
@@ -101,6 +105,9 @@ class ParallelLoader(object):
     """
     return PerDeviceLoader(self, torch.device(device))
 
+  def per_device_samples(self):
+    return self._per_device_samples
+
   def next_item(self, device):
     dqueue = self._queues[device]
     return dqueue.queue.get()
@@ -118,7 +125,6 @@ class ParallelLoader(object):
       csize = v.size()[dim]
       if not size:
         size.append(csize)
-
       else:
         assert csize == size[0]
 
@@ -168,3 +174,29 @@ class ParallelLoader(object):
       for data in batch:
         dqueue.queue.put(data)
     dqueue.queue.close_write()
+
+
+class MpDeviceLoader(object):
+  """Wraps an existing PyTorch DataLoader with background data upload.
+
+  This class should only be using with multi-processing data parallelism.
+
+  Args:
+    loader (:class:`torch.utils.data.DataLoader`): The PyTorch DataLoader to be
+      wrapped.
+    device (`torch.device`...): The device where the data has to be sent.
+    kwargs: Named arguments for the `ParallelLoader` constructor.
+  """
+
+  def __init__(self, loader, device, **kwargs):
+    self._loader = loader
+    self._device = device
+    self._parallel_loader_kwargs = kwargs
+
+  def __iter__(self):
+    parallel_loader = ParallelLoader(self._loader, [self._device],
+                                     **self._parallel_loader_kwargs)
+    return parallel_loader.per_device_loader(self._device)
+
+  def __len__(self):
+    return len(self._loader)

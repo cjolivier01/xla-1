@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import collections
+import io
 import sys
 import os
 import re
@@ -8,11 +9,19 @@ import threading
 import time
 import contextlib
 import torch
+import torch.nn.functional as F
 import torch_xla
 import torch_xla.core.xla_env_vars as xenv
 import torch_xla.debug.metrics_saver as ms
 import torch_xla.utils.utils as xu
 import torch_xla.utils.keyd_queue as kq
+
+REDUCE_SUM = 'sum'
+REDUCE_MUL = 'mul'
+REDUCE_AND = 'and'
+REDUCE_OR = 'or'
+REDUCE_MIN = 'min'
+REDUCE_MAX = 'max'
 
 _TLS = threading.local()
 
@@ -151,15 +160,31 @@ def xla_real_devices(devices):
   xla_devices = torch_xla._XLAC._xla_get_devices()
   real_devices = []
   for device in devices:
-    m = re.match(r'xla:(\d+)$', device)
+    device_str = str(device)
+    m = re.match(r'xla:(\d+)$', device_str)
     if m:
       real_devices.append(xla_devices[int(m.group(1))])
       continue
-    xdev = parse_xla_device(device)
+    xdev = parse_xla_device(device_str)
     if not xdev:
-      raise RuntimeError('Invalid device format: {}'.format(device))
-    real_devices.append(device)
+      raise RuntimeError('Invalid device format: {}'.format(device_str))
+    real_devices.append(device_str)
   return real_devices
+
+
+def xla_device_hw(device):
+  """Returns the hardware type of the given device.
+
+  Args:
+    device (string or torch.device): The xla device that will be mapped to the
+      real device.
+
+  Returns:
+    A string representation of the hardware type (`CPU`, `TPU`, `GPU`) of the
+    given device.
+  """
+  real_device = xla_real_devices([str(device)])[0]
+  return real_device.split(':')[0]
 
 
 def xla_replication_devices(local_devices):
@@ -178,8 +203,8 @@ def xla_replication_devices(local_devices):
   if len(kind_devices) != len(local_devices):
     # Replication can only happen among all devices of one kind.
     raise RuntimeError(
-        'Cannot replicate if number of devices ({}) is different from {}'
-        .format(len(local_devices), len(kind_devices)))
+        'Cannot replicate if number of devices ({}) is different from {}'.
+        format(len(local_devices), len(kind_devices)))
   replication_devices = []
   for device in torch_xla._XLAC._xla_get_all_devices():
     xdev = parse_xla_device(device)
@@ -190,14 +215,28 @@ def xla_replication_devices(local_devices):
   return replication_devices
 
 
+def unlazy(tensors):
+  """Blocks the program until `tensors` are materialized.
+
+  This API is for benchmarking, don't use it in real models.
+
+  Args:
+    tensors (List[torch.Tensor]): List of `torch.Tensor`s to materialize.
+      For each Tensor `t` in the list, `t.device` must be an `xla` device.
+  """
+  torch_xla._XLAC._xla_sync_multi(tensors, devices=[], wait=True)
+
+
 def set_replication(device, devices):
+  device = str(device)
+  devices = [str(x) for x in devices]
   if devices:
     replication_devices = xla_replication_devices(devices)
     torch_xla._XLAC._xla_set_replication_devices(replication_devices)
     _TLS.device_index = devices.index(device)
   else:
     torch_xla._XLAC._xla_set_replication_devices([])
-    _TLS.device_index = 0
+    _TLS.device_index = devices.index(device) if devices else 0
   _TLS.device = device
   _TLS.all_reduce_token = None
   torch_xla._XLAC._xla_set_default_device(device)
@@ -319,9 +358,8 @@ def check_view_sharing(obj):
         if aid in aliases:
           oobj = aliases[aid]
           raise RuntimeError(
-              'Tensor ID {} ({}) is sharing a view with tensor ID {} ({})'
-              .format(tid, tensor_info(obj), tensor_id(oobj),
-                      tensor_info(oobj)))
+              'Tensor ID {} ({}) is sharing a view with tensor ID {} ({})'.
+              format(tid, tensor_info(obj), tensor_id(oobj), tensor_info(oobj)))
         aliases[aid] = obj
 
   xu.for_each_instance(obj, lambda x: type(x) == torch.Tensor, check_object)
@@ -346,19 +384,112 @@ def _get_all_reduce_token():
   return token
 
 
-def all_reduce(reduce_type, inputs, scale=1.0, groups=[]):
-  """Perform an inplace reduce operation on the input tensors.
+def all_reduce(reduce_type, inputs, scale=1.0, groups=None):
+  """Performs an inplace reduce operation on the input tensor(s).
 
   Args:
-    reduce_type (string): One of ``sum``, ``mul``, ``and``, ``or``, ``min`` and
-      ``max``.
-    inputs (list): List of tensors to perform the all reduce op to.
+    reduce_type (string): One of ``REDUCE_SUM``, ``REDUCE_MUL``, ``REDUCE_AND``,
+      ``REDUCE_OR``, ``REDUCE_MIN`` and ``REDUCE_MIN``.
+    inputs: Either a single `torch.Tensor` or a list of `torch.Tensor` to
+      perform the all reduce op to.
     scale (float): A default scaling value to be applied after the reduce.
       Default: 1.0
-    groups (list): Reserved.
+    groups (list, optional): A list of list, representing the replica groups for
+      the `all_reduce()` operation. Example: `[[0, 1, 2, 3], [4, 5, 6, 7]]`
+        defines two groups, one with the `[0, 1, 2, 3]` replicas and one with
+        the `[4, 5, 6, 7]` replicas. If `None` there will be only one group with
+        all the replicas in it.
+  Returns:
+    If a single `torch.Tensor` is passed, the return value is a `torch.Tensor`
+    holding the reduced value (across the replicas). If a list/tuple is passed,
+    this function performs an inplace all-reduce op on the input tensors, and
+    returns the list/tuple itself.
   """
-  _TLS.all_reduce_token = torch_xla._XLAC._xla_all_reduce(
-      reduce_type, inputs, _get_all_reduce_token(), scale, groups)
+  if isinstance(inputs, torch.Tensor):
+    result = torch_xla._XLAC._xla_all_reduce(reduce_type, inputs,
+                                             _get_all_reduce_token(), scale,
+                                             groups or [])
+    _TLS.all_reduce_token = result[1]
+    return result[0]
+  else:
+    _TLS.all_reduce_token = torch_xla._XLAC._xla_all_reduce_inplace(
+        reduce_type, inputs, _get_all_reduce_token(), scale, groups or [])
+    return inputs
+
+
+def all_gather(value, dim=0):
+  """Performs an all-gather operation along a given dimension.
+
+  Args:
+    value (torch.Tensor): The input tensor.
+    dim (int): The gather dimension.
+      Default: 0
+  Returns:
+    A tensor which has, in the ``dim`` dimension, all the values from the
+    participating replicas.
+  """
+  if dim < 0:
+    dim = value.dim() + dim
+  size = value.size(dim)
+  padding = [0] * (2 * value.dim())
+  idx = value.dim() - 1 - dim
+  ordinal = get_ordinal()
+  padding[2 * idx] = ordinal * size
+  padding[2 * idx + 1] = (xrt_world_size() - 1 - ordinal) * size
+  return all_reduce(REDUCE_SUM, F.pad(value, padding))
+
+
+def all_to_all(value,
+               split_dimension,
+               concat_dimension,
+               split_count,
+               groups=None):
+  """Performs an XLA `AllToAll()` operation on the input tensor.
+
+  See: https://www.tensorflow.org/xla/operation_semantics#alltoall
+
+  Args:
+    value (torch.Tensor): The input tensor.
+    split_dimension (int): The dimension upon which the split should happen.
+    concat_dimension (int): The dimension upon which the concat should happen.
+    split_count (int): The split count.
+    groups (list, optional): A list of list, representing the replica groups for
+      the `all_reduce()` operation. Example: `[[0, 1, 2, 3], [4, 5, 6, 7]]`
+        defines two groups, one with the `[0, 1, 2, 3]` replicas and one with
+        the `[4, 5, 6, 7]` replicas. If `None` there will be only one group with
+        all the replicas in it.
+
+  Returns:
+    The result `torch.Tensor` of the `all_to_all()` operation.
+  """
+  result = torch_xla._XLAC._xla_all_to_all(value, _get_all_reduce_token(),
+                                           split_dimension, concat_dimension,
+                                           split_count, groups or [])
+  _TLS.all_reduce_token = result[1]
+  return result[0]
+
+
+def collective_permute(value, pairs):
+  """Performs a XLA `CollectivePermute()` operation on the input tensor.
+
+  See: https://www.tensorflow.org/xla/operation_semantics#collectivepermute
+
+  Args:
+    value (torch.Tensor): The input tensor.
+    pairs (list): A list of (source_replica_id, target_replica_id) pairs,
+      representing the sender and receiver for the `collective_permute()`
+      operation. Example: `[[0, 1], [1, 2], [2, 0]]` defines three pairs. The
+        tensor will be send from replidca 0 to replidca 1, replidca 1 to
+        replidca 2, and replidca 2 to replidca 0.
+
+  Returns:
+    The result `torch.Tensor` of the `collective_permute()` operation.
+  """
+  result = torch_xla._XLAC._xla_collective_permute(value,
+                                                   _get_all_reduce_token(),
+                                                   pairs)
+  _TLS.all_reduce_token = result[1]
+  return result[0]
 
 
 def add_step_closure(closure, args=()):
@@ -422,20 +553,25 @@ def wait_device_ops(devices=[]):
   torch_xla._XLAC._xla_wait_device_ops(devices=devices)
 
 
-def reduce_gradients(optimizer):
+def reduce_gradients(optimizer, groups=None):
   """Reduces all the gradients handled by an optimizer.
 
   Args:
     optimizer (:class:`torch.Optimizer`): The `torch.Optimizer` instance
       containing the gradients to be reduced.
+    groups (list, optional): A list of list, representing the replica groups for
+      the `all_reduce()` operation. Example: `[[0, 1, 2, 3], [4, 5, 6, 7]]`
+        defines two groups, one with the `[0, 1, 2, 3]` replicas and one with
+        the `[4, 5, 6, 7]` replicas. If `None` there will be only one group with
+        all the replicas in it.
   """
   count = torch_xla._XLAC._xla_get_replication_devices_count()
   if count > 1:
     gradients = _fetch_gradients(optimizer)
-    all_reduce('sum', gradients, scale=1.0 / count)
+    all_reduce(REDUCE_SUM, gradients, scale=1.0 / count, groups=groups)
 
 
-def optimizer_step(optimizer, barrier=False, optimizer_args={}):
+def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None):
   """Run the provided optimizer step and issue the XLA device step computation.
 
   Args:
@@ -449,13 +585,17 @@ def optimizer_step(optimizer, barrier=False, optimizer_args={}):
       Default: False
     optimizer_args (dict, optional): Named arguments dictionary for the
       `optimizer.step()` call.
+    groups (list, optional): A list of list, representing the replica groups for
+      the `all_reduce()` operation. Example: `[[0, 1, 2, 3], [4, 5, 6, 7]]`
+        defines two groups, one with the `[0, 1, 2, 3]` replicas and one with
+        the `[4, 5, 6, 7]` replicas. If `None` there will be only one group with
+        all the replicas in it.
 
   Returns:
     The same value returned by the `optimizer.step()` call.
   """
-  reduce_gradients(optimizer)
-  with in_optimizer_step():
-    loss = optimizer.step(**optimizer_args)
+  reduce_gradients(optimizer, groups=groups)
+  loss = optimizer.step(**optimizer_args)
   if barrier:
     mark_step()
   return loss
@@ -464,7 +604,7 @@ def optimizer_step(optimizer, barrier=False, optimizer_args={}):
 def save(data, file_or_path, master_only=True, global_master=False):
   """Saves the input data into a file.
 
-  The saved data is transfered to PyTorch CPU device before being saved, so a
+  The saved data is transferred to PyTorch CPU device before being saved, so a
   following `torch.load()` will load CPU data.
 
   Args:
@@ -520,15 +660,102 @@ def send_cpu_data_to_device(data, device):
   return ToXlaTensorArena(convert_fn, select_fn).transform(data)
 
 
-def rendezvous(tag, payload=b''):
+def rendezvous(tag, payload=b'', replicas=[]):
   """Waits for all the mesh clients to reach the named rendezvous.
 
   Args:
     tag (string): The name of the rendezvous to join.
     payload (bytes, optional): The payload to be sent to the rendezvous.
-  """
-  return torch_xla._XLAC._xla_rendezvous(get_ordinal(), tag, payload)
+    replicas (list, int): The replica ordinals taking part of the rendezvous.
+      Empty means all replicas in the mesh.
+      Default: []
 
+  Returns:
+    The payloads exchanged by all the other cores, with the payload of core
+    ordinal `i` at position `i` in the returned tuple.
+  """
+  return torch_xla._XLAC._xla_rendezvous(get_ordinal(), tag, payload, replicas)
+
+
+def do_on_ordinals(target, data=(), ordinals=(0,)):
+  """Runs a function only on a given set of ordinals.
+
+  Args:
+    target (callable): The function to be run on `ordinals`.
+    data: Any input data for the `target` function which contains tensors. All
+      the XLA tensors used by the `target` function must be passed in this
+      argument. Every other data used by the function can be captured by the
+      Python interpreter as usual.
+      Default: ()
+    ordinals (list, int): The list/set of ordinals where the `target` function
+      should run.
+      Default: (0,)
+
+  Returns:
+    In the ordinals that ran the `target` function, the function return value,
+    otherwise `None`.
+  """
+  running = get_ordinal() in ordinals
+  cpu_data = _maybe_convert_to_cpu(data, convert=running)
+  if running:
+    result = target(*cpu_data)
+  else:
+    result = None
+  rendezvous('torch_xla.core.xla_model.do_on_ordinals')
+  return result
+
+
+def mesh_reduce(tag, data, reduce_fn):
+  """Performs an out-of-graph client mesh reduction.
+
+  Args:
+    tag (string): The name of the rendezvous to join.
+    data: The data to be reduced. The `reduce_fn` callable will receive a list
+      with the copies of the same data coming from all the mesh client processes
+      (one per core).
+    reduce_fn (callable): A function which receives a list of `data`-like
+      objects and returns the reduced result.
+
+  Returns:
+    The reduced value.
+  """
+  cpu_data = _maybe_convert_to_cpu(data)
+  bio = io.BytesIO()
+  torch.save(cpu_data, bio)
+  xdata = rendezvous(tag, bio.getvalue())
+  xldata = []
+  for xd in xdata:
+    xbio = io.BytesIO(xd)
+    xldata.append(torch.load(xbio))
+  return reduce_fn(xldata) if xldata else cpu_data
+
+
+def set_rng_state(seed, device=None):
+  """Sets the random number generator state.
+
+  Args:
+    seed (integer): The state to be set.
+    device (string, optional): The device where the RNG state needs to be set.
+      If missing the default device seed will be set.
+  """
+  if device is None:
+    device = torch_xla._XLAC._xla_get_default_device()
+  torch_xla._XLAC._xla_set_rng_seed(seed, str(device) if device else '')
+
+
+def get_rng_state(device=None):
+  """Gets the current running random number generator state.
+
+  Args:
+    device (string, optional): The device whose RNG state needs to be retrieved.
+      If missing the default device seed will be set.
+
+  Returns:
+    The RNG state, as integer.
+  """
+  if device is None:
+    device = torch_xla._XLAC._xla_get_default_device()
+  return torch_xla._XLAC._xla_get_rng_seed(str(device) if device else '')
 
 _PY_STATE_IN_TRAIN_LOOP = 1
 _PY_STATE_IN_DATA_BATCH = 2

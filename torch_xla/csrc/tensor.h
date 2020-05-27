@@ -14,9 +14,11 @@
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "torch/csrc/autograd/variable.h"
+#include "torch_xla/csrc/computation.h"
 #include "torch_xla/csrc/cross_replica_reduces.h"
 #include "torch_xla/csrc/device.h"
 #include "torch_xla/csrc/ir.h"
+#include "torch_xla/csrc/ir_util.h"
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
 
@@ -50,18 +52,19 @@ class XLATensor {
 
   xla::int64 size(xla::int64 dim) const;
 
-  at::Tensor ToTensor();
+  at::Tensor ToTensor(bool detached);
 
   void ShallowCopyTo(XLATensor* dest) const;
 
   // Assigns the tensor value to the XLA tensor.
   void SetTensor(at::Tensor tensor);
 
-  void UpdateFromTensor(at::Tensor tensor);
+  void UpdateFromTensor(at::Tensor tensor, bool sync);
   void UpdateFromTensorOut(at::Tensor tensor);
   void UpdateFromTensorOut(const XLATensor& tensor);
 
   at::ScalarType dtype() const;
+  c10::optional<at::ScalarType> dtype_optional() const;
 
   // Set logical_element_type which is visible to upstream PyTorch.
   void SetScalarType(c10::optional<at::ScalarType> logical_element_type);
@@ -71,8 +74,6 @@ class XLATensor {
 
   const Device& GetDevice() const;
   xla::int64 GetUniqueId() const;
-
-  void SetDevice(const std::string& device);
 
   // Retrieves an opaque ID of the alias object upon which the tensor's view is
   // rooted, or 0 if this tensor is not a view.
@@ -105,12 +106,23 @@ class XLATensor {
   static ir::Value GetIrValueForScalar(at::Scalar value,
                                        xla::PrimitiveType type,
                                        const Device& device);
-
   static ir::Value GetIrValueForScalar(at::Scalar value, const Device& device);
-
+  static ir::Value GetIrValueForScalar(at::Scalar value,
+                                       xla::PrimitiveType type,
+                                       absl::Span<const xla::int64> dimensions,
+                                       const Device& device);
   static ir::Value GetIrValueForScalar(at::Scalar value,
                                        const xla::Shape& shape,
                                        const Device& device);
+  static ir::Value GetIrValueForScalar(
+      at::Scalar value, const xla::Shape& shape,
+      c10::optional<at::ScalarType> logical_element_type, const Device& device);
+
+  static ir::Value GetRngSeed(const Device& device);
+
+  static void SetRngSeed(const Device* device, xla::uint64 seed);
+
+  static xla::uint64 GetRunningSeed(const Device& device);
 
   // Dispatches a comparison operator, setting the logical type of the result
   // appropriately.
@@ -126,8 +138,6 @@ class XLATensor {
   // Dumps the XLA HLO text of the computation accumulated in the graph which is
   // attached the tensors.
   static std::string DumpHloComputation(const std::vector<XLATensor>& tensors);
-
-  static std::string DumpHloProtoComputation(const std::vector<XLATensor>& tensors);
 
   // Retrieves the set of XLA tensors which are currently live in the system,
   // for the given device. If device is nullptr, the live tensors for all
@@ -187,19 +197,32 @@ class XLATensor {
   //////////////////////////////////////////////////////////////////////////////
   static std::pair<XLATensor, ir::Value> all_reduce(
       const XLATensor& input, const ir::Value& token, AllReduceType reduce_type,
-      double scale, const std::vector<std::vector<xla::int64>>& groups);
+      double scale, std::vector<std::vector<xla::int64>> groups);
 
-  static ir::Value all_reduce_(
-      XLATensor& input, const ir::Value& token, AllReduceType reduce_type,
-      double scale, const std::vector<std::vector<xla::int64>>& groups);
+  static ir::Value all_reduce_(XLATensor& input, const ir::Value& token,
+                               AllReduceType reduce_type, double scale,
+                               std::vector<std::vector<xla::int64>> groups);
 
-  static ir::Value all_reduce(
-      std::vector<XLATensor>* inputs, const ir::Value& token,
-      AllReduceType reduce_type, double scale,
-      const std::vector<std::vector<xla::int64>>& groups);
+  static ir::Value all_reduce(std::vector<XLATensor>* inputs,
+                              const ir::Value& token, AllReduceType reduce_type,
+                              double scale,
+                              std::vector<std::vector<xla::int64>> groups);
+
+  static std::pair<XLATensor, ir::Value> all_to_all(
+      const XLATensor& input, const ir::Value& token,
+      xla::int64 split_dimension, xla::int64 concat_dimension,
+      xla::int64 split_count, std::vector<std::vector<xla::int64>> groups);
+
+  static std::pair<XLATensor, ir::Value> collective_permute(
+      const XLATensor& input, const ir::Value& token,
+      std::vector<std::pair<xla::int64, xla::int64>> source_target_pairs);
 
   static XLATensor get_dimensions_size(const XLATensor& input,
                                        std::vector<xla::int64> dimensions);
+
+  static std::vector<XLATensor> user_computation(
+      const std::string& opname, absl::Span<const XLATensor> inputs,
+      ComputationPtr computation);
 
   //////////////////////////////////////////////////////////////////////////////
   // ATEN operators follows here, listed in alphabetical order.
@@ -210,11 +233,19 @@ class XLATensor {
   static void __irshift__(XLATensor& input, at::Scalar other);
   static void __irshift__(XLATensor& input, const XLATensor& other);
 
-  static XLATensor __lshift__(const XLATensor& input, at::Scalar other);
-  static XLATensor __lshift__(const XLATensor& input, const XLATensor& other);
+  static XLATensor __lshift__(
+      const XLATensor& input, at::Scalar other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor __lshift__(
+      const XLATensor& input, const XLATensor& other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
 
-  static XLATensor __rshift__(const XLATensor& input, at::Scalar other);
-  static XLATensor __rshift__(const XLATensor& input, const XLATensor& other);
+  static XLATensor __rshift__(
+      const XLATensor& input, at::Scalar other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor __rshift__(
+      const XLATensor& input, const XLATensor& other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
 
   static XLATensor _adaptive_avg_pool2d(const XLATensor& input,
                                         std::vector<xla::int64> output_size);
@@ -228,11 +259,13 @@ class XLATensor {
   static XLATensor acos(const XLATensor& input);
   static void acos_(XLATensor& input);
 
-  static XLATensor add(const XLATensor& input, const XLATensor& other,
-                       at::Scalar alpha);
+  static XLATensor add(
+      const XLATensor& input, const XLATensor& other, at::Scalar alpha,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void add_(XLATensor& input, const XLATensor& other, at::Scalar alpha);
-  static XLATensor add(const XLATensor& input, at::Scalar other,
-                       at::Scalar alpha);
+  static XLATensor add(
+      const XLATensor& input, at::Scalar other, at::Scalar alpha,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void add_(XLATensor& input, at::Scalar other, at::Scalar alpha);
 
   static XLATensor addcdiv(const XLATensor& input, at::Scalar value,
@@ -283,7 +316,9 @@ class XLATensor {
   static XLATensor atan(const XLATensor& input);
   static void atan_(XLATensor& input);
 
-  static XLATensor atan2(const XLATensor& input, const XLATensor& other);
+  static XLATensor atan2(
+      const XLATensor& input, const XLATensor& other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void atan2_(XLATensor& input, const XLATensor& other);
 
   static XLATensor avg_pool_nd(const XLATensor& input,
@@ -416,8 +451,12 @@ class XLATensor {
   static XLATensor diagonal(const XLATensor& input, xla::int64 offset,
                             xla::int64 dim1, xla::int64 dim2);
 
-  static XLATensor div(const XLATensor& input, const XLATensor& other);
-  static XLATensor div(const XLATensor& input, at::Scalar other);
+  static XLATensor div(
+      const XLATensor& input, const XLATensor& other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor div(
+      const XLATensor& input, at::Scalar other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void div_(XLATensor& input, const XLATensor& other);
   static void div_(XLATensor& input, at::Scalar other);
 
@@ -463,6 +502,8 @@ class XLATensor {
   static XLATensor expm1(const XLATensor& input);
   static void expm1_(XLATensor& input);
 
+  static void exponential_(XLATensor& input, double lambd);
+
   // Returns a 2-D tensor with ones on the diagonal and zeros elsewhere.
   static XLATensor eye(xla::int64 lines, xla::int64 cols, const Device& device,
                        at::ScalarType element_type);
@@ -479,8 +520,12 @@ class XLATensor {
   static XLATensor floor(const XLATensor& input);
   static void floor_(XLATensor& input);
 
-  static XLATensor fmod(const XLATensor& input, const XLATensor& other);
-  static XLATensor fmod(const XLATensor& input, at::Scalar other);
+  static XLATensor fmod(
+      const XLATensor& input, const XLATensor& other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor fmod(
+      const XLATensor& input, at::Scalar other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void fmod_(XLATensor& input, const XLATensor& other);
   static void fmod_(XLATensor& input, at::Scalar other);
 
@@ -505,6 +550,8 @@ class XLATensor {
 
   static XLATensor gelu(const XLATensor& input);
   static XLATensor gelu_backward(const XLATensor& grad, const XLATensor& input);
+
+  static XLATensor ger(const XLATensor& input, const XLATensor& vec2);
 
   static XLATensor gt(const XLATensor& input, at::Scalar other);
   static void gt_(XLATensor& input, at::Scalar other);
@@ -571,7 +618,7 @@ class XLATensor {
   static XLATensor kl_div_backward(const XLATensor& grad_output,
                                    const XLATensor& input,
                                    const XLATensor& target,
-                                   xla::int64 reduction);
+                                   xla::int64 reduction, bool log_target);
 
   static std::tuple<XLATensor, XLATensor> kthvalue(const XLATensor& input,
                                                    xla::int64 k, xla::int64 dim,
@@ -595,6 +642,13 @@ class XLATensor {
   static XLATensor hardshrink_backward(const XLATensor& grad_out,
                                        const XLATensor& input,
                                        at::Scalar lambda);
+
+  static XLATensor hardsigmoid(const XLATensor& input);
+
+  static void hardsigmoid_(XLATensor& input);
+
+  static XLATensor hardsigmoid_backward(const XLATensor& grad_output,
+                                        const XLATensor& input);
 
   static XLATensor hardtanh_backward(const XLATensor& grad_output,
                                      const XLATensor& input, at::Scalar min_val,
@@ -701,8 +755,12 @@ class XLATensor {
                                      const XLATensor& target,
                                      xla::int64 reduction);
 
-  static XLATensor mul(const XLATensor& input, const XLATensor& other);
-  static XLATensor mul(const XLATensor& input, at::Scalar other);
+  static XLATensor mul(
+      const XLATensor& input, const XLATensor& other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor mul(
+      const XLATensor& input, at::Scalar other,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void mul_(XLATensor& input, const XLATensor& other);
   static void mul_(XLATensor& input, at::Scalar other);
 
@@ -747,6 +805,12 @@ class XLATensor {
                                      const XLATensor& weight,
                                      xla::int64 reduction, int ignore_index,
                                      const XLATensor& total_weight);
+
+  static std::pair<XLATensor, XLATensor> nms(const XLATensor& boxes,
+                                             const XLATensor& scores,
+                                             const XLATensor& score_threshold,
+                                             const XLATensor& iou_threshold,
+                                             xla::int64 output_size);
 
   static XLATensor nonzero(const XLATensor& input);
 
@@ -811,6 +875,18 @@ class XLATensor {
   static XLATensor repeat(const XLATensor& input,
                           std::vector<xla::int64> repeats);
 
+  static XLATensor replication_pad1d(const XLATensor& input,
+                                     std::vector<xla::int64> padding);
+  static XLATensor replication_pad1d_backward(const XLATensor& grad_output,
+                                              const XLATensor& input,
+                                              std::vector<xla::int64> padding);
+
+  static XLATensor replication_pad2d(const XLATensor& input,
+                                     std::vector<xla::int64> padding);
+  static XLATensor replication_pad2d_backward(const XLATensor& grad_output,
+                                              const XLATensor& input,
+                                              std::vector<xla::int64> padding);
+
   static void resize_(XLATensor& input, std::vector<xla::int64> size);
 
   static XLATensor rrelu_with_noise(const XLATensor& input, XLATensor& noise,
@@ -826,11 +902,12 @@ class XLATensor {
   static XLATensor rsqrt(const XLATensor& input);
   static void rsqrt_(XLATensor& input);
 
-  static XLATensor rsub(const XLATensor& input, const XLATensor& other,
-                        at::Scalar alpha);
-
-  static XLATensor rsub(const XLATensor& input, at::Scalar other,
-                        at::Scalar alpha);
+  static XLATensor rsub(
+      const XLATensor& input, const XLATensor& other, at::Scalar alpha,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor rsub(
+      const XLATensor& input, at::Scalar other, at::Scalar alpha,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
 
   static void copy_(XLATensor& input, XLATensor& src);
 
@@ -918,11 +995,13 @@ class XLATensor {
                        std::vector<xla::int64> dimensions,
                        bool keep_reduced_dimensions, bool unbiased);
 
-  static XLATensor sub(const XLATensor& input, const XLATensor& other,
-                       at::Scalar alpha);
+  static XLATensor sub(
+      const XLATensor& input, const XLATensor& other, at::Scalar alpha,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void sub_(XLATensor& input, const XLATensor& other, at::Scalar alpha);
-  static XLATensor sub(const XLATensor& input, at::Scalar other,
-                       at::Scalar alpha);
+  static XLATensor sub(
+      const XLATensor& input, at::Scalar other, at::Scalar alpha,
+      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static void sub_(XLATensor& input, at::Scalar other, at::Scalar alpha);
 
   static XLATensor sum(const XLATensor& input,
@@ -989,12 +1068,18 @@ class XLATensor {
   // In-place version of the method above.
   static void triu_(XLATensor& input, xla::int64 diagonal);
 
+  static XLATensor true_divide(const XLATensor& input, const XLATensor& other);
+
+  static XLATensor true_divide(const XLATensor& input, at::Scalar other);
+
   static XLATensor trunc(const XLATensor& input);
   static void trunc_(XLATensor& input);
 
   // Returns a tuple of all slices along a given dimension with that dimension
   // removed.
   static std::vector<XLATensor> unbind(const XLATensor& input, xla::int64 dim);
+
+  static void uniform_(XLATensor& input, double from, double to);
 
   // Insert a dimension of size one at the specified position.
   static XLATensor unsqueeze(const XLATensor& input, xla::int64 dim);
@@ -1037,13 +1122,22 @@ class XLATensor {
   };
 
   struct SyncTensorCollection {
+    SyncTensorCollection() : hash(0) {}
+
     SyncTensorsConfig config;
     std::vector<size_t> indices;
-    size_t hash = 0;
+    xla::hash_t hash;
     std::vector<xla::util::ExceptionCleanup> unlocker;
-    std::string device;
     // Save the thread that is requesting
     pid_t requesting_tid = syscall(__NR_gettid);
+    Device device;
+  };
+
+  struct PostOrderData {
+    std::vector<const ir::Node*> post_order;
+    ir::Util::EmissionMap emission_map;
+    std::vector<xla::ComputationClient::DataPtr> parameters_data;
+    std::vector<size_t> parameter_sequence;
   };
 
   struct CompilationResult {
@@ -1055,15 +1149,14 @@ class XLATensor {
 
   struct CachedComputation {
     CachedComputation(
-        std::shared_ptr<xla::ComputationClient::Computation> computation,
-        size_t num_parameters)
-        : computation(std::move(computation)), num_parameters(num_parameters) {}
+        std::shared_ptr<xla::ComputationClient::Computation> computation)
+        : computation(std::move(computation)) {}
 
     std::shared_ptr<xla::ComputationClient::Computation> computation;
-    size_t num_parameters;
   };
 
-  using ComputationCache = xla::util::Cache<size_t, CachedComputation>;
+  using ComputationCache =
+      xla::util::Cache<xla::hash_t, CachedComputation, xla::util::HashReducer>;
 
   struct Async {
     Async(SyncTensorCollection* coll,
@@ -1117,10 +1210,9 @@ class XLATensor {
     std::shared_ptr<View> view;
     c10::optional<at::ScalarType> logical_element_type;
     c10::optional<at::Tensor> tensor_data;
-    Device device;
+    const Device device;
     const xla::int64 unique_id = 0;
     size_t generation = 1;
-    std::string tensor_type;  // cjolivier01@ currently unused
   };
 
   XLATensor(const at::Tensor& tensor, const Device& device);
@@ -1143,6 +1235,7 @@ class XLATensor {
   void SetXlaData(xla::ComputationClient::DataPtr xla_data, bool sync);
 
   void SetIrValue(ir::Value ir_value);
+  void SetInPlaceIrValue(ir::Value ir_value);
 
   void AssignIrValue(ir::Value ir_value) const;
 
@@ -1160,6 +1253,10 @@ class XLATensor {
   XLATensor CreateViewTensor(ViewInfo view_info) const;
 
   XLATensor CopyTensorToDevice(const Device& device);
+
+  ir::Value MaybeCastIrValue(
+      ir::Value ir_value, const Device& device,
+      c10::optional<at::ScalarType> logical_element_type) const;
 
   // Create a new XLA tensor with the same metadata of the input tensor (with
   // possible overrides), and the new IR value.
@@ -1230,17 +1327,15 @@ class XLATensor {
       std::vector<xla::ComputationClient::DataPtr> parameters_data,
       std::string device, ComputationCache::TypePtr cached_computation);
 
-  static std::vector<xla::ComputationClient::DataPtr> FetchParameters(
-      const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices,
-      size_t* graph_size);
+  static PostOrderData RunPostOrder(const std::vector<XLATensor>& tensors,
+                                    absl::Span<const size_t> indices);
 
   static ComputationCache::TypePtr LookupCachedCompile(
-      const std::vector<XLATensor>& tensors, size_t hash,
-      absl::Span<const size_t> indices,
-      std::vector<xla::ComputationClient::DataPtr>* parameters_data);
+      const std::vector<XLATensor>& tensors, const xla::hash_t& hash);
 
   static std::shared_ptr<Async> TryRunCachedSync(
-      std::vector<XLATensor>* tensors, SyncTensorCollection* coll);
+      std::vector<XLATensor>* tensors, SyncTensorCollection* coll,
+      PostOrderData* po_data);
 
   static void BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
                                       absl::Span<const size_t> indices,
@@ -1249,6 +1344,7 @@ class XLATensor {
   static CompilationResult Compile(const std::vector<XLATensor>& tensors,
                                    absl::Span<const std::string> devices,
                                    const SyncTensorCollection& coll,
+                                   PostOrderData* po_data,
                                    const Device *force_on_device);
 
   static std::shared_ptr<Async> SyncTensorsGraphInternal(
@@ -1257,8 +1353,7 @@ class XLATensor {
 
   static xla::int64 GetNextTensorId();
 
-  static xla::uint64 GenRngSeed();
-
   std::shared_ptr<Data> data_;
 };
+
 }  // namespace torch_xla

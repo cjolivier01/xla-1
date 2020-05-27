@@ -5,9 +5,11 @@
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
+#include "torch_xla/csrc/convert_ops.h"
 #include "torch_xla/csrc/device.h"
 #include "torch_xla/csrc/helpers.h"
 #include "torch_xla/csrc/layout_manager.h"
+#include "torch_xla/csrc/token_handler.h"
 
 namespace torch_xla {
 namespace {
@@ -66,11 +68,7 @@ xla::XlaComputation GetReduceComutation(AllReduceType reduce_type,
               << xla::util::GetEnumValue(reduce_type);
 }
 
-}  // namespace
-
-std::vector<xla::XlaOp> BuildAllReduce(
-    AllReduceType reduce_type, absl::Span<const xla::XlaOp> operands,
-    xla::XlaOp token, double scale,
+std::vector<xla::ReplicaGroup> CreateReduceGroups(
     const std::vector<std::vector<xla::int64>>& groups) {
   std::vector<xla::ReplicaGroup> reduce_groups;
   for (auto& group : groups) {
@@ -80,6 +78,16 @@ std::vector<xla::XlaOp> BuildAllReduce(
     }
     reduce_groups.push_back(std::move(rgroup));
   }
+  return reduce_groups;
+}
+
+}  // namespace
+
+std::vector<xla::XlaOp> BuildAllReduce(
+    AllReduceType reduce_type, absl::Span<const xla::XlaOp> operands,
+    xla::XlaOp token, double scale,
+    const std::vector<std::vector<xla::int64>>& groups) {
+  std::vector<xla::ReplicaGroup> reduce_groups = CreateReduceGroups(groups);
   // TODO: We use pseudo-tokens ATM, which are real values. This need to be
   // switched to use the real XLA Token once support has been added to XLA
   // AllReduce().
@@ -87,8 +95,7 @@ std::vector<xla::XlaOp> BuildAllReduce(
   ReduceContext redux = GetReduceContext(operands);
   std::vector<xla::XlaOp> result(operands.size());
   for (auto& type_ctx : redux.contexts) {
-    xla::XlaOp token_op =
-        xla::ConvertElementType(chained_token, type_ctx.first);
+    xla::XlaOp token_op = MaybeConvertTo(chained_token, type_ctx.first);
     type_ctx.second.ops.push_back(token_op);
     type_ctx.second.operand_shapes.push_back(
         XlaHelpers::ShapeOfXlaOp(token_op));
@@ -113,8 +120,37 @@ std::vector<xla::XlaOp> BuildAllReduce(
         xla::GetTupleElement(reduce, type_ctx.second.indices.size());
   }
   result.push_back(
-      xla::ConvertElementType(chained_token, XlaHelpers::TypeOfXlaOp(token)));
+      MaybeConvertTo(chained_token, XlaHelpers::TypeOfXlaOp(token)));
   return result;
+}
+
+AllToAllResult BuildAllToAll(
+    xla::XlaOp input, xla::XlaOp token, xla::int64 split_dimension,
+    xla::int64 concat_dimension, xla::int64 split_count,
+    const std::vector<std::vector<xla::int64>>& groups) {
+  std::vector<xla::ReplicaGroup> reduce_groups = CreateReduceGroups(groups);
+  const xla::Shape& input_shape = XlaHelpers::ShapeOfXlaOp(input);
+  xla::Shape reduce_shape = MakeArrayShapeFromDimensions(
+      input_shape.dimensions(), input_shape.dynamic_dimensions(),
+      input_shape.element_type(), GetCurrentDevice().hw_type);
+  TokenHandler token_handler(token);
+  xla::XlaOp reduce_result = xla::AllToAll(
+      token_handler.GetInput(input, &input_shape), split_dimension,
+      concat_dimension, split_count, reduce_groups, reduce_shape.layout());
+  return {reduce_result, token_handler.GetNewToken(reduce_result)};
+}
+
+CollectivePermuteResult BuildCollectivePermute(
+    xla::XlaOp input, xla::XlaOp token,
+    const std::vector<std::pair<xla::int64, xla::int64>>& source_target_pairs) {
+  const xla::Shape& input_shape = XlaHelpers::ShapeOfXlaOp(input);
+  TokenHandler token_handler(token);
+  // TODO: This is missing layout pinning ATM. If XLA scheduling is not exactly
+  // the same (graphs on cores differ), XLA could assign different layouts and
+  // things will break.
+  xla::XlaOp result = xla::CollectivePermute(
+      token_handler.GetInput(input, &input_shape), source_target_pairs);
+  return {result, token_handler.GetNewToken(result)};
 }
 
 }  // namespace torch_xla

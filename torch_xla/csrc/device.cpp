@@ -21,7 +21,6 @@ std::string DeviceTypeToString(DeviceType hw_type) {
       return "TPU";
     case DeviceType::WSE:
       return "WSE";
-      //return "CPU";
   }
   XLA_ERROR() << "Invalid device type";
 }
@@ -54,7 +53,6 @@ void ParseDevice(const std::string& device_spec, Device* device) {
     device->hw_type = DeviceType::GPU;
   } else if (device_spec_parts[0] == "WSE") {
       device->hw_type = DeviceType::WSE;
-      //device->hw_type = DeviceType::CPU;
   } else {
     XLA_ERROR() << "Invalid device specification: " << device_spec;
   }

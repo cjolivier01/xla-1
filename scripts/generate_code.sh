@@ -2,16 +2,9 @@
 
 CDIR="$(cd "$(dirname "$0")" ; pwd -P)"
 XDIR="$CDIR/.."
-PTDIR="$XDIR/../pytorch"
-
-if [ -z "$1" ]; then
-  PYTORCH_BUILD_DIR=$(realpath $PTDIR/build)
-else
-  PYTORCH_BUILD_DIR=$(realpath "$1")
-fi
-
+PTDIR="$XDIR/.."
 if [ -z "$PT_INC_DIR" ]; then
-  PT_INC_DIR="$PYTORCH_BUILD_DIR/aten/src/ATen"
+  PT_INC_DIR="$PTDIR/build/aten/src/ATen"
 fi
 
 python "$CDIR/gen.py" \

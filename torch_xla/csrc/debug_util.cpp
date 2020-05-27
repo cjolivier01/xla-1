@@ -9,6 +9,8 @@
 #include "absl/strings/str_split.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
+#include "tensorflow/compiler/xla/xla_client/unique.h"
+#include "torch_xla/csrc/device.h"
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/ir_dump_util.h"
 #include "torch_xla/csrc/ir_util.h"
@@ -53,12 +55,17 @@ std::string DebugUtil::GetTensorsGraphInfo(absl::Span<const XLATensor> tensors,
                                            GraphFormat format) {
   std::vector<const ir::Node*> root_nodes;
   std::vector<ir::Value> root_values;
+  std::vector<xla::hash_t> root_hashes;
+  xla::util::Unique<Device> unique_device;
   if (indices != nullptr) {
     for (auto index : *indices) {
-      ir::Value ir_value = tensors[index].CurrentIrValue();
+      const XLATensor& tensor = tensors[index];
+      ir::Value ir_value = tensor.CurrentIrValue();
       if (ir_value) {
         root_nodes.push_back(ir_value.node.get());
+        root_hashes.push_back(ir_value.hash());
         root_values.push_back(std::move(ir_value));
+        unique_device.set(tensor.GetDevice());
       }
     }
   } else {
@@ -66,7 +73,9 @@ std::string DebugUtil::GetTensorsGraphInfo(absl::Span<const XLATensor> tensors,
       ir::Value ir_value = tensor.CurrentIrValue();
       if (ir_value) {
         root_nodes.push_back(ir_value.node.get());
+        root_hashes.push_back(ir_value.hash());
         root_values.push_back(std::move(ir_value));
+        unique_device.set(tensor.GetDevice());
       }
     }
   }
@@ -77,13 +86,23 @@ std::string DebugUtil::GetTensorsGraphInfo(absl::Span<const XLATensor> tensors,
     ss << "  " << location.function << " (" << location.file << ":"
        << location.line << ")\n";
   }
+  ss << "\nHashes: (";
+  for (size_t i = 0; i < root_hashes.size(); ++i) {
+    if (i > 0) {
+      ss << ", ";
+    }
+    ss << xla::util::HexHash(root_hashes[i]);
+  }
+  ss << ")\n";
+
   std::string graph_str;
   if (format == GraphFormat::kText) {
     graph_str = ir::DumpUtil::ToText(root_nodes);
   } else if (format == GraphFormat::kDot) {
     graph_str = ir::DumpUtil::ToDot(root_nodes);
   } else if (format == GraphFormat::kHlo) {
-    graph_str = ir::DumpUtil::ToHlo(root_values);
+    graph_str = ir::DumpUtil::ToHlo(
+        root_values, unique_device ? *unique_device : GetCurrentDevice());
   } else {
     XLA_ERROR() << "Invalid graph format: " << format;
   }

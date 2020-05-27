@@ -7,22 +7,21 @@ import torch_xla.distributed.xla_multiprocessing as xmp
 
 def _mp_fn(index):
   device = xm.xla_device()
-  real_device = xm.xla_real_devices([str(device)])[0]
-  if real_device.startswith('TPU:'):
+  if xm.xla_device_hw(device) != 'CPU':
     ones = torch.ones((2, 3))
     twos = ones + 1.0
     xones = ones.to(device)
     xtwos = twos.to(device)
-    xm.all_reduce('sum', [xones, xtwos])
+    xm.all_reduce(xm.REDUCE_SUM, [xones, xtwos])
 
     if (not xones.cpu().allclose(ones * float(xm.xrt_world_size())) or
         not xtwos.cpu().allclose(twos * float(xm.xrt_world_size()))):
-      print('CrossReplicaSum produced wrong reductions')
+      print('xm.all_reduce() produced wrong reductions', file=sys.stderr)
       print(xones, file=sys.stderr)
       sys.exit(1)
   else:
     print(
-        'Default device {} is not a TPU device'.format(real_device),
+        'Default device {} does not support replication'.format(device),
         file=sys.stderr)
 
 

@@ -96,10 +96,7 @@ class DataParallel(object):
     os._exit(17)
 
   def _module_runner(self, loop_fn, device, module, loader, context, result):
-    if len(self._device_ids) > 1:
-      xm.set_replication(device, self._device_ids)
-    else:
-      torch_xla._XLAC._xla_set_default_device(device)
+    xm.set_replication(device, self._device_ids)
     try:
       result.result = loop_fn(module, loader, torch.device(device), context)
     except Exception as e:
@@ -114,7 +111,7 @@ class DataParallel(object):
         assigned to each device taking part of the replication. The function
         will be called with the `def loop_fn(model, device_loader, device,
         context)` signature. Where `model` is the per device network as passed
-        to the `DataParallel` contructor. The `device_loader` is the
+        to the `DataParallel` constructor. The `device_loader` is the
         `ParallelLoader` which will be returning samples for the current
         `device`. And the `context` is a per thread/device context which has the
         lifetime of the `DataParallel` object, and can be used by the `loop_fn`

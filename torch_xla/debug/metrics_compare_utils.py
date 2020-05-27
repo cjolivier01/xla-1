@@ -2,11 +2,13 @@
 
 import collections
 import re
+import itertools
 
 from numpy import mean
 from numpy import std
 
 _METRIC_REGEX = r'Metric: (?P<metric_name>\S+)\s+TotalSamples: (?P<TotalSamples>\d+)\s+Accumulator: (?P<Accumulator>\S+)[^P]+Percentiles: 1%=(?P<Percentile_1>\S+); 5%=(?P<Percentile_5>\S+); 10%=(?P<Percentile_10>\S+); 20%=(?P<Percentile_20>\S+); 50%=(?P<Percentile_50>\S+); 80%=(?P<Percentile_80>\S+); 90%=(?P<Percentile_90>\S+); 95%=(?P<Percentile_95>\S+); 99%=(?P<Percentile_99>\S+)'
+_SERVER_METRIC_REGEX = r'Metric: (?P<metric_name>\S+)\s+TotalSamples: (?P<TotalSamples>\d+)\s+Accumulator: (?P<Accumulator>\S+)[^P]+Percentiles: 25%=(?P<Percentile_20>\S+); 50%=(?P<Percentile_50>\S+); 80%=(?P<Percentile_80>\S+); 90%=(?P<Percentile_90>\S+); 95%=(?P<Percentile_95>\S+); 99%=(?P<Percentile_99>\S+)'
 _COUNTER_REGEX = r'Counter: (\S+)\s+Value: (\d+)'
 _TIME_FIND_REGEX = r'((?P<days>\d+)d)?((?P<hours>\d+)h)?((?P<minutes>\d+)m(?!s))?((?P<seconds>\d+)s)?((?P<milliseconds>\d+)ms)?((?P<microseconds>[\d.]+)us)?'
 _DISK_SIZE_REGEX = r'((?P<petabytes>[\d.]+)PB)?((?P<terabytes>[\d.]+)TB)?((?P<gigabytes>[\d.]+)GB)?((?P<megabytes>[\d.]+)MB)?((?P<kilobytes>[\d.]+)KB)?((?P<bytes>[\d.]+)B)?'
@@ -62,11 +64,10 @@ def _metric_str_to_number(metric_str):
     total_mb += disk_gd.get('bytes') * 1e-6
     return total_mb, 'mb'
 
-  raise ValueError('Unknown metric_str format: {}'.format(
-      metric_str))
-  
+  raise ValueError('Unknown metric_str format: {}'.format(metric_str))
 
-def parse_metrics_report(report):
+
+def parse_metrics_report(report, dehumanize=True):
   """Convert a string metrics report to a dict of parsed values.
 
   Args:
@@ -86,15 +87,18 @@ def parse_metrics_report(report):
   data_points = {}
 
   # Parse metrics into data points.
-  metric_match_gd = [m.groupdict() for m in re.finditer(_METRIC_REGEX, report)] 
-  for gd in metric_match_gd:
+  metric_match_gd = [m.groupdict() for m in re.finditer(_METRIC_REGEX, report)]
+  server_metric_match_gd = [
+      m.groupdict() for m in re.finditer(_SERVER_METRIC_REGEX, report)
+  ]
+  for gd in itertools.chain(metric_match_gd, server_metric_match_gd):
     metric_name = gd.pop('metric_name')
     for k, v in gd.items():
       parsed_v, units = _metric_str_to_number(v)
-      full_key = '{}__{}{}{}'.format(
-        metric_name, k, '_' if units else '', units)
-      data_points[full_key] = parsed_v
- 
+      full_key = '{}__{}{}{}'.format(metric_name, k, '_' if units else '',
+                                     units)
+      data_points[full_key] = parsed_v if dehumanize else v
+
   # Parse counters into data points.
   counters_matches = re.findall(_COUNTER_REGEX, report)
   # Each match tuple is of the form (name, counter value).
@@ -115,7 +119,7 @@ def get_data_points_from_metrics_reports(metrics_reports):
     dict of metric name to list of values, one value from each report in
     metrics_reports. Order of values for each metric in the output dict
     will match the order of metrics reports in the input.
-    
+
     For example, if the args were [report1, report2, report3], output might be:
     {
       'CompileTime__Accumulator_sec': [50, None, 80],  # missing from report2
@@ -143,7 +147,9 @@ def _compute_aggregates(data_points):
   return aggregates
 
 
-def compare_metrics(data_points, metrics_report,
+def compare_metrics(
+    data_points,
+    metrics_report,
     config={'base_expression': 'v <= v_mean + (v_stddev * 2.0)'}):
   """Compare metrics_report to historical averages and report differences.
 
@@ -193,7 +199,7 @@ def compare_metrics(data_points, metrics_report,
       eval_vars = {'v': v, 'v_mean': v_mean, 'v_stddev': v_stddev}
       if eval(expression, None, eval_vars) == False:
         difference_report += ('{} failed its expression check. '
-            'Expression: {}.  Mean: {}.  Stddev: {}.  '
-            'Actual Value: {}\n'.format(
-                k, expression, v_mean, v_stddev, v))
+                              'Expression: {}.  Mean: {}.  Stddev: {}.  '
+                              'Actual Value: {}\n'.format(
+                                  k, expression, v_mean, v_stddev, v))
   return difference_report

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <c10/core/ScalarType.h>
+#include <c10/util/Optional.h>
 
 #include "torch_xla/csrc/ir.h"
 
@@ -10,7 +11,9 @@ namespace ops {
 
 class Cast : public Node {
  public:
-  Cast(const Value& input, at::ScalarType dtype);
+  Cast(const Value& input, xla::PrimitiveType type);
+  Cast(const Value& input, at::ScalarType dtype,
+       c10::optional<at::ScalarType> stype = c10::nullopt);
 
   std::string ToString() const override;
 
@@ -18,10 +21,16 @@ class Cast : public Node {
 
   XlaOpVector Lower(LoweringContext* loctx) const override;
 
-  at::ScalarType dtype() const { return dtype_; }
+  xla::PrimitiveType type() const { return type_; }
+
+  const c10::optional<at::ScalarType>& dtype() const { return dtype_; };
+
+  const c10::optional<at::ScalarType>& stype() const { return stype_; };
 
  private:
-  at::ScalarType dtype_;
+  xla::PrimitiveType type_;
+  c10::optional<at::ScalarType> dtype_;
+  c10::optional<at::ScalarType> stype_;
 };
 
 }  // namespace ops

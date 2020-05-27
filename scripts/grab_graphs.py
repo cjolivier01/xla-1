@@ -12,7 +12,8 @@ import re
 import shutil
 import sys
 
-GraphInfo = collections.namedtuple('GraphInfo', 'id, graph, ngraph, frame, key')
+GraphInfo = collections.namedtuple('GraphInfo',
+                                   'id, graph, ngraph, frame, key, hashes')
 
 
 def save_graph(graph, path):
@@ -42,7 +43,7 @@ def prase_graphs(gfile, dest_dir, graphs=None):
 
   if graphs is None:
     graphs = []
-  graph, frame, last_frame = None, None, None
+  graph, frame, last_frame, hashes = None, None, None, None
   for line in gfile:
     line = line.rstrip('\n')
     if frame is not None:
@@ -51,7 +52,8 @@ def prase_graphs(gfile, dest_dir, graphs=None):
         frame = None
       else:
         frame.append(line)
-    elif graph is not None:
+      continue
+    if graph is not None:
       m = re.match(r'## END_GRAPH$', line)
       if m:
         if dest_dir:
@@ -63,19 +65,24 @@ def prase_graphs(gfile, dest_dir, graphs=None):
                 graph=graph,
                 ngraph=normalize(graph),
                 frame=last_frame,
-                key='\n'.join(graph)))
-        graph = None
-        last_frame = None
+                key='\n'.join(graph),
+                hashes=hashes))
+        graph, last_frame, hashes = None, None, None
       else:
         graph.append(line)
-    else:
-      m = re.match(r'TensorsGraphInfo:', line)
-      if m:
-        frame = []
-      else:
-        m = re.match(r'## BEGIN_GRAPH$', line)
-        if m:
-          graph = []
+      continue
+    m = re.match(r'TensorsGraphInfo:', line)
+    if m:
+      frame = []
+      continue
+    m = re.match(r'## BEGIN_GRAPH$', line)
+    if m:
+      graph = []
+      continue
+    m = re.match(r'Hashes: \(([^)]*)\)', line)
+    if m:
+      hashes = m.group(1)
+      continue
   return graphs
 
 
@@ -84,6 +91,26 @@ def group_by_frame(graphs):
   for graph in graphs:
     fgroup['\n'.join(graph.frame)].append(graph)
   return fgroup
+
+
+def group_by_hashes(graphs):
+  hgroup = collections.defaultdict(list)
+  for graph in graphs:
+    hgroup[graph.hashes].append(graph)
+  return hgroup
+
+
+def check_collisions(graphs):
+  hgroup = group_by_hashes(graphs)
+  for h in hgroup.keys():
+    hgraphs = hgroup[h]
+    hdict = collections.defaultdict(list)
+    for graph in hgraphs:
+      hdict[graph.key].append(graph)
+    if len(hdict) > 1:
+      print('Collision on hash: {}\nGroups:'.format(h), file=sys.stderr)
+      for glist in hdict.values():
+        print('  Ids: {}'.format([g.id for g in glist]), file=sys.stderr)
 
 
 def dict_add_instance(gmap, i):
@@ -130,10 +157,11 @@ def process_graphs(args):
       count = gmap[uniq_graphs[i].key]
       prev_count = gmap[uniq_graphs[i - 1].key]
       print(
-          '  Frame {} (len={}, count={}, id={}) vs {} (len={}, count={}, id={})'
+          '  Frame {} (len={}, count={}, id={}, h=({})) vs {} (len={}, count={}, id={} h=({}))'
           .format(i - 1, len(uniq_graphs[i - 1].graph), prev_count,
-                  uniq_graphs[i - 1].id, i, len(uniq_graphs[i].graph), count,
-                  uniq_graphs[i].id))
+                  uniq_graphs[i - 1].id, uniq_graphs[i - 1].hashes, i,
+                  len(uniq_graphs[i].graph), count, uniq_graphs[i].id,
+                  uniq_graphs[i].hashes))
       print(
           diff_graphs(
               uniq_graphs[i - 1],
@@ -141,11 +169,14 @@ def process_graphs(args):
               'frame-{}'.format(i - 1),
               'frame-{}'.format(i),
               prefix='  '))
+  if args.collisions_check:
+    check_collisions(graphs)
 
 
 if __name__ == '__main__':
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument('--graphdir', type=str)
+  arg_parser.add_argument('--collisions_check', action='store_true')
   args, files = arg_parser.parse_known_args()
   args.files = files
   process_graphs(args)

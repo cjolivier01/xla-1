@@ -1,8 +1,12 @@
 #!/bin/bash
 
-source ./env
-
 set -ex
+
+source ./env
+source .circleci/common.sh
+
+# System default cmake 3.10 cannot find mkl, so point it to the right place.
+export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
 
 SCCACHE="$(which sccache)"
 if [ -z "${SCCACHE}" ]; then
@@ -27,14 +31,16 @@ fi
 git config --global user.email "circleci.ossci@gmail.com"
 git config --global user.name "CircleCI"
 sudo apt-get update && sudo apt-get -qq install jq
-PR_NUM=$(basename $CIRCLE_PULL_REQUEST)
-CIRCLE_PR_BASE_BRANCH=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/$PR_NUM | jq -r '.base.ref')
-git rebase "origin/${CIRCLE_PR_BASE_BRANCH}"
+# Only rebase on runs triggered by PR checks not post-submits.
+if [[ ! -z "${CIRCLE_PULL_REQUEST}" ]]; then
+  PR_NUM=$(basename $CIRCLE_PULL_REQUEST)
+  CIRCLE_PR_BASE_BRANCH=$(curl -s https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls/$PR_NUM | jq -r '.base.ref')
+  git rebase "origin/${CIRCLE_PR_BASE_BRANCH}"
+  git submodule deinit -f .
+  git submodule update --init --recursive
+fi
 
-PYTORCH_DIR=/tmp/pytorch
-XLA_DIR="$PYTORCH_DIR/xla"
-git clone --quiet https://github.com/pytorch/pytorch.git "$PYTORCH_DIR"
-cp -r "$PWD" "$XLA_DIR"
+clone_pytorch
 
 cd $PYTORCH_DIR
 # Checkout specific commit ID/branch if pinned.
@@ -59,15 +65,9 @@ python setup.py build develop
 sccache --show-stats
 
 # Bazel doesn't work with sccache gcc. https://github.com/bazelbuild/bazel/issues/3642
-sudo add-apt-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main"
-wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
 sudo apt-get -qq update
-sudo apt-get -qq install clang-8 clang++-8
 
-sudo apt-get -qq install npm
-npm config set strict-ssl false
-curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
-sudo apt-get install -qq nodejs
+sudo apt-get -qq install npm nodejs
 
 # XLA build requires Bazel
 # We use bazelisk to avoid updating Bazel version manually.

@@ -95,7 +95,7 @@ If your model shows bad performance, keep in mind the following caveats:
     - For most ops we can lower them to XLA to fix it. Checkout [metrics report section](#metrics-report) to find out the missing ops and open a feature request on [GitHub](https://github.com/pytorch/xla/issues).
     - Even when a PyTorch tensor is known as a scalar, avoid using `tensor.item()`. Keep it as a tensor and use tensor operations on it.
     - Use `torch.where` to substitute control flow when applicable.
-      E.g. The control flow with `item()` used in [clip_grad_norm_](https://github.com/pytorch/pytorch/blob/de19eeee99a2a282fc441f637b23d8e50c75ecd1/torch/nn/utils/clip_grad.py#L33) can be simply replaced by `torch.where` with dramatical performance improvement.
+      E.g. The control flow with `item()` used in [clip_grad_norm_](https://github.com/pytorch/pytorch/blob/de19eeee99a2a282fc441f637b23d8e50c75ecd1/torch/nn/utils/clip_grad.py#L33) is problematic and impacts performance, so we have [patched](https://github.com/pytorch/xla/blob/master/torch_patches/X10-clip_grad.diff) `clip_grad_norm_` by calling `torch.where` instead, which gives us a dramatic performance improvement.
       ```python
       ...
       else:
@@ -191,6 +191,9 @@ only be enabled for debugging.
 
 * ```XLA_USE_BF16```: If set to 1, tranforms all the _PyTorch_ _Float_ values into _BiFloat16_
   when sending to the _TPU_ device.
+
+* ```XLA_USE_F16```: If set to 1, tranforms all the _PyTorch_ _Float_ values into _Float16_
+  (_PyTorch_ _Half_ type) when sending to devices which supports them.
 
 * ```XLA_USE_32BIT_LONG```: If set to 1, maps _PyTorch_ _Long_ types to _XLA_ 32bit type.
   On the versions of the TPU HW at the time of writing, 64bit integer computations are

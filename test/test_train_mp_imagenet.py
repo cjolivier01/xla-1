@@ -38,6 +38,7 @@ FLAGS = args_parse.parse_common_options(
 
 import os
 import schedulers
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -80,25 +81,25 @@ for arg, value in default_value_dict.items():
   if getattr(FLAGS, arg) is None:
     setattr(FLAGS, arg, value)
 
-MODEL_PROPERTIES = {
-    'inception_v3': {
-        'img_dim': 299,
-        'model_fn': lambda: torchvision.models.inception_v3(aux_logits=False)
-    },
-    'DEFAULT': {
-        'img_dim': 224,
-        'model_fn': getattr(torchvision.models, FLAGS.model)
-    }
-}
-
 
 def get_model_property(key):
-  return MODEL_PROPERTIES.get(FLAGS.model, MODEL_PROPERTIES['DEFAULT'])[key]
+  default_model_property = {
+      'img_dim': 224,
+      'model_fn': getattr(torchvision.models, FLAGS.model)
+  }
+  model_properties = {
+      'inception_v3': {
+          'img_dim': 299,
+          'model_fn': lambda: torchvision.models.inception_v3(aux_logits=False)
+      },
+  }
+  model_fn = model_properties.get(FLAGS.model, default_model_property)[key]
+  return model_fn
 
 
-def _train_update(device, x, loss, tracker):
-  test_utils.print_training_update(device, x, loss.item(), tracker.rate(),
-                                   tracker.global_rate())
+def _train_update(device, step, loss, tracker, epoch):
+  test_utils.print_training_update(device, step, loss.item(), tracker.rate(),
+                                   tracker.global_rate(), epoch)
 
 
 def train_imagenet():
@@ -140,13 +141,18 @@ def train_imagenet():
             normalize,
         ]))
 
-    train_sampler = None
+    train_sampler, test_sampler = None, None
     if xm.xrt_world_size() > 1:
       train_sampler = torch.utils.data.distributed.DistributedSampler(
           train_dataset,
           num_replicas=xm.xrt_world_size(),
           rank=xm.get_ordinal(),
           shuffle=True)
+      test_sampler = torch.utils.data.distributed.DistributedSampler(
+          test_dataset,
+          num_replicas=xm.xrt_world_size(),
+          rank=xm.get_ordinal(),
+          shuffle=False)
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=FLAGS.batch_size,
@@ -157,6 +163,7 @@ def train_imagenet():
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=FLAGS.test_set_batch_size,
+        sampler=test_sampler,
         drop_last=FLAGS.drop_last,
         shuffle=False,
         num_workers=FLAGS.num_workers)
@@ -185,10 +192,10 @@ def train_imagenet():
       summary_writer=writer)
   loss_fn = nn.CrossEntropyLoss()
 
-  def train_loop_fn(loader):
+  def train_loop_fn(loader, epoch):
     tracker = xm.RateTracker()
     model.train()
-    for x, (data, target) in enumerate(loader):
+    for step, (data, target) in enumerate(loader):
       optimizer.zero_grad()
       output = model(data)
       loss = loss_fn(output, target)
@@ -197,36 +204,41 @@ def train_imagenet():
       tracker.add(FLAGS.batch_size)
       if lr_scheduler:
         lr_scheduler.step()
-      if x % FLAGS.log_steps == 0:
-        xm.add_step_closure(_train_update, args=(device, x, loss, tracker))
+      if step % FLAGS.log_steps == 0:
+        xm.add_step_closure(
+            _train_update, args=(device, step, loss, tracker, epoch))
 
-  def test_loop_fn(loader):
-    total_samples = 0
-    correct = 0
+  def test_loop_fn(loader, epoch):
+    total_samples, correct = 0, 0
     model.eval()
-    for data, target in loader:
+    for step, (data, target) in enumerate(loader):
       output = model(data)
       pred = output.max(1, keepdim=True)[1]
-      correct += pred.eq(target.view_as(pred)).sum().item()
+      correct += pred.eq(target.view_as(pred)).sum()
       total_samples += data.size()[0]
-
-    accuracy = 100.0 * correct / total_samples
-    test_utils.print_test_update(device, accuracy)
+      if step % FLAGS.log_steps == 0:
+        xm.add_step_closure(
+            test_utils.print_test_update, args=(device, None, epoch, step))
+    accuracy = 100.0 * correct.item() / total_samples
+    accuracy = xm.mesh_reduce('test_accuracy', accuracy, np.mean)
     return accuracy
 
-  accuracy = 0.0
-  max_accuracy = 0.0
+  train_device_loader = pl.MpDeviceLoader(train_loader, device)
+  test_device_loader = pl.MpDeviceLoader(test_loader, device)
+  accuracy, max_accuracy = 0.0, 0.0
   for epoch in range(1, FLAGS.num_epochs + 1):
-    para_loader = pl.ParallelLoader(train_loader, [device])
-    train_loop_fn(para_loader.per_device_loader(device))
-    xm.master_print('Finished training epoch {}'.format(epoch))
-
-    para_loader = pl.ParallelLoader(test_loader, [device])
-    accuracy = test_loop_fn(para_loader.per_device_loader(device))
+    xm.master_print('Epoch {} train begin {}'.format(epoch, test_utils.now()))
+    train_loop_fn(train_device_loader, epoch)
+    xm.master_print('Epoch {} train end {}'.format(epoch, test_utils.now()))
+    accuracy = test_loop_fn(test_device_loader, epoch)
+    xm.master_print('Epoch {} test end {}, Accuracy={:.2f}'.format(
+        epoch, test_utils.now(), accuracy))
     max_accuracy = max(accuracy, max_accuracy)
-    test_utils.write_to_summary(writer, epoch,
-                                dict_to_write={'Accuracy/test': accuracy},
-                                write_xla_metrics=True)
+    test_utils.write_to_summary(
+        writer,
+        epoch,
+        dict_to_write={'Accuracy/test': accuracy},
+        write_xla_metrics=True)
     if FLAGS.metrics_debug:
       xm.master_print(met.metrics_report())
 

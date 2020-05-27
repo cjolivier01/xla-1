@@ -27,7 +27,7 @@ shift $(($OPTIND - 1))
 
 export TRIM_GRAPH_SIZE=$MAX_GRAPH_SIZE
 export TRIM_GRAPH_CHECK_FREQUENCY=$GRAPH_CHECK_FREQUENCY
-export XLA_TEST_DIR=$CDIR
+export TORCH_TEST_DEVICES="$CDIR/pytorch_test_base.py"
 export PYTORCH_TEST_WITH_SLOW=1
 
 function run_opbyop {
@@ -51,8 +51,12 @@ function run_all_tests {
   run_dynamic python3 "$CDIR/test_operations.py" "$@" --verbosity=$VERBOSITY
   run_opbyop python3 "$CDIR/test_operations.py" "$@" --verbosity=$VERBOSITY
   python3 "$CDIR/test_mp_replication.py"
+  python3 "$CDIR/test_mp_all_to_all.py"
+  python3 "$CDIR/test_mp_collective_permute.py"
+  python3 "$CDIR/test_mp_all_gather.py"
   python3 "$CDIR/test_mp_rendezvous.py"
   python3 "$CDIR/test_mp_save.py"
+  python3 "$CDIR/test_mp_mesh_reduce.py"
 }
 
 if [ "$LOGFILE" != "" ]; then

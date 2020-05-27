@@ -6,9 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
-#include "tensorflow/core/util/util.h"
 #include "torch_xla/csrc/python_util.h"
-#include "torch_xla/csrc/tensor_util_cer.h"
 
 namespace torch_xla {
 namespace ir {
@@ -41,8 +39,6 @@ class HloMetadataSetter {
     const ir::MetaData& nmeta = node->metadata();
     if (!nmeta.scope.empty()) {
       metadata.set_op_name(nmeta.scope);
-    } else {
-      metadata.set_op_name(node->op().ToString());
     }
     if (!nmeta.frame_info.empty()) {
       const SourceLocation& frame = nmeta.frame_info.front();
@@ -63,6 +59,20 @@ class HloMetadataSetter {
 
 }  // namespace
 
+LoweringContext::LoweringContext(const std::string& name, Device device)
+    : builder_(name), device_(std::move(device)) {}
+
+LoweringContext::LoweringContext(const std::string& name, Device device,
+                                 absl::Span<const Node* const> post_order,
+                                 Util::EmissionMap emit_status)
+    : builder_(name),
+      device_(std::move(device)),
+      emit_status_(std::move(emit_status)) {
+  for (auto node : post_order) {
+    LowerNode(node);
+  }
+}
+
 xla::XlaOp LoweringContext::GetParameter(
     const std::shared_ptr<xla::ComputationClient::Data>& data) {
   xla::ComputationClient::Data::OpaqueHandle handle = data->GetOpaqueHandle();
@@ -71,15 +81,34 @@ xla::XlaOp LoweringContext::GetParameter(
     xla::XlaOp param =
         xla::Parameter(builder(), parameters_.size(), data->shape(),
                        absl::StrCat("p", parameters_.size()));
+    it = parameters_map_.emplace(handle, Parameter{param, parameters_.size()})
+             .first;
     parameters_.push_back(data);
-    it = parameters_map_.emplace(handle, param).first;
   }
-  return it->second;
+  parameter_sequence_.push_back(it->second.index);
+  return it->second.param;
 }
 
-xla::int64 LoweringContext::AddResult(xla::XlaOp op) {
+const std::vector<xla::ComputationClient::DataPtr>&
+LoweringContext::GetParametersData() const {
+  return parameters_;
+}
+
+const std::vector<size_t>& LoweringContext::GetParameterSequence() const {
+  return parameter_sequence_;
+}
+
+size_t LoweringContext::AddResult(xla::XlaOp op) {
   root_tuple_.push_back(std::move(op));
   return root_tuple_.size() - 1;
+}
+
+xla::XlaOp LoweringContext::GetResult(size_t index) const {
+  return root_tuple_.at(index);
+}
+
+void LoweringContext::SetResult(size_t index, xla::XlaOp op) {
+  root_tuple_.at(index) = std::move(op);
 }
 
 xla::StatusOr<xla::XlaComputation> LoweringContext::Build() {
@@ -96,7 +125,7 @@ xla::StatusOr<xla::XlaComputation> LoweringContext::Build(xla::XlaOp root) {
 }
 
 void LoweringContext::AssignOutputOp(const Output& output, xla::XlaOp op) {
-  emitted_outputs_[output] = op;
+  emitted_outputs_[output] = std::move(op);
 }
 
 xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
