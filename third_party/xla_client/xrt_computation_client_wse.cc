@@ -51,10 +51,13 @@ namespace {
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool always_use_proxy = false;
+bool always_use_proxy = true;
 bool wse_set_topology = false;
+
+#ifdef START_LOCAL_WSE_XLA_SERVICE
 //const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
-const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:0";
+const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:1";
+#endif
 
 std::vector<std::string> split(const std::string& str, const char delim) {
   std::vector<std::string> strings;
@@ -143,6 +146,8 @@ constexpr int XLA_SERVICE_GRPC_PORT = 1685;
 using XlaClient = xla::grpc::XlaService::Stub;
 
 std::shared_ptr<XlaClient> CreateXlaClientInternal(const std::string& address) {
+  std::cout << "Creating XLA client for server at: " << address
+            << std::endl << std::flush;
   auto xla_service = xla::grpc::XlaService::NewStub(
     ::grpc::CreateChannel(address, ::grpc::InsecureChannelCredentials())
   );
@@ -238,6 +243,8 @@ XrtComputationClientWse::~XrtComputationClientWse() {
 void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
   std::shared_ptr<XlaClient> old_client;  // if exists, to be destroyed out of lock scope
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
+  std::cout << "Setting device proxy: " << device << " -> " << proxy_address
+            << std::endl << std::flush;
   if (device.empty()) {
     throw std::runtime_error("Invalid empty device string");
   }
@@ -253,7 +260,7 @@ void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, c
       std::make_pair(device, new_info)
     ).first;
     new_info->address_ = proxy_address;
-#ifndef START_LOCAL_WSE_XLA_SERVICE
+//#ifndef START_LOCAL_WSE_XLA_SERVICE
     std::vector<std::string> addr = split(proxy_address, ':');
     if (addr.size() == 2 && addr[0] == "*") {
       const int port = std::atoi(addr[1].c_str());
@@ -262,7 +269,7 @@ void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, c
       new_info->address_ += ":";
       new_info->address_ += addr[1];
     }
-#endif
+//#endif
   } else {
     // was already there
     if (iter->second->address_ != proxy_address) {
@@ -334,8 +341,7 @@ bool XrtComputationClientWse::IsProxyDevice(const std::string& device) const {
 }
 
 bool XrtComputationClientWse::UseProxyForDevice(const std::string& device) const {
-  assert(!device.empty());
-  return IsProxyDevice(device) && (always_use_proxy || is_wse_device(device));
+  assert(!device.empty());return IsProxyDevice(device) && (always_use_proxy || is_wse_device(device));
 }
 
 void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 handle) {
@@ -536,22 +542,22 @@ std::vector<Literal> XrtComputationClientWse::TransferFromServer(
 std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
   std::vector<CompileInstance> instances
 ) {
-  //HEREX();
   //
   // TODO: ComputationPtr to return have modified HloModule and
   //       call Super with it (no proxy) on compile failure
   //
+  HERE();
+  //raise(SIGTRAP);
   std::string compilation_device;
   auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
     instances,
     [this, &compilation_device](const CompileInstance& instance) -> bool {
       const std::string device1 = instance.compilation_device;
       const std::string device2 = get_proxy_device(instance.computation.proto());
-      std::string device;
       if (device1.empty() && !device2.empty()) {
-        device = device2;
+        compilation_device = device2;
       } else if (!device1.empty() && device2.empty()) {
-        device = device1;
+        compilation_device = device1;
       } else {
         if (device1 != device2) {
           std::cout << "SWITCHING DEVICES: " << device1 << " -> " << device2
@@ -559,6 +565,7 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
         }
         compilation_device = device2;  // When switchign devices,
       }
+      std::cout << "Compile(" << compilation_device << ")" << std::endl << std::flush;
       return UseProxyForDevice(compilation_device);
     },
     [this, &compilation_device](std::vector<CompileInstance>& instances) {
@@ -595,9 +602,9 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
           throw std::runtime_error("No XLA client for device");
         }
 
-        // Let wse_compiler compile first
-#if 1
+#if 0
         {
+          // Send down to the WSE compiler for the Hlo pass
           std::vector<CompileInstance> tmp;
           tmp.emplace_back(
             CompileInstance(
@@ -607,7 +614,14 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
               instance.output_shape
             )
           );
-          Super::Compile(std::move(tmp));
+          auto new_proto = std::make_unique<xla::HloModuleProto>(
+            instance.computation.proto()
+          );
+          //Super::Compile(std::move(tmp));
+//          std::unique_ptr<xla::wse::WseCompiler> wse_compiler =
+//            std::make_unique<xla::wse::WseCompiler>();
+//          auto result = wse_compiler->RunHloPasses(xla::HloModule::CreateFromProto(
+//            std::move(new_proto), nullptr, nullptr);
         }
 #endif
         const ::grpc::Status status =
@@ -642,6 +656,7 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
     [this](std::vector<CompileInstance>& instances) {
       assert(!always_use_proxy);
       // CPU or other (false)
+      std::cout << "Delegating compile" << std::endl << std::flush;
       return std::move(Super::Compile(std::move(instances)));
     }
   );
@@ -659,7 +674,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
   const std::string &device,
   const ExecuteComputationOptions &options
 ) {
-  //HERE();
+  HERE();
   const std::string device1 = device;
   const std::string device2 = get_proxy_device(computation.computation().proto());
   std::string effective_device;

@@ -73,7 +73,7 @@ tf_cc_shared_object(
     srcs = [
         #"touch.cc",
     ],
-    copts=[], # [ "-ggdb3", "-O0" ],
+    copts = [ "-ggdb3", "-O0" ],
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [
@@ -107,7 +107,7 @@ tf_cc_shared_object(
         "touch.cc",
         #"@com_google_absl//absl/strings",
     ],
-    copts=[], # [ "-ggdb3", "-O0" ],
+    copts = [ "-ggdb3", "-O0" ],
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [

@@ -211,6 +211,12 @@ public:
 
   virtual ~WseXlaService() {}
 
+  /**
+   * @brief Start
+   * @param port
+   * @param wait
+   * @return
+   */
   bool Start(int port, bool wait) {
     std::stringstream ss;
     ss << "0.0.0.0" << ":" << port;
@@ -228,7 +234,15 @@ public:
 
 protected:
 
+  /**
+   * @brief Compile
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status Compile(::grpc::ServerContext* context, const ::xla::CompileRequest* request, ::xla::CompileResponse* response) override {
+    std::cout << "XLA Compile" << std::endl << std::flush;
     ExecutorInfoPtr exec = std::make_shared<ExecutorInfo>(*request, ++next_executor_handle_);
     std::lock_guard<std::mutex> lk(executor_map_mtx_);
     executor_info_map_.emplace(std::make_pair(exec->handle(), exec));
@@ -236,7 +250,15 @@ protected:
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief Execute Computation
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status Execute(::grpc::ServerContext* context, const ::xla::ExecuteRequest* request, ::xla::ExecuteResponse* response) override {
+    std::cout << "XLA Execute" << std::endl << std::flush;
     // Get the executable
     ExecutorInfoPtr executable;
     const handle_t execution_handle = request->handle().handle();
@@ -367,9 +389,16 @@ protected:
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief Deconstruct Tuple
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status DeconstructTuple(::grpc::ServerContext* context, const ::xla::DeconstructTupleRequest* request, ::xla::DeconstructTupleResponse* response) override {
+    std::cout << "XLA DeconstructTuple" << std::endl << std::flush;
     const xla::GlobalDataHandle tuple_handle = request->tuple_handle();
-
     std::shared_ptr<xla::LiteralProto> tuple_literal = memory_manager_->Get(tuple_handle.handle());
     if (!tuple_literal) {
       ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Memory handle not found when querying shape");
@@ -392,7 +421,15 @@ protected:
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief Transfer to Client
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status TransferToClient(::grpc::ServerContext* context, const ::xla::TransferToClientRequest* request, ::xla::TransferToClientResponse* response) override {
+    std::cout << "XLA TransferToClient" << std::endl << std::flush;
     return Super::TransferToClient(context, request, response);
   }
   // Transfers the given literal to the server to be stored in a global
@@ -406,8 +443,16 @@ protected:
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief Unregister
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   // Methods used by GlobalData.
   ::grpc::Status Unregister(::grpc::ServerContext* context, const ::xla::UnregisterRequest* request, ::xla::UnregisterResponse* response) override {
+    std::cout << "XLA Unregister" << std::endl << std::flush;
     // if it's true, then use it
     bool all_ok = true;
     for (const auto& data : request->data()) {
@@ -420,9 +465,17 @@ protected:
            ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Not found");
   }
 
+  /**
+   * @brief GetDeviceHandles
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status GetDeviceHandles(::grpc::ServerContext* context,
                                   const xla::GetDeviceHandlesRequest* request,
                                   xla::GetDeviceHandlesResponse* response) override {
+    std::cout << "XLA GetDeviceHandles" << std::endl << std::flush;
     std::vector<xla::DeviceHandle> device_handles =
       memory_manager_->CreateDeviceHandles(request->device_count());
     for (const xla::DeviceHandle& device_handle : device_handles) {
@@ -431,37 +484,77 @@ protected:
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief ExecuteGraphParallel
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status ExecuteGraphParallel(::grpc::ServerContext* context,
                                       const xla::ExecuteGraphParallelRequest* request,
                                       xla::ExecuteParallelResponse* response) override {
+    std::cout << "XLA ExecuteGraphParallel" << std::endl << std::flush;
     assert(false);
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief WaitForExecution
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status WaitForExecution(::grpc::ServerContext* context,
                                   const xla::WaitForExecutionRequest* request,
                                   xla::WaitForExecutionResponse* response) override {
+    std::cout << "XLA WaitForExecution" << std::endl << std::flush;
     assert(false);
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief TransferToInfeed
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status TransferToInfeed(::grpc::ServerContext* context,
                                   const xla::TransferToInfeedRequest* request,
                                   xla::TransferToInfeedResponse* response) override {
+    std::cout << "XLA TransferToInfeed" << std::endl << std::flush;
     assert(false);
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief TransferFromOutfeed
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status TransferFromOutfeed(
     ::grpc::ServerContext* context, const xla::TransferFromOutfeedRequest* request,
     xla::TransferFromOutfeedResponse* response) override {
+    std::cout << "XLA TransferFromOutfeed" << std::endl << std::flush;
     assert(false);
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief ResetDevice
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status ResetDevice(::grpc::ServerContext* context,
                              const xla::ResetDeviceRequest* request,
                              xla::ResetDeviceResponse* response) override {
+    std::cout << "XLA ResetDevice" << std::endl << std::flush;
     {
       std::lock_guard<std::mutex> lk(compile_map_mtx_);
       compile_info_map_.clear();
@@ -474,9 +567,17 @@ protected:
     return ::grpc::Status::OK;
   }
 
+  /**
+   * @brief GetShape
+   * @param context
+   * @param request
+   * @param response
+   * @return
+   */
   ::grpc::Status GetShape(::grpc::ServerContext* context,
                           const xla::GetShapeRequest* request,
                           xla::GetShapeResponse* response) override {
+    std::cout << "XLA GetShape" << std::endl << std::flush;
     const handle_t handle = request->data().handle();
     if (!handle) {
       return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid NULL handle in call to GetShape");
@@ -490,6 +591,9 @@ protected:
   }
 
 protected:
+  /**
+   * @brief ExecutorInfo
+   */
   class ExecutorInfo {
   public:
     ExecutorInfo(xla::CompileRequest compile_request, std::size_t handle)
