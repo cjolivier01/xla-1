@@ -20,6 +20,8 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
 
+#include <sys/syscall.h>
+
 namespace torch_xla {
 
 class XLATensor {
@@ -1041,7 +1043,7 @@ class XLATensor {
     std::vector<xla::util::ExceptionCleanup> unlocker;
     std::string device;
     // Save the thread that is requesting
-    pid_t requesting_tid = gettid();
+    pid_t requesting_tid = syscall(__NR_gettid);
   };
 
   struct CompilationResult {
@@ -1259,5 +1261,4 @@ class XLATensor {
 
   std::shared_ptr<Data> data_;
 };
-
 }  // namespace torch_xla

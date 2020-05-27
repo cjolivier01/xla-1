@@ -493,8 +493,8 @@ void InitXlaModuleBindings(py::module m) {
          ) {
           SetInputsOutputs(input_tensors, output_tensors, append);
         },
-        py::arg("input_tensors") = {},
-        py::arg("output_tensors") = {},
+        py::arg("input_tensors") = std::vector<at::Tensor>(),
+        py::arg("output_tensors") = std::vector<at::Tensor>(),
         py::arg("append") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {

@@ -96,7 +96,7 @@ target_link_libraries(
         -lutil
         -pthread
         -lstdc++
-        -lprotobuf
+#        -lprotobuf
         -ldl
 )
 
