@@ -574,26 +574,6 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
       local_results.reserve(instances.size());
       for (CompileInstance& instance : instances) {
 
-        xla::CompileRequest compile_request;
-        xla::CompileResponse compile_response;
-
-        size_t param_num = 0;
-        const ProgramShape program_shape = instance.computation.GetProgramShape().ValueOrDie();
-        for (const Shape& parameter_shape : program_shape.parameters()) {
-          ColorScope clr(Color::FG_CYAN);
-          std::cout << "Compile: Param " << param_num++
-                    <<  ", shape: " << parameter_shape
-                    << std::endl << std::flush;
-          compile_request.add_input_shape_with_layout()->CopyFrom(parameter_shape.ToProto());
-        }
-
-        compile_request.set_allocated_computation(new xla::HloModuleProto());
-        compile_request.mutable_computation()->CopyFrom(instance.computation.proto());
-        *compile_request.mutable_execution_options()->add_device_handles() =
-          GetDeviceHandle(compilation_device);
-        *compile_request.mutable_execution_options()->mutable_shape_with_output_layout() =
-          program_shape.result().ToProto();
-
         bool handled = false;
 
         ::grpc::ClientContext context;
@@ -614,6 +594,30 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
             wse_compiler->RunHloPasses(std::move(new_hlo_module.ConsumeValueOrDie()), nullptr, nullptr);
 
           if (result.ok()) {
+
+            std::unique_ptr<xla::HloModule> hlo_module = result.ConsumeValueOrDie();
+            const HloModuleProto hlo_module_proto = hlo_module->ToProto();
+
+            xla::CompileRequest compile_request;
+            xla::CompileResponse compile_response;
+
+            size_t param_num = 0;
+            const ProgramShape program_shape = instance.computation.GetProgramShape().ValueOrDie();
+            for (const Shape& parameter_shape : program_shape.parameters()) {
+              ColorScope clr(Color::FG_CYAN);
+              std::cout << "Compile: Param " << param_num++
+                        <<  ", shape: " << parameter_shape
+                        << std::endl << std::flush;
+              compile_request.add_input_shape_with_layout()->CopyFrom(parameter_shape.ToProto());
+            }
+
+            compile_request.set_allocated_computation(new xla::HloModuleProto());
+            *compile_request.mutable_computation() = hlo_module_proto;
+            *compile_request.mutable_execution_options()->add_device_handles() =
+              GetDeviceHandle(compilation_device);
+            *compile_request.mutable_execution_options()->mutable_shape_with_output_layout() =
+              program_shape.result().ToProto();
+
             const ::grpc::Status status =
               xla_client->Compile(&context, compile_request, &compile_response);
             if (status.ok()) {
@@ -621,10 +625,9 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
                         << " from proto id " << compile_request.mutable_computation()->id()
                         << std::endl << std::flush;
               // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
-              std::unique_ptr<xla::HloModule> hlo_module = result.ConsumeValueOrDie();
               ComputationClient::ComputationPtr computation_ptr =
                 std::make_shared<ComputationClient::Computation>(
-                  XlaComputation(hlo_module->ToProto()),
+                  XlaComputation(hlo_module_proto),
                   ProgramShape(instance.computation.proto().host_program_shape()),
                   instance.devices,
                   compile_response.handle().handle()
