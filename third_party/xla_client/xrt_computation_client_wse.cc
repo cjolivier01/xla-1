@@ -224,7 +224,7 @@ XrtComputationClientWse::XrtComputationClientWse(
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
-  std::cout << "CREATE XrtComputationClientWse" << ENDL;
+  std::cout << "CREATE XrtComputationClientWse" << std::endl << std::flush;
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
   xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
@@ -237,7 +237,7 @@ XrtComputationClientWse::XrtComputationClientWse(
 }
 
 XrtComputationClientWse::~XrtComputationClientWse() {
-  std::cout << "DESTROY XrtComputationClientWse" << ENDL;
+  std::cout << "DESTROY XrtComputationClientWse" << std::endl << std::flush;
 }
 
 void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
@@ -288,7 +288,7 @@ std::shared_ptr<XlaClient>
   auto iter = xla_client_map_.find(device);
   if (iter == xla_client_map_.end()) {
       // No address registered for this device
-      std::cout << "No proxy configured for device: " << device << ENDL;
+      std::cout << "No proxy configured for device: " << device << std::endl << std::flush;
       return nullptr;
   }
   if (!iter->second->xla_client_ && create) {
@@ -309,7 +309,7 @@ std::shared_ptr<XlaClient>
       iter->second->device_handles_.resize(0);
       iter->second->device_handles_.reserve(response.device_handles_size());
       for (const ::xla::DeviceHandle& device_handle : response.device_handles()) {
-        std::cout << "device handle: " << device_handle.handle() << ENDL;
+        std::cout << "device handle: " << device_handle.handle() << std::endl << std::flush;
         iter->second->device_handles_.emplace_back(device_handle);
       }
     }
@@ -351,7 +351,7 @@ void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 ha
     auto client = GetXlaClient<XlaClient>(device, always_use_proxy);
     if (client && handle) {
       ColorScope grn(Color::FG_GREEN);
-      std::cout << "Releasing global data handle: " << handle << ENDL;
+      std::cout << "Releasing global data handle: " << handle << std::endl << std::flush;
       ::grpc::ClientContext context;
       xla::UnregisterRequest request;
       xla::UnregisterResponse response;
@@ -464,7 +464,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServe
 
           std::cout << "Sent data , received handle: " << response.data().handle()
                     << ", shape=" << tensor_source.shape.ToString()
-                    << ENDL;
+                    << std::endl << std::flush;
 
           local_results.emplace_back(
             std::make_shared<XrtData>(
@@ -583,7 +583,7 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
           ColorScope clr(Color::FG_CYAN);
           std::cout << "Compile: Param " << param_num++
                     <<  ", shape: " << parameter_shape
-                    << ENDL;
+                    << std::endl << std::flush;
           compile_request.add_input_shape_with_layout()->CopyFrom(parameter_shape.ToProto());
         }
 
@@ -602,46 +602,39 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
           throw std::runtime_error("No XLA client for device");
         }
 
-#if 0
-        {
-          // Send down to the WSE compiler for the Hlo pass
-          std::vector<CompileInstance> tmp;
-          tmp.emplace_back(
-            CompileInstance(
-              std::move(XlaComputation(instance.computation.proto())),
-              compilation_device,
-              instance.devices,
-              instance.output_shape
-            )
-          );
-          auto new_proto = std::make_unique<xla::HloModuleProto>(
-            instance.computation.proto()
-          );
-          //Super::Compile(std::move(tmp));
-//          std::unique_ptr<xla::wse::WseCompiler> wse_compiler =
-//            std::make_unique<xla::wse::WseCompiler>();
-//          auto result = wse_compiler->RunHloPasses(xla::HloModule::CreateFromProto(
-//            std::move(new_proto), nullptr, nullptr);
-        }
-#endif
-        const ::grpc::Status status =
-          xla_client->Compile(&context, compile_request, &compile_response);
-        if (status.ok()) {
-          std::cout << "computation id: " << compile_response.handle().handle()
-                    << " from proto id " << compile_request.mutable_computation()->id()
-                    << ENDL;
-          // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
-          ComputationClient::ComputationPtr computation_ptr =
-            std::make_shared<ComputationClient::Computation>(
-              XlaComputation(instance.computation.proto()),
-              ProgramShape(instance.computation.proto().host_program_shape()),
-              instance.devices,
-              compile_response.handle().handle()
-            );
-          local_results.push_back(computation_ptr);
-          handled = true;
-        } else {
-          std::cout << "Compile error: " << status.error_message() << ENDL;
+        // Send down to the WSE compiler for the Hlo pass (for now)
+        HloModuleConfig config(
+          xla::ProgramShape(instance.computation.proto().host_program_shape()));
+        StatusOr<std::unique_ptr<HloModule>> new_hlo_module(
+          xla::HloModule::CreateFromProto(instance.computation.proto(), config)
+        );
+        if (new_hlo_module.ok()) {
+          std::unique_ptr<xla::wse::WseCompiler> wse_compiler = std::make_unique<xla::wse::WseCompiler>();
+          StatusOr<std::unique_ptr<HloModule>> result =
+            wse_compiler->RunHloPasses(std::move(new_hlo_module.ConsumeValueOrDie()), nullptr, nullptr);
+
+          if (result.ok()) {
+            const ::grpc::Status status =
+              xla_client->Compile(&context, compile_request, &compile_response);
+            if (status.ok()) {
+              std::cout << "computation id: " << compile_response.handle().handle()
+                        << " from proto id " << compile_request.mutable_computation()->id()
+                        << std::endl << std::flush;
+              // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
+              std::unique_ptr<xla::HloModule> hlo_module = result.ConsumeValueOrDie();
+              ComputationClient::ComputationPtr computation_ptr =
+                std::make_shared<ComputationClient::Computation>(
+                  XlaComputation(hlo_module->ToProto()),
+                  ProgramShape(instance.computation.proto().host_program_shape()),
+                  instance.devices,
+                  compile_response.handle().handle()
+                );
+              local_results.push_back(computation_ptr);
+              handled = true;
+            } else {
+              std::cout << "Compile error: " << status.error_message() << std::endl << std::flush;
+            }
+          }
         }
         if (!handled) {
           assert(!always_use_proxy);
@@ -696,14 +689,14 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
 
 //    std::cout << "Execution handle: " << computation.execution_handle()
 //              << " " << computation.program_shape().ToString()
-//              << ENDL;
+//              << std::endl << std::flush;
 
     auto execution_handle = std::make_unique<xla::ExecutionHandle>();
     execution_handle->set_handle(computation.execution_handle());
     request.set_allocated_handle(execution_handle.release());
 
     for (const DataPtr argument : arguments) {
-      //std::cout << "argument handle: " << argument->GetOpaqueHandle() << ENDL;
+      //std::cout << "argument handle: " << argument->GetOpaqueHandle() << std::endl << std::flush;
       request.add_arguments()->set_handle(argument->GetOpaqueHandle());
     }
 
