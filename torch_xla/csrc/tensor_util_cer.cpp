@@ -334,7 +334,7 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
 
 void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices) {
   const pid_t tid = gettid();
-  assert(IsTrainingThread(tid));
+  //assert(IsTrainingThread(tid));
   if (!IsTrainingThread(tid)) {
     return;
   }
