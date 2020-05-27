@@ -10,7 +10,6 @@
 
 #include <unistd.h>
 
-#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "tensorflow/cc/ops/const_op.h"
 #include "tensorflow/compiler/xla/shape_util.h"
@@ -1849,11 +1848,11 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
           StripPrefix(worker_target.second, *grpc_proto);
     }
   }
-  if (verbose) {
-    std::cout << "CreateConfigProto(): "
-              << msg_to_json(config)
-              << ENDL;
-  }
+//  if (verbose) {
+//    std::cout << "CreateConfigProto(): "
+//              << msg_to_json(config)
+//              << ENDL;
+//  }
   return config;
 }
 

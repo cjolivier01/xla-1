@@ -13,7 +13,6 @@
 #include <Python.h>
 
 #include <pybind11/pybind11.h>
-#include <pybind11/embed.h>
 
 /**
  * Most of this can eventually move to monolith
@@ -252,8 +251,9 @@ bool CompileWatcher::PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, 
 
 void CompileWatcher::SetDeviceProxyAddress(
   const std::string& device, const std::string& proxy_address) {
+  xla::ComputationClient *cc = xla::XrtComputationClient::Get();
   xla::XrtComputationClientWse *computation_client =
-    dynamic_cast<xla::XrtComputationClientWse *>(xla::XrtComputationClient::Get());
+    dynamic_cast<xla::XrtComputationClientWse *>(cc);
   if (computation_client) {
     computation_client->SetDeviceProxyAddress(device, proxy_address);
   } else {

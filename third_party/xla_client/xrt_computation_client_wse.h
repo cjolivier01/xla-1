@@ -52,11 +52,6 @@ public:
       const Computation& computation, absl::Span<const DataPtr> arguments,
       const std::string& device, const ExecuteComputationOptions& options) override;
 
-  // TODO: This will be replaced with grpc
-  static void SetExternalInterface(
-      std::shared_ptr<ptxla::XrtComputationClientExternalInterface> callback_interface
-   );
-
   void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
 
   static tensorflow::tpu::TopologyProto InitializeAndFetchTopology(

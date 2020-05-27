@@ -31,6 +31,7 @@
 //#define START_LOCAL_WSE_XLA_SERVICE
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
+#define COMPILING_FROM_PTXLA
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
 #endif
 
@@ -42,9 +43,7 @@ using namespace tensorflow;
 
 namespace xla {
 
-#ifdef START_LOCAL_WSE_XLA_SERVICE
 int StartLocalWseXlaService(int port);
-#endif
 
 namespace {
 
@@ -52,16 +51,10 @@ namespace {
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool always_use_proxy = true;
+bool always_use_proxy = false;
 bool wse_set_topology = false;
 //const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
 const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:0";
-
-std::shared_ptr <ptxla::XrtComputationClientExternalInterface> callback_interface_{nullptr};
-
-xla::ptxla::opaque_t GetOpaque(const XrtComputationClientWse *object_ptr) {
-  return reinterpret_cast<xla::ptxla::opaque_t>(object_ptr);
-}
 
 std::vector<std::string> split(const std::string& str, const char delim) {
   std::vector<std::string> strings;
@@ -227,40 +220,19 @@ XrtComputationClientWse::XrtComputationClientWse(
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
   std::cout << "CREATE XrtComputationClientWse" << ENDL;
-  if (callback_interface_) {
-    callback_interface_->OnCreate(GetOpaque(this));
-  }
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
   xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
-#endif
   if (always_use_proxy) {
     if (!IsProxyDevice(ALWAYS_USE_PROXY_DEFAULT_DEVICE)) {
       SetDeviceProxyAddress(ALWAYS_USE_PROXY_DEFAULT_DEVICE, "localhost:1685");
     }
   }
+#endif
 }
 
 XrtComputationClientWse::~XrtComputationClientWse() {
   std::cout << "DESTROY XrtComputationClientWse" << ENDL;
-  if (callback_interface_) {
-    callback_interface_->OnDestroy(GetOpaque(this));
-  }
-}
-
-void XrtComputationClientWse::SetExternalInterface(
-  std::shared_ptr <ptxla::XrtComputationClientExternalInterface> callback_interface
-) {
-  if (!callback_interface_) {
-    callback_interface_ = callback_interface->shared_from_this();
-    xla::wse::WseCompiler::SetCompilerCallback(callback_interface_);
-  } else {
-    if (callback_interface != callback_interface_) {
-      throw std::runtime_error(
-        "An attempt was made to set the Xrt callback interface more than once"
-      );
-    }
-  }
 }
 
 void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
@@ -281,6 +253,16 @@ void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, c
       std::make_pair(device, new_info)
     ).first;
     new_info->address_ = proxy_address;
+#ifndef START_LOCAL_WSE_XLA_SERVICE
+    std::vector<std::string> addr = split(proxy_address, ':');
+    if (addr.size() == 2 && addr[0] == "*") {
+      const int port = std::atoi(addr[1].c_str());
+      xla::StartLocalWseXlaService(port);
+      new_info->address_ = "localhost";
+      new_info->address_ += ":";
+      new_info->address_ += addr[1];
+    }
+#endif
   } else {
     // was already there
     if (iter->second->address_ != proxy_address) {
@@ -308,7 +290,7 @@ std::shared_ptr<XlaClient>
       ::grpc::ClientContext client_context;
       xla::GetDeviceHandlesRequest request;
       xla::GetDeviceHandlesResponse response;
-      request.set_device_count(1); // HOW MANY DEVICES??
+      request.set_device_count(2); // HOW MANY DEVICES??
       ::grpc::Status status = iter->second->xla_client_->GetDeviceHandles(
         &client_context,
         request,
@@ -340,7 +322,9 @@ xla::DeviceHandle XrtComputationClientWse::GetDeviceHandle(const std::string& de
   }
   std::shared_ptr<XlaClientInfo> info = iter->second;
   const int64 ordinal = GetDeviceOrdinal(device);
-  assert(ordinal < info->device_handles_.size());
+  if (ordinal >= info->device_handles_.size()) {
+    throw std::runtime_error("Attempt to get handle of device with too high of an ordinal");
+  }
   return info->device_handles_[ordinal];
 }
 
@@ -356,7 +340,6 @@ bool XrtComputationClientWse::UseProxyForDevice(const std::string& device) const
 
 void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 handle) {
   // is it a wse device?
-#if 1
   assert(!device.empty());
   if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
     auto client = GetXlaClient<XlaClient>(device, always_use_proxy);
@@ -377,7 +360,6 @@ void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 ha
     assert(!always_use_proxy);
     Super::ReleaseXrtData(device, handle);
   }
-#endif
 }
 
 ComputationClient::DataPtr
@@ -436,7 +418,7 @@ void *get_data_ptr(xla::Literal& literal) {
 std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
   absl::Span<const TensorSource> tensors
 ) {
-  //HEREX();
+  HEREX();
   auto results =
     split_types<std::vector<ComputationClient::DataPtr>>(
       tensors,
@@ -520,11 +502,8 @@ std::vector<Literal> XrtComputationClientWse::TransferFromServer(
         xla::TransferToClientRequest request;
         xla::TransferToClientResponse response;
 
-        request.set_allocated_data(new xla::GlobalDataHandle());
         request.mutable_data()->set_handle(data_ptr->GetOpaqueHandle());
-
-        request.set_allocated_shape_with_layout(new xla::ShapeProto());
-        request.mutable_shape_with_layout()->CopyFrom(data_ptr->shape().ToProto());
+        *request.mutable_shape_with_layout() = data_ptr->shape().ToProto();
 
         ::grpc::Status status = GetXlaClient<XlaClient>(
           data_ptr->device()
@@ -562,9 +541,10 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
   // TODO: ComputationPtr to return have modified HloModule and
   //       call Super with it (no proxy) on compile failure
   //
+  std::string compilation_device;
   auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
     instances,
-    [this](const CompileInstance& instance) -> bool {
+    [this, &compilation_device](const CompileInstance& instance) -> bool {
       const std::string device1 = instance.compilation_device;
       const std::string device2 = get_proxy_device(instance.computation.proto());
       std::string device;
@@ -573,12 +553,15 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
       } else if (!device1.empty() && device2.empty()) {
         device = device1;
       } else {
-        assert(device1 == device2);  // what's this use-case?
-        device = device1;
+        if (device1 != device2) {
+          std::cout << "SWITCHING DEVICES: " << device1 << " -> " << device2
+                    << std::endl << std::flush;
+        }
+        compilation_device = device2;  // When switchign devices,
       }
-      return UseProxyForDevice(device);
+      return UseProxyForDevice(compilation_device);
     },
-    [this](std::vector<CompileInstance>& instances) {
+    [this, &compilation_device](std::vector<CompileInstance>& instances) {
       // WSE (true)
       std::vector<ComputationClient::ComputationPtr> local_results;
       local_results.reserve(instances.size());
@@ -599,14 +582,36 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
 
         compile_request.set_allocated_computation(new xla::HloModuleProto());
         compile_request.mutable_computation()->CopyFrom(instance.computation.proto());
+        *compile_request.mutable_execution_options()->add_device_handles() =
+          GetDeviceHandle(compilation_device);
+        *compile_request.mutable_execution_options()->mutable_shape_with_output_layout() =
+          program_shape.result().ToProto();
 
         bool handled = false;
 
         ::grpc::ClientContext context;
+        auto xla_client = GetXlaClient<XlaClient>(compilation_device);
+        if (!xla_client) {
+          throw std::runtime_error("No XLA client for device");
+        }
+
+        // Let wse_compiler compile first
+#if 1
+        {
+          std::vector<CompileInstance> tmp;
+          tmp.emplace_back(
+            CompileInstance(
+              std::move(XlaComputation(instance.computation.proto())),
+              compilation_device,
+              instance.devices,
+              instance.output_shape
+            )
+          );
+          Super::Compile(std::move(tmp));
+        }
+#endif
         const ::grpc::Status status =
-          GetXlaClient<XlaClient>(
-            instance.compilation_device
-          )->Compile(&context, compile_request, &compile_response);
+          xla_client->Compile(&context, compile_request, &compile_response);
         if (status.ok()) {
           std::cout << "computation id: " << compile_response.handle().handle()
                     << " from proto id " << compile_request.mutable_computation()->id()

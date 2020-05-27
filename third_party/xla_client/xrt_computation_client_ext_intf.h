@@ -22,6 +22,12 @@
 #define COLLISION_FREE_NAMESPACE ptxla
 #endif
 
+#ifndef NOT_COMPILING_FROM_PTXLA
+namespace xla {
+  using XlaService = ::xla::grpc::XlaService;
+}
+#endif
+
 namespace xla {
 namespace COLLISION_FREE_NAMESPACE {
 
@@ -394,7 +400,9 @@ protected:
   ::grpc::Status TransferToServer(::grpc::ServerContext* context, const ::xla::TransferToServerRequest* request, ::xla::TransferToServerResponse* response) {
     auto literal = std::make_shared<xla::LiteralProto>(request->literal());
     const int64 handle = memory_manager_->Register(literal, request->device_handle(), true);
-    response->mutable_data()->set_handle(handle);
+    xla::GlobalDataHandle gdh;
+    gdh.set_handle(handle);
+    *response->mutable_data() = gdh;
     return ::grpc::Status::OK;
   }
 

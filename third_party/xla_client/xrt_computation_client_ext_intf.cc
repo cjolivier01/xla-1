@@ -1,3 +1,4 @@
+#define COMPILING_FROM_PTXLA
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
 
 #include "tensorflow/compiler/xla/rpc/grpc_service.h"

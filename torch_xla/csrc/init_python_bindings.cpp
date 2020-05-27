@@ -187,8 +187,7 @@ void SetInputsOutputs(const std::vector<at::Tensor>& input_tensors,
 }
 
 void SetDeviceAddress(const std::string& device, const std::string& proxy_address) {
-  std::vector<std::string> devices = xla::ComputationClient::Get()->GetAllDevices();
-
+  //std::vector<std::string> devices = xla::ComputationClient::Get()->GetAllDevices();
   CompileWatcher::SetDeviceProxyAddress(device, proxy_address);
 }
 
@@ -711,6 +710,7 @@ void InitXlaModuleBindings(py::module m) {
   });
   m.def("_xla_device_proxy_interface",
   [](const std::string& device, const std::string& proxy_address) {
+    NoGilSection nogil;
     SetDeviceAddress(device, proxy_address);
   }, py::arg("device"), py::arg("proxy_address"));
 }
