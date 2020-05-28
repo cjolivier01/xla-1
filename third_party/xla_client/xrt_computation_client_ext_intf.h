@@ -66,13 +66,14 @@ class UidUtil {
     return (device_ordinal << (64 - kDeviceBits)) | (rnd_value & kUidMask);
   }
 
+  static int64 InvalidKey() { return 0; }
+
+public:
+
   static int GetDeviceFromHandle(int64 handle) {
     return (handle >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
   }
 
-  static int64 InvalidKey() { return 0; }
-
-public:
   UidUtil(): distribution_(1, (1 << kDeviceBits) - 1) {}
 
   int64 CreateUid() {
@@ -236,6 +237,8 @@ public:
       handle_(handle) {
   }
 
+  virtual void Initialize(std::size_t device_ordinal) {}
+
   /**
    * @brief Get the handle
    * @return
@@ -273,8 +276,9 @@ public:
      * @param compile_request
      * @return
      */
-  ExecutableInfoPtr Create(xla::CompileRequest compile_request) {
-    ExecutableInfoPtr result =  std::make_shared<ExecutableInfo>(
+  template<typename EXECUTABLE_T>
+  std::shared_ptr<EXECUTABLE_T> Create(xla::CompileRequest compile_request) {
+    std::shared_ptr<EXECUTABLE_T> result =  std::make_shared<EXECUTABLE_T>(
       std::move(compile_request),
       uid_util_ptr_->CreateUid()  // can have multiple device handles :(
     );
@@ -367,7 +371,7 @@ protected:
    */
   ::grpc::Status Compile(::grpc::ServerContext* context, const ::xla::CompileRequest* request, ::xla::CompileResponse* response) override {
     std::cout << "XLA Compile" << std::endl << std::flush;
-    ExecutableInfoPtr exec = executable_manager_->Create(*request);
+    ExecutableInfoPtr exec = executable_manager_->Create<ExecutableInfo>(*request);
     response->mutable_handle()->set_handle(exec->handle());
     return ::grpc::Status::OK;
   }
@@ -399,6 +403,9 @@ protected:
         device_handle = memory_manager_->GetDeviceHandleFromDataHandle(arg_handle);
       }
     }
+
+    executable->Initialize(device_handle.handle());
+
     std::vector<xla::LiteralProto> results;
 
     // Create the results and return the global data handles for them
