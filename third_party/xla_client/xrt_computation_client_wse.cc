@@ -53,6 +53,10 @@ namespace {
  */
 bool always_use_proxy = false;
 bool wse_set_topology = false;
+bool clone_all_data = true;
+std::string CLONE_DATA_DEVICE = "WSE:1";
+
+bool verbose = true;
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
 //const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
@@ -219,10 +223,130 @@ public:
   std::vector<xla::DeviceHandle> device_handles_;
 };
 
+/**
+ * @brief GlobalDataHandleMapper handles data mapping between devices
+ */
+class XrtComputationClientWse::GlobalDataHandleMapper {
+public:
+  typedef int64 handle_t;
+
+  GlobalDataHandleMapper() = default;
+
+  /**
+   * @brief Add data mapping to another device
+   * @param device
+   * @param handle
+   * @param cloned_data_ptr
+   */
+  void AddMapping(
+    const std::string& device,
+    handle_t handle,
+    ComputationClient::DataPtr cloned_data_ptr
+  ) {
+    assert(!device.empty() && device != cloned_data_ptr->device() && handle);
+    const HandleAndDevice src{handle, device};
+    if (cloned_data_ptr) {
+      const HandleAndDevice dest{cloned_data_ptr->GetOpaqueHandle(), cloned_data_ptr->device()};
+      std::lock_guard<std::recursive_mutex> lock(mtx_);
+      handle_map_[src].insert(dest);
+      handle_map_[dest].insert(src);
+      cloned_data_map_[src] = cloned_data_ptr;
+      std::cout << "Added mapping: " << handle << " @ " << device << " -> "
+                << cloned_data_ptr->GetOpaqueHandle() << " @ "
+                << cloned_data_ptr->device()
+                << std::endl << std::flush;
+    } else {
+      // Assure there's an entry, although it may be empty
+      std::lock_guard<std::recursive_mutex> lock(mtx_);
+      handle_map_[src];
+    }
+  }
+
+  /**
+   * @brief Free device-to-device mapping
+   * @param device
+   * @param handle
+   * @return
+   */
+  ComputationClient::DataPtr FreeMapping(
+    const std::string& device,
+    handle_t handle
+  ) {
+    assert(!device.empty() && handle);
+    std::lock_guard<std::recursive_mutex> lock(mtx_);
+    const HandleAndDevice hd{handle, device};
+    auto iter = handle_map_.find(hd);
+    if (iter != handle_map_.end()) {
+      std::set<HandleAndDevice> &mapped_set = iter->second;
+      for (auto set_iter : mapped_set) {
+        const HandleAndDevice mapped = set_iter;
+        handle_map_[mapped].erase(hd);
+      }
+      handle_map_.erase(iter);
+    }
+    ComputationClient::DataPtr p = cloned_data_map_[hd];
+    return p;
+  }
+
+  /**
+   * @brief Get cloned data mapping
+   * @param device
+   * @param handle
+   * @return
+   */
+  ComputationClient::DataPtr GetMapping(
+    const std::string& device,
+    handle_t handle
+  ) const {
+    assert(!device.empty() && handle);
+    std::lock_guard<std::recursive_mutex> lock(mtx_);
+    const HandleAndDevice hd{handle, device};
+    auto iter = cloned_data_map_.find(hd);
+    if (iter == cloned_data_map_.end()) {
+      return nullptr;
+    }
+    return iter->second;
+  }
+
+  /**
+   * @brief Add result mapping in case an execution result is on one device and
+   *        becomes an argument to another device, it must be pulled and then pushed
+   */
+  void AddWeakMapping(
+    const std::string& device,
+    handle_t handle
+    ) {
+    std::lock_guard<std::recursive_mutex> lock(mtx_);
+    AddMapping(device, handle, nullptr);
+  }
+
+  /**
+   * @brief Has some sort of mapping, but may be empty if result mapping, for instance
+   * @param device
+   * @param handle
+   * @return
+   */
+  bool HasMapping(
+    const std::string& device,
+    handle_t handle
+  ) const {
+    const HandleAndDevice src{handle, device};
+    std::lock_guard<std::recursive_mutex> lock(mtx_);
+    return handle_map_.find(src) != handle_map_.end();
+  }
+
+  mutable std::recursive_mutex mtx_;
+  using HandleAndDevice = std::pair<int64, std::string>;
+  std::map<HandleAndDevice, std::set<HandleAndDevice>> handle_map_;
+  std::map<HandleAndDevice, ComputationClient::DataPtr> cloned_data_map_;
+};
+
+
 XrtComputationClientWse::XrtComputationClientWse(
   Options options,
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
-) : XrtComputationClient(std::move(options), std::move(topology_proto)) {
+) : XrtComputationClient(std::move(options), std::move(topology_proto)),
+    data_mapper_(std::make_unique<GlobalDataHandleMapper>()) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
   std::cout << "CREATE XrtComputationClientWse" << std::endl << std::flush;
 
@@ -260,7 +384,6 @@ void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, c
       std::make_pair(device, new_info)
     ).first;
     new_info->address_ = proxy_address;
-//#ifndef START_LOCAL_WSE_XLA_SERVICE
     std::vector<std::string> addr = split(proxy_address, ':');
     if (addr.size() == 2 && addr[0] == "*") {
       const int port = std::atoi(addr[1].c_str());
@@ -269,7 +392,6 @@ void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, c
       new_info->address_ += ":";
       new_info->address_ += addr[1];
     }
-//#endif
   } else {
     // was already there
     if (iter->second->address_ != proxy_address) {
@@ -364,6 +486,11 @@ void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 ha
     }
   } else {
     assert(!always_use_proxy);
+    if (clone_all_data && device != CLONE_DATA_DEVICE && UseProxyForDevice(CLONE_DATA_DEVICE)) {
+      // when the return DataPtr object goes out of scope,
+      // it should cause ReleaseXrtData to be called eventually
+      data_mapper_->FreeMapping(device, handle);
+    }
     Super::ReleaseXrtData(device, handle);
   }
 }
@@ -419,12 +546,100 @@ void *get_data_ptr(xla::Literal& literal) {
   }
 }
 
+/**
+ * @brief Potentially move data between devices
+ * @param source_data
+ * @param to_device
+ * @return
+ */
+std::vector<ComputationClient::DataPtr> XrtComputationClientWse::MoveDataBetweenServers(
+  const std::vector<ComputationClient::DataPtr>& source_data,
+  const std::string& to_device,
+  bool release_from_source,  // TODO: always kill the old one and then move it back when necessary
+  bool add_mapping_entry
+) {
+  HERE();
+  auto results =
+    split_types<std::vector<ComputationClient::DataPtr>>(
+      source_data,
+      [&to_device](const ComputationClient::DataPtr& data_ptr) {
+        return data_ptr->device() != to_device;
+      },
+      [this, &to_device, release_from_source](const std::vector<ComputationClient::DataPtr>& local_source_data) {
+        std::vector<Literal> literals = TransferFromServer(local_source_data);
+        std::vector<ComputationClient::DataPtr> local_results;
+        local_results.reserve(literals.size());
+        size_t index = 0;
+        for (const Literal& literal : literals) {
+          ComputationClient::DataPtr result = TransferLiteralToServer(to_device, literal);
+          local_results.emplace_back(std::move(result));
+          if (release_from_source) {
+            const ComputationClient::DataPtr& old_data = local_source_data[index];
+            ReleaseXrtData(old_data->device(), old_data->GetOpaqueHandle());
+          } else {
+            const ComputationClient::DataPtr& old_data = local_source_data[index];
+            data_mapper_->AddMapping(old_data->device(), old_data->GetOpaqueHandle(), result);
+          }
+          ++index;
+        }
+        return std::move(local_source_data);
+      },
+      [](const std::vector<ComputationClient::DataPtr>& local_source_data) {
+        return std::move(local_source_data);
+      }
+    );
+  return std::move(results);
+}
+
+ComputationClient::DataPtr XrtComputationClientWse::TransferLiteralToServer(
+  const std::string& device,
+  const Literal& literal
+) {
+  ::grpc::ClientContext context;
+  xla::TransferToServerRequest request;
+  xla::TransferToServerResponse response;
+
+  // set device handle?
+  //request.set_allocated_literal(new xla::LiteralProto());
+  *request.mutable_literal() = literal.ToProto();
+
+  *request.mutable_device_handle() = GetDeviceHandle(device);
+
+  ::grpc::Status status = GetXlaClient<XlaClient>(
+    device
+  )->TransferToServer(&context, request, &response);
+  if (!status.ok()) {
+    throw std::runtime_error(status.error_message());
+  }
+
+  std::cout << "Sent data , received handle: " << response.data().handle()
+            << ", shape=" << literal.shape().ToString()
+            << std::endl << std::flush;
+
+  return std::make_shared<XrtData>(
+    this,
+    device,
+    literal.shape(),
+    response.data().handle()
+  );
+}
 
 // Transfers local tensor values to the TPU servers and fetches the handles.
 std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
   absl::Span<const TensorSource> tensors
 ) {
-  HEREX();
+  if (verbose) {
+    ColorScope clr(Color::FG_YELLOW);
+    std::cout << getpid() << " XrtComputationClientWse::TransferToServer( ";
+    size_t i = 0;
+    for (const TensorSource& t : tensors) {
+      if (i++) {
+        std::cout << ", ";
+      }
+      std::cout << t.shape << "@" << DeviceSummary(t.device);
+    }
+    std::cout << ")" << std::endl << std::flush;
+  }
   auto results =
     split_types<std::vector<ComputationClient::DataPtr>>(
       tensors,
@@ -444,43 +659,40 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServe
             get_data_ptr(literal),
             literal.size_bytes()
           );
+          auto result = TransferLiteralToServer(tensor_source.device, literal);
 
-          ::grpc::ClientContext context;
-          xla::TransferToServerRequest request;
-          xla::TransferToServerResponse response;
-
-          // set device handle?
-          //request.set_allocated_literal(new xla::LiteralProto());
-          *request.mutable_literal() = literal.ToProto();
-
-          *request.mutable_device_handle() = GetDeviceHandle(tensor_source.device);
-
-          ::grpc::Status status = GetXlaClient<XlaClient>(
-            tensor_source.device
-          )->TransferToServer(&context, request, &response);
-          if (!status.ok()) {
-            throw std::runtime_error(status.error_message());
-          }
-
-          std::cout << "Sent data , received handle: " << response.data().handle()
-                    << ", shape=" << tensor_source.shape.ToString()
-                    << std::endl << std::flush;
-
-          local_results.emplace_back(
-            std::make_shared<XrtData>(
-              this,
-              tensor_source.device,
-              tensor_source.shape,
-              response.data().handle()
-            )
-          );
+          local_results.emplace_back(result);
         }
         return std::move(local_results);
       },
       [this](const std::vector<TensorSource>& local_tensor_sources) {
         // OTHER (false)
-        assert(!always_use_proxy);
-        return Super::TransferToServer(local_tensor_sources);
+        std::vector<ComputationClient::DataPtr> local_results =
+          Super::TransferToServer(local_tensor_sources);
+        if (clone_all_data && UseProxyForDevice(CLONE_DATA_DEVICE)) {
+          // Temporary until re-enable device-switching in torch_xla/csrc/tensor.cpp
+          // and write the "move data" code
+          std::vector<TensorSource> clone_ts;
+          clone_ts.reserve(local_tensor_sources.size());
+          std::vector<ComputationClient::DataPtr> original_results;
+          original_results.reserve(local_tensor_sources.size());
+          for (size_t i = 0; i < local_tensor_sources.size(); ++i) {
+            const TensorSource& ts = local_tensor_sources[i];
+            if (ts.device != CLONE_DATA_DEVICE) {
+                clone_ts.emplace_back(TensorSource(ts.shape, CLONE_DATA_DEVICE, ts.populate_fn));
+                original_results.emplace_back(local_results[i]);
+            }
+          }
+          std::vector<ComputationClient::DataPtr> cloned_results =
+            TransferToServer(clone_ts);
+          assert(original_results.size() == cloned_results.size());
+          for (size_t i = 0; i < cloned_results.size(); ++i) {
+            ComputationClient::DataPtr orig = original_results[i];
+            ComputationClient::DataPtr cloned = cloned_results[i];
+            data_mapper_->AddMapping(orig->device(), orig->GetOpaqueHandle(), cloned);
+          }
+        }
+        return std::move(local_results);
       }
     );
   return std::move(results);
@@ -670,7 +882,8 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
   const std::string &device,
   const ExecuteComputationOptions &options
 ) {
-  HERE();
+  //HERE();
+  //std::cout << "XrtComputationClientWse::ExecuteComputation()" << std::endl << std::flush;
   const std::string device1 = device;
   const std::string device2 = get_proxy_device(computation.computation().proto());
   std::string effective_device;
@@ -698,8 +911,31 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
     execution_handle->set_handle(computation.execution_handle());
     request.set_allocated_handle(execution_handle.release());
 
-    for (const DataPtr argument : arguments) {
-      //std::cout << "argument handle: " << argument->GetOpaqueHandle() << std::endl << std::flush;
+    for (DataPtr argument : arguments) {
+      std::cout << "argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
+                << " shape = " << argument->shape()
+                << std::endl << std::flush;
+      if (argument->device() != effective_device
+          && effective_device == CLONE_DATA_DEVICE
+          && data_mapper_->HasMapping(argument->device(), argument->GetOpaqueHandle())) {
+        DataPtr mapped_argument = data_mapper_->GetMapping(argument->device(), argument->GetOpaqueHandle());
+        if (mapped_argument) {
+          argument = mapped_argument;
+        } else {
+          // TODO: use split() to do in batches
+          std::vector<DataPtr> arguments_to_move{argument};
+          std::vector<DataPtr> moved_arguments = MoveDataBetweenServers(
+            arguments_to_move,
+            effective_device,
+            false,
+            true
+          );
+          argument = arguments_to_move[0];
+        }
+        std::cout << "\t-> argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
+                  << " shape = " << argument->shape()
+                  << std::endl << std::flush;
+      }
       request.add_arguments()->set_handle(argument->GetOpaqueHandle());
     }
 
@@ -784,6 +1020,16 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputat
   assert(!always_use_proxy);
   std::vector<ComputationClient::DataPtr> results =
     Super::ExecuteComputation(computation, arguments, effective_device, options);
+
+  if (clone_all_data) {
+    std::vector<ComputationClient::DataPtr> cloned_results;
+    cloned_results.reserve(results.size());
+    for (ComputationClient::DataPtr& data_ptr : results) {
+      if (data_ptr->device() != CLONE_DATA_DEVICE) {
+        data_mapper_->AddWeakMapping(data_ptr->device(), data_ptr->GetOpaqueHandle());
+      }
+    }
+  }
 
   return std::move(results);
 }

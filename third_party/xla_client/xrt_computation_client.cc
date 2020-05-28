@@ -349,13 +349,17 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
   return results;
 }
 
-std::string XrtComputationClient::DeviceSummary(const std::string& device) const {
-  std::stringstream ss;
-  const auto worker_pair = GetWorkerForDevice(device);
-  ss << device << "@" << TorchDeviceToXrtDevice(device)
-     << " -> " << worker_pair.first.name << " task_no=" << worker_pair.first.task_no
-     << ", " << worker_pair.second;
-  return ss.str();
+std::string XrtComputationClient::DeviceSummary(const std::string& device, bool verbose) const {
+  if (verbose) {
+    std::stringstream ss;
+    const auto worker_pair = GetWorkerForDevice(device);
+    ss << device << "@" << TorchDeviceToXrtDevice(device)
+       << " -> " << worker_pair.first.name << " task_no=" << worker_pair.first.task_no
+       << ", " << worker_pair.second;
+    return ss.str();
+  } else {
+    return device;
+  }
 }
 
 std::vector<ComputationClient::DataPtr>
@@ -400,7 +404,7 @@ XrtComputationClient::TransferToServerInternal(
           std::lock_guard<std::mutex> slock(lock);
           XrtSession* session = GetSessionForXrtDevice(
               alloc_session_cache_.get(), xrt_device, &session_map);
-          std::cout << "Session target: " << session->target() << ENDL;
+          //std::cout << "Session target: " << session->target() << ENDL;
           SessionWork* session_work = &session_work_map[session];
           tensorflow::Scope device_scope =
               session->root()->WithDevice(xrt_device);

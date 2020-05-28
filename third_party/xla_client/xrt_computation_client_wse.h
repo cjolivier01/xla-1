@@ -60,12 +60,23 @@ public:
 
 private:
   class XlaClientInfo;
+  class GlobalDataHandleMapper;
   mutable std::recursive_mutex xla_client_map_mtx_;
   std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
+
+  std::unique_ptr<GlobalDataHandleMapper> data_mapper_;
 
   template<typename CLIENT_T>
   std::shared_ptr<CLIENT_T> GetXlaClient(const std::string& device, bool create = true);
   xla::DeviceHandle GetDeviceHandle(const std::string& device);
+
+  std::vector<ComputationClient::DataPtr> MoveDataBetweenServers(
+    const std::vector<ComputationClient::DataPtr>& source_data,
+    const std::string& to_device,
+    bool release_from_source,
+    bool add_mapping_entry
+  );
+  ComputationClient::DataPtr TransferLiteralToServer(const std::string& device, const Literal& literal);
   /**
    * @brief Is device capable of proxy?
    * @param device

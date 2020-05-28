@@ -38,16 +38,6 @@ typedef int64 handle_t;
 // device in the upper part of the int64 handle to make sure the random bits are
 // in the lower part which is better when storing the handle as a key for
 // unordered maps.
-const int kDeviceBits = 12;
-
-inline int64 MakeDeviceHandle(int64 device_ordinal, int64 rnd_value) {
-  const int64 kUidMask = (static_cast<int64>(1) << (64 - kDeviceBits)) - 1;
-  return (device_ordinal << (64 - kDeviceBits)) | (rnd_value & kUidMask);
-}
-
-inline int GetDeviceFromHandle(int64 handle) {
-  return (handle >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
-}
 
 inline std::size_t GetElementCount(const xla::ShapeProto& shape) {
   std::size_t element_count = 1;
@@ -64,6 +54,42 @@ inline void FillLiteral(xla::LiteralProto& literal, FILL_FUN_T fill_fn) {
     fill_fn(literal);
   }
 }
+
+/**
+ * @brief Uid utility class
+ */
+const int kDeviceBits = 12;
+class UidUtil {
+
+  static int64 MakeDeviceHandle(int64 device_ordinal, int64 rnd_value) {
+    const int64 kUidMask = (static_cast<int64>(1) << (64 - kDeviceBits)) - 1;
+    return (device_ordinal << (64 - kDeviceBits)) | (rnd_value & kUidMask);
+  }
+
+  static int GetDeviceFromHandle(int64 handle) {
+    return (handle >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
+  }
+
+  static int64 InvalidKey() { return 0; }
+
+public:
+  UidUtil(): distribution_(1, (1 << kDeviceBits) - 1) {}
+
+  int64 CreateUid() {
+    int64 uid;
+    do {
+      uid = distribution_(generator_);
+    } while (uid == InvalidKey());
+    return -uid + 4;  // Change a little from what XRTMemoryManager generates
+  }
+  int64 CreateDeviceUid(int64 device_ordinal) {
+    return MakeDeviceHandle(device_ordinal, CreateUid());
+  }
+private:
+  std::default_random_engine generator_;
+  std::uniform_int_distribution<int> distribution_;
+};
+using UidUtilPtr = std::shared_ptr<UidUtil>;
 
 // Quick version of XRTMemoryManager until we can get on
 // the other side of a grpc boundary
@@ -84,7 +110,7 @@ class MemoryManager {
   };
 public:
 
-  MemoryManager(): distribution_(1, (1 << kDeviceBits) - 1) {}
+  MemoryManager(UidUtilPtr uid_util_ptr): uid_util_ptr_(uid_util_ptr) {}
 
   /**
    * @brief Check for valid handle
@@ -158,9 +184,8 @@ public:
     std::vector<xla::DeviceHandle> results;
     results.reserve(count);
     for (size_t i = 0; i < count; ++i) {
-      const int64 uid = CreateUid();
       const int ordinal = device_handles_allocated_++ + i;
-      const int64 handle = MakeDeviceHandle(ordinal, uid);
+      const int64 handle = uid_util_ptr_->CreateDeviceUid(ordinal);
       results.emplace_back(xla::DeviceHandle());
       results.rbegin()->set_handle(handle);
       results.rbegin()->set_device_count(count);
@@ -185,31 +210,132 @@ public:
     next_memory_handle_ = 0;
   }
 
-  static int64 InvalidKey() { return 0; }
-  int64 CreateUid() {
-    int64 uid;
-    do {
-      uid = distribution_(generator_);
-    } while (uid == InvalidKey());
-    return -uid + 4;  // Change a little from what XRTMemoryManager generates
-  }
-
+private:
+  UidUtilPtr uid_util_ptr_;
   mutable std::mutex mem_buffers_mtx_;
   std::unordered_map<int64, std::shared_ptr<LiteralDataEntry>> literal_map_;
   std::unordered_map<int64, xla::DeviceHandle> literal_handle_to_device_handle_;
   std::atomic<int64> next_memory_handle_{0};
   std::atomic<int64> device_handles_allocated_{0};
-
-  std::default_random_engine generator_;
-  std::uniform_int_distribution<int> distribution_;
 };
 
-class WseXlaService : public xla::XlaService::Service {
+/**
+ * @brief ExecutableInfo
+ */
+class ExecutableInfo {
+public:
+  /**
+   * @brief ExecutableINfo constructor -- holds information abotu an "executable"
+   * @param compile_request
+   * @param handle
+   */
+  ExecutableInfo(
+    xla::CompileRequest compile_request,
+    std::size_t handle
+  ) : compile_request_(std::move(compile_request)),
+      handle_(handle) {
+  }
+
+  /**
+   * @brief Get the handle
+   * @return
+   */
+  std::size_t handle() const { return handle_; }
+
+  /**
+   * @brief Retrieve the program shape
+   * @return
+   */
+  const xla::ProgramShapeProto &get_program_shape() const {
+    return compile_request_.computation().host_program_shape();
+  }
+private:
+  const xla::CompileRequest compile_request_;
+  const std::size_t handle_;
+};
+using ExecutableInfoPtr = std::shared_ptr<ExecutableInfo>;
+
+
+/**
+ * @brief Executable Manager
+ */
+class ExecutableManager {
+public:
+  /**
+   * @brief ExecutableManager constructor
+   * @param uid_util_ptr UID generator
+   */
+  ExecutableManager(UidUtilPtr uid_util_ptr)
+    : uid_util_ptr_(uid_util_ptr) {}
+
+    /**
+     * @brief Create an executable for the gin device (ala Compiler::RunBackend())
+     * @param compile_request
+     * @return
+     */
+  ExecutableInfoPtr Create(xla::CompileRequest compile_request) {
+    ExecutableInfoPtr result =  std::make_shared<ExecutableInfo>(
+      std::move(compile_request),
+      uid_util_ptr_->CreateUid()  // can have multiple device handles :(
+    );
+    std::lock_guard<std::mutex> lk(executor_map_mtx_);
+    executor_info_map_.emplace(std::make_pair(result->handle(), result));
+  }
+
+  /**
+   * Release an executable by handle
+   */
+  bool Release(handle_t executable_handle) {
+    std::lock_guard<std::mutex> lk(executor_map_mtx_);
+    auto iter = executor_info_map_.find(executable_handle);
+    if (iter == executor_info_map_.end()) {
+      return false;
+    }
+    executor_info_map_.erase(iter);
+    return true;
+  }
+
+  /**
+   * Retreive up an executable by handle
+   */
+  ExecutableInfoPtr GetExecutable(handle_t handle) {
+    std::lock_guard<std::mutex> lk(executor_map_mtx_);
+    auto found = executor_info_map_.find(handle);
+    if (found == executor_info_map_.end()) {
+      return nullptr;
+    }
+    return std::move(found->second);
+  }
+
+  /**
+   * @brief Clear all executables
+   */
+  void Reset() {
+    std::lock_guard<std::mutex> lk(executor_map_mtx_);
+    executor_info_map_.clear();
+  }
+
+private:
+  UidUtilPtr uid_util_ptr_;
+  std::mutex executor_map_mtx_;
+  std::unordered_map<std::size_t, ExecutableInfoPtr> executor_info_map_;
+  // TODO: Use Uid and free through ReleaseHandle
+  std::atomic<std::size_t> next_executor_handle_{0};
+};
+
+/**
+ * @brief XLA Service
+ */
+class SimpleXlaService : public xla::XlaService::Service {
   typedef xla::XlaService::Service Super;
 public:
-  WseXlaService() : memory_manager_(std::make_unique<MemoryManager>()) {}
+  SimpleXlaService() 
+    : uid_util_ptr_(std::make_shared<UidUtil>()),
+      memory_manager_(std::make_unique<MemoryManager>(uid_util_ptr_)),
+      executable_manager_(std::make_unique<ExecutableManager>(uid_util_ptr_))
+    {}
 
-  virtual ~WseXlaService() {}
+  virtual ~SimpleXlaService() {}
 
   /**
    * @brief Start
@@ -225,7 +351,7 @@ public:
     builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
     builder.RegisterService(this);
     server_ = builder.BuildAndStart();
-    std::cout << "WSE Server listening on " << server_address << std::endl;
+    std::cout << "XLA Server listening on " << server_address << std::endl;
     if (wait) {
       server_->Wait();
     }
@@ -243,9 +369,7 @@ protected:
    */
   ::grpc::Status Compile(::grpc::ServerContext* context, const ::xla::CompileRequest* request, ::xla::CompileResponse* response) override {
     std::cout << "XLA Compile" << std::endl << std::flush;
-    ExecutorInfoPtr exec = std::make_shared<ExecutorInfo>(*request, ++next_executor_handle_);
-    std::lock_guard<std::mutex> lk(executor_map_mtx_);
-    executor_info_map_.emplace(std::make_pair(exec->handle(), exec));
+    ExecutableInfoPtr exec = executable_manager_->Create(*request);
     response->mutable_handle()->set_handle(exec->handle());
     return ::grpc::Status::OK;
   }
@@ -260,15 +384,9 @@ protected:
   ::grpc::Status Execute(::grpc::ServerContext* context, const ::xla::ExecuteRequest* request, ::xla::ExecuteResponse* response) override {
     std::cout << "XLA Execute" << std::endl << std::flush;
     // Get the executable
-    ExecutorInfoPtr executable;
-    const handle_t execution_handle = request->handle().handle();
-    {
-      std::lock_guard<std::mutex> lk(executor_map_mtx_);
-      auto found = executor_info_map_.find(execution_handle);
-      if (found == executor_info_map_.end()) {
-        return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Executable not found");
-      }
-      executable = found->second;
+    ExecutableInfoPtr executable = executable_manager_->GetExecutable(request->handle().handle());
+    if (!executable) {
+      return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Executable not found");
     }
 
     xla::DeviceHandle device_handle;
@@ -559,10 +677,7 @@ protected:
       std::lock_guard<std::mutex> lk(compile_map_mtx_);
       compile_info_map_.clear();
     }
-    {
-      std::lock_guard<std::mutex> lk(executor_map_mtx_);
-      executor_info_map_.clear();
-    }
+    executable_manager_->Reset();
     memory_manager_->Reset();
     return ::grpc::Status::OK;
   }
@@ -591,29 +706,10 @@ protected:
   }
 
 protected:
-  /**
-   * @brief ExecutorInfo
-   */
-  class ExecutorInfo {
-  public:
-    ExecutorInfo(xla::CompileRequest compile_request, std::size_t handle)
-      : compile_request_(compile_request),
-        handle_(handle) {
-    }
-
-    std::size_t handle() const { return handle_; }
-
-    const xla::ProgramShapeProto &get_program_shape() const {
-      return compile_request_.computation().host_program_shape();
-    }
-  private:
-    const xla::CompileRequest compile_request_;
-    const std::size_t handle_;
-  };
-  using ExecutorInfoPtr = std::shared_ptr<ExecutorInfo>;
-
+  UidUtilPtr uid_util_ptr_;
   std::unique_ptr<::grpc::Server> server_;
   std::unique_ptr<MemoryManager> memory_manager_;
+  std::unique_ptr<ExecutableManager> executable_manager_;
 
   struct CompileInfo {};
   using CompileInfoPtr = std::shared_ptr<CompileInfo>;
@@ -621,9 +717,6 @@ protected:
   std::mutex compile_map_mtx_;
   std::unordered_map<std::size_t, CompileInfoPtr> compile_info_map_;
 
-  std::mutex executor_map_mtx_;
-  std::unordered_map<std::size_t, ExecutorInfoPtr> executor_info_map_;
-  std::atomic<std::size_t> next_executor_handle_{0};
 };
 
 

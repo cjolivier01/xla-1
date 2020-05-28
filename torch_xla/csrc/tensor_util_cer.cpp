@@ -191,7 +191,7 @@ struct CompileInfo {
   std::unordered_set<size_t> removed_output_ids_;
 
   void set_hash(CompileWatcher::hash_t hash) {
-      std::cout << "Setting has to: " << hash << std::endl << std::flush;
+      std::cout << "Setting hash to: " << hash << std::endl << std::flush;
       hash_ = std::make_unique<CompileWatcher::hash_t>(hash);
   }
 };
@@ -382,7 +382,7 @@ void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::
     const size_t total_steps = ++compile_info->mark_step_;
     const size_t steps_since_reset = ++compile_info->mark_steps_since_reset_;
     ColorScope clr(IsWseRunning(opaque, gettid()) ? Color::FG_YELLOW : Color::FG_WHITE);
-    std::cout << "Mark step: " << steps_since_reset << "/" << total_steps << std::endl << std::flush;
+    //std::cout << "Mark step: " << steps_since_reset << "/" << total_steps << std::endl << std::flush;
   //}
 }
 
