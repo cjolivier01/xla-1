@@ -215,7 +215,7 @@ private:
   mutable std::mutex mem_buffers_mtx_;
   std::unordered_map<int64, std::shared_ptr<LiteralDataEntry>> literal_map_;
   std::unordered_map<int64, xla::DeviceHandle> literal_handle_to_device_handle_;
-  std::atomic<int64> next_memory_handle_{0};
+  std::atomic<int64> next_memory_handle_{0};  // TODO: use uid generator
   std::atomic<int64> device_handles_allocated_{0};
 };
 
@@ -279,7 +279,8 @@ public:
       uid_util_ptr_->CreateUid()  // can have multiple device handles :(
     );
     std::lock_guard<std::mutex> lk(executor_map_mtx_);
-    executor_info_map_.emplace(std::make_pair(result->handle(), result));
+    executor_info_map_.insert(std::make_pair(result->handle(), result));
+    return result;
   }
 
   /**
@@ -319,8 +320,6 @@ private:
   UidUtilPtr uid_util_ptr_;
   std::mutex executor_map_mtx_;
   std::unordered_map<std::size_t, ExecutableInfoPtr> executor_info_map_;
-  // TODO: Use Uid and free through ReleaseHandle
-  std::atomic<std::size_t> next_executor_handle_{0};
 };
 
 /**
@@ -574,7 +573,11 @@ protected:
     bool all_ok = true;
     for (const auto& data : request->data()) {
       if (!memory_manager_->Free(data.handle())) {
-        all_ok = false;
+        if (!executable_manager_->Release(data.handle())) {
+          all_ok = false;
+        } else {
+          std::cout << "Released executable: " << data.handle() << std::endl << std::flush;
+        }
       }
     }
     return all_ok ?

@@ -251,6 +251,7 @@ public:
       handle_map_[src].insert(dest);
       handle_map_[dest].insert(src);
       cloned_data_map_[src] = cloned_data_ptr;
+      cloned_data_map_[dest] = cloned_data_ptr;
       std::cout << "Added mapping: " << handle << " @ " << device << " -> "
                 << cloned_data_ptr->GetOpaqueHandle() << " @ "
                 << cloned_data_ptr->device()
@@ -283,9 +284,21 @@ public:
         handle_map_[mapped].erase(hd);
       }
       handle_map_.erase(iter);
+      auto cloned_iter = cloned_data_map_.find(hd);
+      if (cloned_iter != cloned_data_map_.end()) {
+        ComputationClient::DataPtr p = cloned_iter->second;
+        if (p->GetOpaqueHandle() == handle && p->device() == device) {
+          std::cout << "Freeing via LOCAL mapped: " << p->GetOpaqueHandle() << " @ " << p->device()
+                    << std::endl << std::flush;
+        } else {
+          std::cout << "Freeing via MAPPED  mapped: " << p->GetOpaqueHandle() << " @ " << p->device()
+                    << std::endl << std::flush;
+        }
+        cloned_data_map_.erase(cloned_iter);
+        return p;
+      }
     }
-    ComputationClient::DataPtr p = cloned_data_map_[hd];
-    return p;
+    return nullptr;
   }
 
   /**
@@ -468,6 +481,9 @@ bool XlaComputationClient::UseProxyForDevice(const std::string& device) const {
 
 void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handle) {
   // is it a wse device?
+  if (handle == 900000027) {
+    std::cout << "Found handle!" << std::endl;
+  }
   assert(!device.empty());
   if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
     auto client = GetXlaClient<XlaClient>(device, always_use_proxy);
@@ -572,7 +588,9 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenSer
         size_t index = 0;
         for (const Literal& literal : literals) {
           ComputationClient::DataPtr result = TransferLiteralToServer(to_device, literal);
-          local_results.emplace_back(std::move(result));
+          if (!result) {
+            throw std::runtime_error("Error sending literal to server");
+          }
           if (release_from_source) {
             const ComputationClient::DataPtr& old_data = local_source_data[index];
             ReleaseXrtData(old_data->device(), old_data->GetOpaqueHandle());
@@ -580,9 +598,10 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenSer
             const ComputationClient::DataPtr& old_data = local_source_data[index];
             data_mapper_->AddMapping(old_data->device(), old_data->GetOpaqueHandle(), result);
           }
+          local_results.emplace_back(std::move(result));
           ++index;
         }
-        return std::move(local_source_data);
+        return std::move(local_results);
       },
       [](const std::vector<ComputationClient::DataPtr>& local_source_data) {
         return std::move(local_source_data);
@@ -912,27 +931,38 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation
     request.set_allocated_handle(execution_handle.release());
 
     for (DataPtr argument : arguments) {
-      std::cout << "argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
+      std::cout << "incoming argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
                 << " shape = " << argument->shape()
                 << std::endl << std::flush;
-      if (argument->device() != effective_device
-          && effective_device == CLONE_DATA_DEVICE
-          && data_mapper_->HasMapping(argument->device(), argument->GetOpaqueHandle())) {
-        DataPtr mapped_argument = data_mapper_->GetMapping(argument->device(), argument->GetOpaqueHandle());
-        if (mapped_argument) {
-          argument = mapped_argument;
+      if (argument->device() != effective_device && effective_device == CLONE_DATA_DEVICE) {
+        if (data_mapper_->HasMapping(argument->device(), argument->GetOpaqueHandle())) {
+          DataPtr mapped_argument = data_mapper_->GetMapping(
+            argument->device(), argument->GetOpaqueHandle());
+          if (mapped_argument) {
+            argument = mapped_argument;
+          } else {
+            // TODO: use split() to do in batches
+            std::vector<DataPtr> arguments_to_move{argument};
+            std::vector<DataPtr> moved_arguments = MoveDataBetweenServers(
+              arguments_to_move,
+              effective_device,
+              false,
+              true
+            );
+            std::cout << "Moved data for argument: "
+                      << argument->GetOpaqueHandle() << " @" << argument->device()
+                      << " ==> " << moved_arguments[0]->GetOpaqueHandle() << " @" << moved_arguments[0]->device()
+                      << std::endl << std::flush;
+            argument = moved_arguments[0];
+          }
         } else {
-          // TODO: use split() to do in batches
-          std::vector<DataPtr> arguments_to_move{argument};
-          std::vector<DataPtr> moved_arguments = MoveDataBetweenServers(
-            arguments_to_move,
-            effective_device,
-            false,
-            true
-          );
-          argument = arguments_to_move[0];
+          ColorScope red(Color::FG_RED);
+          std::cout << "\t*** No mapping for argument handle:"
+                    << argument->GetOpaqueHandle() << " @" << argument->device()
+                    << std::endl << std::flush;
+          throw std::runtime_error("Unable to map argument to new device");
         }
-        std::cout << "\t-> argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
+        std::cout << "\t-> effective argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
                   << " shape = " << argument->shape()
                   << std::endl << std::flush;
       }
@@ -1000,14 +1030,16 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation
         if (!status.ok()) {
           throw std::runtime_error(status.error_message());
         }
-        results.emplace_back(
-          std::make_shared<XrtData>(
-            this,
-            effective_device,
-            Shape(response.shape()),
-            element_handle.handle()
-          )
+        DataPtr result_data = std::make_shared<XrtData>(
+          this,
+          effective_device,
+          Shape(response.shape()),
+          element_handle.handle()
         );
+        std::cout << "WSE Execution result data: " << result_data->GetOpaqueHandle() << " @ " << result_data->device()
+                  << ", shape = " << result_data->shape().ToString()
+                  << std::endl << std::flush;
+        results.emplace_back(result_data);
       }
     } else {
       results.emplace_back(
