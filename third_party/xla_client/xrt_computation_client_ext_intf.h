@@ -329,11 +329,10 @@ private:
 class SimpleXlaService : public xla::XlaService::Service {
   typedef xla::XlaService::Service Super;
 public:
-  SimpleXlaService() 
-    : uid_util_ptr_(std::make_shared<UidUtil>()),
-      memory_manager_(std::make_unique<MemoryManager>(uid_util_ptr_)),
-      executable_manager_(std::make_unique<ExecutableManager>(uid_util_ptr_))
-    {}
+  SimpleXlaService(UidUtilPtr uid_util_ptr)
+    : uid_util_ptr_(uid_util_ptr),
+      memory_manager_(std::make_unique<MemoryManager>(uid_util_ptr)),
+      executable_manager_(std::make_unique<ExecutableManager>(uid_util_ptr)) {}
 
   virtual ~SimpleXlaService() {}
 
@@ -717,7 +716,7 @@ protected:
   std::mutex compile_map_mtx_;
   std::unordered_map<std::size_t, CompileInfoPtr> compile_info_map_;
 
-};
+};  // class SimpleXlaService
 
 
 #if 0

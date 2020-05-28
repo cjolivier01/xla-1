@@ -8,24 +8,22 @@
 
 namespace xla {
 
-namespace ptxla { class XrtComputationClientExternalInterface; }
-
-class XrtComputationClientWse : public XrtComputationClient {
+class XlaComputationClient : public XrtComputationClient {
     typedef XrtComputationClient Super;
 public:
   /**
-   * @brief Create XrtComputationClientWse object
+   * @brief Create XlaComputationClient object
    * @param options
    * @param topology_proto
    */
-  XrtComputationClientWse(
+  XlaComputationClient(
       Options options,
       std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
   );
   /**
-   * @brief Destroy the XrtComputationClientWse object
+   * @brief Destroy the XlaComputationClient object
    */
-  ~XrtComputationClientWse();
+  ~XlaComputationClient();
 
   // Creates a Data object with no actual device handle in it. The device handle
   // will be populated in an asynchrounous fashion.

@@ -22,7 +22,7 @@
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_local_service.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
 #include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/util.h"
@@ -1322,7 +1322,7 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          XrtComputationClientWse::InitializeAndFetchTopology(
+          XlaComputationClient::InitializeAndFetchTopology(
               worker.name, worker.task_no, it->second,
               session_cache_->GetConfig());
       if (topology_proto == nullptr) {

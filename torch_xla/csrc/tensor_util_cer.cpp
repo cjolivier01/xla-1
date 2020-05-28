@@ -3,7 +3,7 @@
 #include "torch_xla/csrc/aten_xla_bridge.h"
 
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/core/util/util.h"
 
@@ -252,8 +252,8 @@ bool CompileWatcher::PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, 
 void CompileWatcher::SetDeviceProxyAddress(
   const std::string& device, const std::string& proxy_address) {
   xla::ComputationClient *cc = xla::XrtComputationClient::Get();
-  xla::XrtComputationClientWse *computation_client =
-    dynamic_cast<xla::XrtComputationClientWse *>(cc);
+  xla::XlaComputationClient *computation_client =
+    dynamic_cast<xla::XlaComputationClient *>(cc);
   if (computation_client) {
     computation_client->SetDeviceProxyAddress(device, proxy_address);
   } else {

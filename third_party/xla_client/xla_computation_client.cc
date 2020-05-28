@@ -1,6 +1,6 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/literal.h"
@@ -212,7 +212,7 @@ RESULT_T split_types(
 }
 }  // namespace
 
-class XrtComputationClientWse::XlaClientInfo {
+class XlaComputationClient::XlaClientInfo {
 public:
 
   inline std::shared_ptr<XlaClient> operator ()() { return xla_client_; }
@@ -226,7 +226,7 @@ public:
 /**
  * @brief GlobalDataHandleMapper handles data mapping between devices
  */
-class XrtComputationClientWse::GlobalDataHandleMapper {
+class XlaComputationClient::GlobalDataHandleMapper {
 public:
   typedef int64 handle_t;
 
@@ -342,13 +342,13 @@ public:
 };
 
 
-XrtComputationClientWse::XrtComputationClientWse(
+XlaComputationClient::XlaComputationClient(
   Options options,
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)),
     data_mapper_(std::make_unique<GlobalDataHandleMapper>()) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
-  std::cout << "CREATE XrtComputationClientWse" << std::endl << std::flush;
+  std::cout << "CREATE XlaComputationClient" << std::endl << std::flush;
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
   xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
@@ -360,11 +360,11 @@ XrtComputationClientWse::XrtComputationClientWse(
 #endif
 }
 
-XrtComputationClientWse::~XrtComputationClientWse() {
-  std::cout << "DESTROY XrtComputationClientWse" << std::endl << std::flush;
+XlaComputationClient::~XlaComputationClient() {
+  std::cout << "DESTROY XlaComputationClient" << std::endl << std::flush;
 }
 
-void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
+void XlaComputationClient::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
   std::shared_ptr<XlaClient> old_client;  // if exists, to be destroyed out of lock scope
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   std::cout << "Setting device proxy: " << device << " -> " << proxy_address
@@ -405,7 +405,7 @@ void XrtComputationClientWse::SetDeviceProxyAddress(const std::string& device, c
 
 template<>
 std::shared_ptr<XlaClient>
-  XrtComputationClientWse::GetXlaClient<XlaClient>(const std::string& device, bool create) {
+  XlaComputationClient::GetXlaClient<XlaClient>(const std::string& device, bool create) {
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   auto iter = xla_client_map_.find(device);
   if (iter == xla_client_map_.end()) {
@@ -439,7 +439,7 @@ std::shared_ptr<XlaClient>
   return iter->second->xla_client_;
 }
 
-xla::DeviceHandle XrtComputationClientWse::GetDeviceHandle(const std::string& device) {
+xla::DeviceHandle XlaComputationClient::GetDeviceHandle(const std::string& device) {
   if (!GetXlaClient<XlaClient>(device, true)) {
     throw std::runtime_error("Failed to get XLA client for device");
   }
@@ -457,16 +457,16 @@ xla::DeviceHandle XrtComputationClientWse::GetDeviceHandle(const std::string& de
   return info->device_handles_[ordinal];
 }
 
-bool XrtComputationClientWse::IsProxyDevice(const std::string& device) const {
+bool XlaComputationClient::IsProxyDevice(const std::string& device) const {
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   return xla_client_map_.find(device) != xla_client_map_.end();
 }
 
-bool XrtComputationClientWse::UseProxyForDevice(const std::string& device) const {
+bool XlaComputationClient::UseProxyForDevice(const std::string& device) const {
   assert(!device.empty());return IsProxyDevice(device) && (always_use_proxy || is_wse_device(device));
 }
 
-void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 handle) {
+void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handle) {
   // is it a wse device?
   assert(!device.empty());
   if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
@@ -496,7 +496,7 @@ void XrtComputationClientWse::ReleaseXrtData(const std::string& device, int64 ha
 }
 
 ComputationClient::DataPtr
-XrtComputationClientWse::CreateDataPlaceholder(std::string device, Shape shape) {
+XlaComputationClient::CreateDataPlaceholder(std::string device, Shape shape) {
   // In case we wish to create a special type of DataPtr
   return Super::CreateDataPlaceholder(device, shape);
 }
@@ -552,7 +552,7 @@ void *get_data_ptr(xla::Literal& literal) {
  * @param to_device
  * @return
  */
-std::vector<ComputationClient::DataPtr> XrtComputationClientWse::MoveDataBetweenServers(
+std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenServers(
   const std::vector<ComputationClient::DataPtr>& source_data,
   const std::string& to_device,
   bool release_from_source,  // TODO: always kill the old one and then move it back when necessary
@@ -591,7 +591,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::MoveDataBetween
   return std::move(results);
 }
 
-ComputationClient::DataPtr XrtComputationClientWse::TransferLiteralToServer(
+ComputationClient::DataPtr XlaComputationClient::TransferLiteralToServer(
   const std::string& device,
   const Literal& literal
 ) {
@@ -625,12 +625,12 @@ ComputationClient::DataPtr XrtComputationClientWse::TransferLiteralToServer(
 }
 
 // Transfers local tensor values to the TPU servers and fetches the handles.
-std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServer(
+std::vector<ComputationClient::DataPtr> XlaComputationClient::TransferToServer(
   absl::Span<const TensorSource> tensors
 ) {
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
-    std::cout << getpid() << " XrtComputationClientWse::TransferToServer( ";
+    std::cout << getpid() << " XlaComputationClient::TransferToServer( ";
     size_t i = 0;
     for (const TensorSource& t : tensors) {
       if (i++) {
@@ -700,7 +700,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClientWse::TransferToServe
 
 // Reads the tensor literal values stored at TPU server sites, behind the
 // supplied handles.
-std::vector<Literal> XrtComputationClientWse::TransferFromServer(
+std::vector<Literal> XlaComputationClient::TransferFromServer(
   absl::Span<const DataPtr> handles
 ) {
   std::vector<DataPtr> all_handles(handles.begin(), handles.end());
@@ -751,7 +751,7 @@ std::vector<Literal> XrtComputationClientWse::TransferFromServer(
 }
 
 // Compiles a set of computations.
-std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
+std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
   std::vector<CompileInstance> instances
 ) {
   //
@@ -876,14 +876,14 @@ std::vector<ComputationClient::ComputationPtr> XrtComputationClientWse::Compile(
 // The passed device must match the common device of the arguments Data.
 // If options.explode_tuple is true, the output tuple will be decomposed into
 // its single elements.
-std::vector<ComputationClient::DataPtr> XrtComputationClientWse::ExecuteComputation(
+std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation(
   const Computation &computation,
   absl::Span<const DataPtr> arguments,
   const std::string &device,
   const ExecuteComputationOptions &options
 ) {
   //HERE();
-  //std::cout << "XrtComputationClientWse::ExecuteComputation()" << std::endl << std::flush;
+  //std::cout << "XlaComputationClient::ExecuteComputation()" << std::endl << std::flush;
   const std::string device1 = device;
   const std::string device2 = get_proxy_device(computation.computation().proto());
   std::string effective_device;
@@ -1044,7 +1044,7 @@ int get_env_int(const char *s, const int dflt) {
 }
 }
 
-tensorflow::tpu::TopologyProto XrtComputationClientWse::InitializeAndFetchTopology(
+tensorflow::tpu::TopologyProto XlaComputationClient::InitializeAndFetchTopology(
   const std::string& job,
   int task_no,
   const std::string& worker_host_port,
