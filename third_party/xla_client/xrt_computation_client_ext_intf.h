@@ -81,7 +81,7 @@ public:
     do {
       uid = distribution_(generator_);
     } while (uid == InvalidKey());
-    return -uid + 4;  // Change a little from what XRTMemoryManager generates
+    return uid;  // Change a little from what XRTMemoryManager generates
   }
   int64 CreateDeviceUid(int64 device_ordinal) {
     return MakeDeviceHandle(device_ordinal, CreateUid());
@@ -185,8 +185,10 @@ public:
     std::vector<xla::DeviceHandle> results;
     results.reserve(count);
     for (size_t i = 0; i < count; ++i) {
-      const int ordinal = device_handles_allocated_++ + i;
+      const int ordinal = device_ordinals_allocated_++;
       const int64 handle = uid_util_ptr_->CreateDeviceUid(ordinal);
+      const int check_ordinal = UidUtil::GetDeviceFromHandle(handle);
+      assert(check_ordinal == ordinal);
       results.emplace_back(xla::DeviceHandle());
       results.rbegin()->set_handle(handle);
       results.rbegin()->set_device_count(count);
@@ -198,6 +200,8 @@ public:
     std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
     const auto found = literal_handle_to_device_handle_.find(data_handle);
     if (found != literal_handle_to_device_handle_.end()) {
+      const int64 device_ordinal = UidUtil::GetDeviceFromHandle(found->second.handle());
+      assert(device_ordinal < device_ordinals_allocated_.load());
       return found->second;
     }
     return xla::DeviceHandle();
@@ -207,7 +211,7 @@ public:
     std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
     literal_map_.clear();
     literal_handle_to_device_handle_.clear();
-    device_handles_allocated_ = 0;
+    device_ordinals_allocated_ = 0;
     next_memory_handle_ = 0;
   }
 
@@ -217,7 +221,7 @@ private:
   std::unordered_map<int64, std::shared_ptr<LiteralDataEntry>> literal_map_;
   std::unordered_map<int64, xla::DeviceHandle> literal_handle_to_device_handle_;
   std::atomic<int64> next_memory_handle_{0};  // TODO: use uid generator
-  std::atomic<int64> device_handles_allocated_{0};
+  std::atomic<int64> device_ordinals_allocated_{0};
 };
 
 /**
@@ -226,7 +230,7 @@ private:
 class ExecutableInfo {
 public:
   /**
-   * @brief ExecutableINfo constructor -- holds information abotu an "executable"
+   * @brief ExecutableInfo constructor -- holds information abotu an "executable"
    * @param compile_request
    * @param handle
    */
@@ -237,7 +241,10 @@ public:
       handle_(handle) {
   }
 
-  virtual void Initialize(std::size_t device_ordinal) {}
+  virtual void Initialize(std::size_t device_ordinal) {
+    std::cout << "Initializing executable for device ordinal: "
+              << device_ordinal << std::endl << std::flush;
+  }
 
   /**
    * @brief Get the handle
@@ -404,7 +411,7 @@ protected:
       }
     }
 
-    executable->Initialize(device_handle.handle());
+    executable->Initialize(UidUtil::GetDeviceFromHandle(device_handle.handle()));
 
     std::vector<xla::LiteralProto> results;
 
@@ -559,6 +566,9 @@ protected:
   // allocation, which is returned.
   ::grpc::Status TransferToServer(::grpc::ServerContext* context, const ::xla::TransferToServerRequest* request, ::xla::TransferToServerResponse* response) {
     auto literal = std::make_shared<xla::LiteralProto>(request->literal());
+//    std::cout << "TransferToServer() device handle: " << request->device_handle().handle()
+//              << " (ordinal = " << UidUtil::GetDeviceFromHandle(request->device_handle().handle()) << " )"
+//              << std::endl << std::flush;
     const int64 handle = memory_manager_->Register(literal, request->device_handle(), true);
     xla::GlobalDataHandle gdh;
     gdh.set_handle(handle);

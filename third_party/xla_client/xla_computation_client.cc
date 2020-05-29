@@ -444,7 +444,8 @@ std::shared_ptr<XlaClient>
       iter->second->device_handles_.resize(0);
       iter->second->device_handles_.reserve(response.device_handles_size());
       for (const ::xla::DeviceHandle& device_handle : response.device_handles()) {
-        std::cout << "device handle: " << device_handle.handle() << std::endl << std::flush;
+        std::cout << "device handle: " << device_handle.handle()
+                  << std::endl << std::flush;
         iter->second->device_handles_.emplace_back(device_handle);
       }
     }
