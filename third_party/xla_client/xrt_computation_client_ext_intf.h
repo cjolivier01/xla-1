@@ -70,7 +70,11 @@ class UidUtil {
 
 public:
 
-  static int GetDeviceFromHandle(int64 handle) {
+  static int GetDeviceOrdinalFromHandle(const xla::DeviceHandle& device_handle) {
+    return (device_handle.handle() >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
+  }
+
+  static int GetDeviceOrdinalFromHandle(int64 handle) {
     return (handle >> (64 - kDeviceBits)) & ((1 << kDeviceBits) - 1);
   }
 
@@ -187,7 +191,7 @@ public:
     for (size_t i = 0; i < count; ++i) {
       const int ordinal = device_ordinals_allocated_++;
       const int64 handle = uid_util_ptr_->CreateDeviceUid(ordinal);
-      const int check_ordinal = UidUtil::GetDeviceFromHandle(handle);
+      const int check_ordinal = UidUtil::GetDeviceOrdinalFromHandle(handle);
       assert(check_ordinal == ordinal);
       results.emplace_back(xla::DeviceHandle());
       results.rbegin()->set_handle(handle);
@@ -200,7 +204,7 @@ public:
     std::lock_guard<std::mutex> lk(mem_buffers_mtx_);
     const auto found = literal_handle_to_device_handle_.find(data_handle);
     if (found != literal_handle_to_device_handle_.end()) {
-      const int64 device_ordinal = UidUtil::GetDeviceFromHandle(found->second.handle());
+      const int64 device_ordinal = UidUtil::GetDeviceOrdinalFromHandle(found->second.handle());
       assert(device_ordinal < device_ordinals_allocated_.load());
       return found->second;
     }
@@ -367,6 +371,35 @@ public:
     return true;
   }
 
+
+  ::grpc::Status GetDeviceHandle(
+    const ::xla::ExecuteRequest* request,
+    xla::DeviceHandle *device_handle
+  ) {
+    // Parse the arguments
+    for (const xla::GlobalDataHandle &argument : request->arguments()) {
+      const handle_t arg_handle = argument.handle();
+      if (!memory_manager_->IsIn(arg_handle)) {
+        return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Argument handle not found");
+      }
+      *device_handle = memory_manager_->GetDeviceHandleFromDataHandle(arg_handle);
+      if (device_handle->handle()) {
+        break;
+      }
+    }
+    return ::grpc::Status::OK;
+  }
+
+  ::grpc::Status GetDeviceOrdinal(const ::xla::ExecuteRequest* request, std::size_t *ordinal) {
+    xla::DeviceHandle device_handle;
+    ::grpc::Status status = GetDeviceHandle(request, &device_handle);
+    if (!status.ok()) {
+      return status;
+    }
+    *ordinal = UidUtil::GetDeviceOrdinalFromHandle(device_handle);
+    return ::grpc::Status::OK;
+  }
+
 protected:
 
   /**
@@ -398,20 +431,27 @@ protected:
       return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Executable not found");
     }
 
+//    xla::DeviceHandle device_handle;
+//
+//    // Parse the arguments
+//    for (const xla::GlobalDataHandle& argument : request->arguments()) {
+//      const handle_t arg_handle = argument.handle();
+//      if (!memory_manager_->IsIn(arg_handle)) {
+//        return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Argument handle not found");
+//      }
+//      if (!device_handle.handle()) {
+//        device_handle = memory_manager_->GetDeviceHandleFromDataHandle(arg_handle);
+//      }
+//    }
+
     xla::DeviceHandle device_handle;
 
-    // Parse the arguments
-    for (const xla::GlobalDataHandle& argument : request->arguments()) {
-      const handle_t arg_handle = argument.handle();
-      if (!memory_manager_->IsIn(arg_handle)) {
-        return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Argument handle not found");
-      }
-      if (!device_handle.handle()) {
-        device_handle = memory_manager_->GetDeviceHandleFromDataHandle(arg_handle);
-      }
+    ::grpc::Status status = GetDeviceHandle(request, &device_handle);
+    if (!status.ok()) {
+      return status;
     }
-
-    executable->Initialize(UidUtil::GetDeviceFromHandle(device_handle.handle()));
+    
+    executable->Initialize(UidUtil::GetDeviceOrdinalFromHandle(device_handle));
 
     std::vector<xla::LiteralProto> results;
 
@@ -567,7 +607,7 @@ protected:
   ::grpc::Status TransferToServer(::grpc::ServerContext* context, const ::xla::TransferToServerRequest* request, ::xla::TransferToServerResponse* response) {
     auto literal = std::make_shared<xla::LiteralProto>(request->literal());
 //    std::cout << "TransferToServer() device handle: " << request->device_handle().handle()
-//              << " (ordinal = " << UidUtil::GetDeviceFromHandle(request->device_handle().handle()) << " )"
+//              << " (ordinal = " << UidUtil::GetDeviceOrdinalFromHandle(request->device_handle().handle()) << " )"
 //              << std::endl << std::flush;
     const int64 handle = memory_manager_->Register(literal, request->device_handle(), true);
     xla::GlobalDataHandle gdh;
