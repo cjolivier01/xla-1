@@ -320,7 +320,7 @@ public:
     if (found == executor_info_map_.end()) {
       return nullptr;
     }
-    return std::move(found->second);
+    return found->second;
   }
 
   /**
