@@ -115,6 +115,9 @@ public:
 //      std::shared_ptr<XLATensor::Async> async);
     //static std::string GetDevice();
     static Device GetDevice();
+    static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
+    static const Device& GetDeviceMapping(const Device& device);
+    static std::string GetDeviceMapping(const std::string& device);
     static bool IsTrainingThread(pid_t tid);
     static bool PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, pid_t tid);
 private:
@@ -122,6 +125,9 @@ private:
   static bool HasWseDevices();
   static bool Reset(compiler_t opaque, pid_t tid, bool reset_hash);
   static std::vector<std::string> wse_devices_;
+
+  static std::mutex device_mapping_mtx_;
+  static std::unordered_map<std::string, std::pair<Device, bool>> device_mapping_;
 };
 
 inline pid_t gettid() {

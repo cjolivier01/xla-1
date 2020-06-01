@@ -56,11 +56,21 @@ public:
     const std::string& job, int task_no, const std::string& worker_host_port,
     const tensorflow::ConfigProto& config);
 
+//  void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
+//  std::string GetDeviceMapping(const std::string& device);
+
+  static XlaComputationClient *Get() {
+    return dynamic_cast<XlaComputationClient *>(Super::Get());
+  }
+
 private:
   class XlaClientInfo;
   class GlobalDataHandleMapper;
   mutable std::recursive_mutex xla_client_map_mtx_;
   std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
+
+//  mutable std::mutex device_mapping_mtx_;
+//  std::unordered_map<std::string, std::string> device_mapping_;
 
   std::unique_ptr<GlobalDataHandleMapper> data_mapper_;
 

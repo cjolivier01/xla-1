@@ -494,7 +494,9 @@ xla::Shape XLATensor::shape_with_layout() const {
       tensor_shape.get().element_type(), GetDevice().hw_type);
 }
 
-const Device& XLATensor::GetDevice() const { return data()->device; }
+const Device& XLATensor::GetDevice() const {
+  return CompileWatcher::GetDeviceMapping(data()->device);
+}
 
 void XLATensor::SetDevice(const std::string& device) {
   const Device new_device(device);
@@ -1004,7 +1006,9 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
     const std::vector<XLATensor>& tensors, const SyncTensorsConfig& config) {
   xla::util::Unique<Device> unique_device;
   for (size_t i = 0; i < tensors.size(); ++i) {
-    unique_device.set(tensors[i].GetDevice());
+    unique_device.set(
+      /*map_device(*/tensors[i].GetDevice()/*)*/
+    );
   }
   SyncTensorCollection coll;
   if (!unique_device) {

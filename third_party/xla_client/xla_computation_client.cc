@@ -512,6 +512,27 @@ void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handl
   }
 }
 
+//void XlaComputationClient::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {
+//  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
+//  assert(!from_device.empty());
+//  assert(from_device != to_device);
+//  if (to_device.empty()) {
+//    device_mapping_.erase(from_device);
+//  } else {
+//    device_mapping_[from_device] = to_device;
+//  }
+//}
+//
+//std::string XlaComputationClient::GetDeviceMapping(const std::string& device) {
+//  assert(!device.empty());
+//  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
+//  auto iter = device_mapping_.find(device);
+//  if (iter != device_mapping_.end()) {
+//    return iter->second;
+//  }
+//  return device;
+//}
+
 ComputationClient::DataPtr
 XlaComputationClient::CreateDataPlaceholder(std::string device, Shape shape) {
   // In case we wish to create a special type of DataPtr
@@ -961,7 +982,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation
           std::cout << "\t*** No mapping for argument handle:"
                     << argument->GetOpaqueHandle() << " @" << argument->device()
                     << std::endl << std::flush;
-          throw std::runtime_error("Unable to map argument to new device");
+          //throw std::runtime_error("Unable to map argument to new device");
         }
         std::cout << "\t-> effective argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
                   << " shape = " << argument->shape()

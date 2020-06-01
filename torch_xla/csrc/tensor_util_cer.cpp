@@ -22,6 +22,7 @@ namespace torch_xla {
 
 bool verbose = false;
 const bool IGNORE_FIRST_MARK_STEP = true;
+const bool ENABLE_DEVICE_REMAPPING = true;
 
 bool is_true(const char *s) {
   if (s && *s) {
@@ -331,6 +332,9 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_
         //  Maybe even inspect the proposed HLO graph for compatibility.
         std::cout << "**** ELIGIBLE FOR WSE COMPILE ****"
                   << ", hash=" << hash << ", device=" << device << ENDL;
+        if (ENABLE_DEVICE_REMAPPING) {
+          SetDeviceMapping(device, GetDevice().ToString());
+        }
       } else {
         // THIS COULD BE ASYNC
 //              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_
@@ -509,6 +513,39 @@ bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor, pid_t 
       != compile_info->output_ids_.end();
   // TODO: Ensure that the directly-ensuing compile is this set of input/outputs
   return found;
+}
+
+void CompileWatcher::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {
+  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
+  assert(!from_device.empty());
+  assert(from_device != to_device);
+  if (to_device.empty()) {
+    device_mapping_.erase(from_device);
+  } else {
+    device_mapping_[from_device] = std::make_pair(Device(to_device), true);
+  }
+}
+
+std::mutex CompileWatcher::device_mapping_mtx_;
+std::unordered_map<std::string, std::pair<Device, bool>> CompileWatcher::device_mapping_;
+
+std::string CompileWatcher::GetDeviceMapping(const std::string& device) {
+  assert(!device.empty());
+  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
+  auto iter = device_mapping_.find(device);
+  if (iter != device_mapping_.end() && iter->second.second /* enabled? */) {
+    return iter->second.first.ToString();
+  }
+  return device;
+}
+
+const torch_xla::Device& CompileWatcher::GetDeviceMapping(const Device& device) {
+  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
+  auto iter = device_mapping_.find(device.ToString());
+  if (iter != device_mapping_.end() && iter->second.second /* enabled? */) {
+    return iter->second.first;
+  }
+  return device;
 }
 
 }  // namespace torch_xla
