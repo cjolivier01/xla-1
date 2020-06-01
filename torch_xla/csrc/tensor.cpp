@@ -1529,6 +1529,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
       LookupCachedCompile(*tensors, coll.hash, coll.indices, &parameters_data);
     if (cached_computation) {
       // Force recompile
+      SetCurrentDevice(wse_device);
       Device wse_device = CompileWatcher::GetDevice();
       compile_result = Compile(*tensors, devices, coll, &wse_device);
     }

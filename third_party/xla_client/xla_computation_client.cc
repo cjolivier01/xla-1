@@ -210,7 +210,21 @@ RESULT_T split_types(
   }
   return std::move(results);
 }
-}  // namespace
+
+class MoveScope {
+public:
+  MoveScope() { ++in_move_scope_; }
+  ~MoveScope() { ++in_move_scope_; }
+  static bool IsInMoveScope() {
+    return in_move_scope_ != 0;
+  }
+private:
+  static __thread size_t in_move_scope_;
+};
+__thread size_t MoveScope::in_move_scope_ = 0;
+
+
+}  // anonymous namespace
 
 class XlaComputationClient::XlaClientInfo {
 public:
@@ -596,6 +610,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenSer
   bool release_from_source,  // TODO: always kill the old one and then move it back when necessary
   bool add_mapping_entry
 ) {
+  MoveScope moving_data;
   HERE();
   auto results =
     split_types<std::vector<ComputationClient::DataPtr>>(
