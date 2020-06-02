@@ -9,7 +9,6 @@
 #include "tensorflow/core/protobuf/cluster.pb.h"
 #include "tensorflow/core/protobuf/tensorflow_server.pb.h"
 #include "tensorflow/core/public/session_options.h"
-#include "tensorflow/core/util/util.h"
 
 namespace xla {
 namespace {
@@ -50,16 +49,10 @@ void FillServerDef(const std::string& cluster_spec, const std::string& job_name,
 
 }  // namespace
 
-
 XrtLocalService::XrtLocalService(const std::string& cluster_spec,
                                  const std::string& job_name, int task_index) {
-//  std::cout << "XrtLocalService::XrtLocalService() cluster_spec=" << cluster_spec
-//            << ", job_name=" << job_name <<
-//            ", task_index=" << task_index
-//            << std::endl << std::flush;
   tensorflow::ServerDef server_def;
   FillServerDef(cluster_spec, job_name, task_index, &server_def);
-  std::cout << msg_to_json(server_def) << ENDL;
   TF_CHECK_OK(tensorflow::NewServer(server_def, &server_));
 }
 

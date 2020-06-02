@@ -32,9 +32,6 @@
 #include "tensorflow/core/util/util.h"
 
 namespace xla {
-
-XrtComputationClient::Worker ParseWorker(const std::string& worker);
-
 namespace {
 
 bool verbose = true;
@@ -377,19 +374,6 @@ XrtComputationClient::TransferToServerInternal(
     absl::Span<const TensorSource> tensors) {
   metrics::TimedSection timed(TransferToServerMetric());
 
-//  if (verbose) {
-//    ColorScope clr(Color::FG_BLUE);
-//    std::cout << getpid() << " XrtComputationClient::TransferToServerInternal( ";
-//    size_t i = 0;
-//    for (const TensorSource& t : tensors) {
-//      if (i++) {
-//        std::cout << ", ";
-//      }
-//      std::cout << t.shape << "@" << DeviceSummary(t.device);
-//    }
-//    std::cout << ")" << std::endl << std::flush;
-//  }
-
   std::mutex lock;
   XrtSessionCache::SessionMap session_map;
   int64 total_size = 0;
@@ -414,7 +398,6 @@ XrtComputationClient::TransferToServerInternal(
           std::lock_guard<std::mutex> slock(lock);
           XrtSession* session = GetSessionForXrtDevice(
               alloc_session_cache_.get(), xrt_device, &session_map);
-          //std::cout << "Session target: " << session->target() << ENDL;
           SessionWork* session_work = &session_work_map[session];
           tensorflow::Scope device_scope =
               session->root()->WithDevice(xrt_device);
@@ -647,9 +630,6 @@ XrtComputationClient::ExecuteComputation(
   XrtSession* session =
       GetSessionForDevice(session_cache_.get(), effective_device, &session_map);
   std::vector<tensorflow::Tensor> outputs;
-
-  auto my_session = session->session();
-
   util::CheckComputationStatus(
       session->session()->Run(feed_inputs, {exec_ops.front()}, &outputs),
       {&computation.computation()}, {&computation.program_shape().result()});
@@ -941,8 +921,7 @@ XrtComputationClient::ExecuteChainedSplit(
 }
 
 std::vector<std::vector<ComputationClient::DataPtr>>
-XrtComputationClient
-::DeconstructTuple(absl::Span<const DataPtr> tuples) {
+XrtComputationClient::DeconstructTuple(absl::Span<const DataPtr> tuples) {
   metrics::TimedSection timed(DeconstructTupleMetric());
 
   XrtSessionCache::SessionMap session_map;
@@ -1006,9 +985,6 @@ XrtSession* XrtComputationClient::GetSessionForTarget(
 XrtSession* XrtComputationClient::GetSessionForXrtDevice(
     XrtSessionCache* cache, const std::string& xrt_device,
     XrtSessionCache::SessionMap* session_map) {
-//  if (strstr(xrt_device.c_str(), "WSE") != 0) {
-//    std::cout << "GetSessionForXrtDevice( " << xrt_device << ")" << std::endl << std::flush;
-//  }
   auto worker_hostport = GetWorkerForXrtDevice(xrt_device);
   return GetSessionForTarget(cache, worker_hostport.second, session_map);
 }
@@ -1258,7 +1234,6 @@ void XrtComputationClient::ReleaseXrtData(const std::string& device,
 
 void XrtComputationClient::ReleaseXrtComputation(
     const std::string& compilation_device, int64 handle) {
-  HEREX();
   ReleaseHandle(handle, compilation_device, &released_compile_handles_);
   ReleaseCompileHandlesCounter()->AddValue(1);
 }
@@ -1268,9 +1243,6 @@ XrtComputationClient::GetWorkerForXrtDevice(
     const std::string& xrt_device) const {
   tensorflow::DeviceNameUtils::ParsedName parsed_device =
       ParseFullXrtDevice(xrt_device);
-  if (parsed_device.task != 0) {
-    std::cout << "Device task != 1: " << xrt_device << std::endl << std::flush;
-  }
   auto worker_hostport =
       options_.workers_map.find(Worker(parsed_device.job, parsed_device.task));
   XLA_CHECK(worker_hostport != options_.workers_map.end()) << xrt_device;
@@ -1295,7 +1267,6 @@ const std::vector<int>& XrtComputationClient::GetDeviceMeshCoords(
 tensorflow::tpu::TopologyProto XrtComputationClient::InitializeAndFetchTopology(
     const std::string& job, int task_no, const std::string& worker_host_port,
     const tensorflow::ConfigProto& config) {
-  HERE();
   tensorflow::SessionOptions session_options;
   session_options.env = tensorflow::Env::Default();
   session_options.target = worker_host_port;
@@ -1340,15 +1311,12 @@ void XrtComputationClient::InitializeDevices(
     std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto) {
   if (topology_proto == nullptr) {
     std::set<Worker> tpu_workers;
-    std::set<Worker> wse_workers;  // TODO: probably don't need this
     for (const auto& dev_target : options_.global_device_map) {
       tensorflow::DeviceNameUtils::ParsedName parsed_device =
           ParseFullXrtDevice(dev_target.second);
       if (IsMeshable(parsed_device.type)) {
         tpu_workers.emplace(parsed_device.job, parsed_device.task);
-      } //else if (parsed_device.type == "WSE") {
-        //wse_workers.emplace(parsed_device.job, parsed_device.task);
-      //}
+      }
     }
     if (!tpu_workers.empty()) {
       const Worker& worker = *tpu_workers.begin();
@@ -1358,22 +1326,15 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          XlaComputationClient::InitializeAndFetchTopology(
-              worker.name, worker.task_no, it->second,
-              session_cache_->GetConfig());
+          InitializeAndFetchTopology(worker.name, worker.task_no, it->second,
+                                     session_cache_->GetConfig());
       if (topology_proto == nullptr) {
-          topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
-              std::move(worker_topology_proto));
+        topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
+            std::move(worker_topology_proto));
       }
     }
     if (topology_proto != nullptr) {
       TF_VLOG(1) << "TPU topology: " << topology_proto->DebugString();
-    }
-  } else {
-    {
-      ColorScope clr(Color::FG_MAGENTA);
-      std::cout << "Initializing devices on an WORKER or STANDALONE"
-                << std::endl << std::flush;
     }
   }
   for (const auto& dev_target : options_.global_device_map) {
@@ -1470,11 +1431,9 @@ XrtComputationClient::GetComputationResults(
     const tensorflow::Tensor& xrt_result, const Shape& result_shape,
     const std::string& device) {
   std::vector<DataPtr> results;
-  //std::cout << "result_shape: " << result_shape << ", output shape: " << xrt_result.shape().DebugString() << std::endl << std::flush;
   if (xrt_result.dims() == 1) {
     auto handles_vec = xrt_result.vec<int64>();
     for (int64 i = 0; i < handles_vec.size(); ++i) {
-      auto hv = handles_vec(i);
       results.push_back(std::make_shared<XrtData>(
           this, device, ShapeUtil::GetTupleElementShape(result_shape, i),
           handles_vec(i)));
@@ -1489,9 +1448,6 @@ XrtComputationClient::GetComputationResults(
 
 std::string XrtComputationClient::GetResourceDomain(
     const std::string& device) const {
-  if (strncmp(device.c_str(), "WSE:", 4) == 0) {
-    return "wse:0;grpc://localhost:40934";
-  }
   return GetWorkerForDevice(device).second;
 }
 
@@ -1505,7 +1461,7 @@ size_t XrtComputationClient::GetNumDevices() const {
 
 std::vector<std::string> XrtComputationClient::GetLocalDevices() const {
   return std::vector<std::string>(options_.devices.begin(),
-                                   options_.devices.end());
+                                  options_.devices.end());
 }
 
 std::vector<std::string> XrtComputationClient::GetAllDevices() const {
@@ -1886,7 +1842,6 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
   static const std::string* const grpc_proto = new std::string("grpc://");
   tensorflow::ConfigProto config;
   if (options.workers_map.size() > 1) {
-    std::cout << "Cluster, since more than one worker" << ENDL;
     tensorflow::ClusterDef* cluster_def = config.mutable_cluster_def();
     std::map<std::string, tensorflow::JobDef*> jobs;
     for (auto& worker_target : options.workers_map) {
@@ -1901,11 +1856,6 @@ tensorflow::ConfigProto XrtComputationClient::CreateConfigProto(
           StripPrefix(worker_target.second, *grpc_proto);
     }
   }
-//  if (verbose) {
-//    std::cout << "CreateConfigProto(): "
-//              << msg_to_json(config)
-//              << ENDL;
-//  }
   return config;
 }
 

@@ -1142,7 +1142,6 @@ class XLATensor {
 
   struct CompilationResult {
     Device device;
-    
     size_t emitted_nodes = 0;
     std::shared_ptr<xla::ComputationClient::Computation> computation;
     std::vector<xla::ComputationClient::DataPtr> parameters_data;

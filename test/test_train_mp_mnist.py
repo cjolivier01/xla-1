@@ -26,7 +26,6 @@ import torch_xla.utils.utils as xu
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.xla_multiprocessing as xmp
 import torch_xla.test.test_utils as test_utils
-#import torch_xla.core.xla_env_vars as xenv
 
 
 class MNIST(nn.Module):
@@ -174,7 +173,7 @@ def train_mnist():
   test_utils.close_summary_writer(writer)
   xm.master_print('Max Accuracy: {:.2f}%'.format(max_accuracy))
   return max_accuracy
-pwd
+
 
 def _mp_fn(index, flags):
   global FLAGS
@@ -187,6 +186,7 @@ def _mp_fn(index, flags):
     print('Accuracy {} is below target {}'.format(accuracy,
                                                   FLAGS.target_accuracy))
     sys.exit(21)
+
 
 if __name__ == '__main__':
   import os
