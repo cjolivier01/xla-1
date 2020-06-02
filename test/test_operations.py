@@ -36,6 +36,7 @@ import torch_xla.debug.metrics as met
 import torch_xla.debug.model_comparator as mc
 import torch_xla.distributed.parallel_loader as pl
 import torch_xla.utils.utils as xu
+import torch_xla.utils.serialization as xser
 import torch_xla.core.xla_model as xm
 import torch_xla.core.functions as xf
 import torchvision
@@ -1484,6 +1485,18 @@ class TestAtenXlaTensor(XlaTestCase):
     loaded_model = cpu_model.to(xla_device)
     self.assertEqual(model.state_dict(), loaded_model.state_dict())
 
+  def test_serialization_api(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, 'data.pt')
+      xla_device = xm.xla_device()
+      model = XlaMNIST().to(xla_device)
+      xser.save(model.state_dict(), path)
+      state_dict = xser.load(path)
+      cpu_model = XlaMNIST()
+      cpu_model.load_state_dict(state_dict)
+      loaded_model = cpu_model.to(xla_device)
+      self.assertEqual(model.state_dict(), loaded_model.state_dict())
+
   def test_deepcopy(self):
     xla_device = xm.xla_device()
     x = torch.rand(5, device=xla_device)
@@ -1694,7 +1707,8 @@ class TestOpBuilder(XlaTestCase):
                        aten_fn=None,
                        device=None,
                        rel_err=1e-2,
-                       abs_err=1e-5):
+                       abs_err=1e-5,
+                       kwargs=dict()):
     op = xor.register(name, opfn)
     if device is None:
       device = xm.xla_device()
@@ -1704,8 +1718,8 @@ class TestOpBuilder(XlaTestCase):
     xla_tensors = [
         x.to(device).detach().requires_grad_(x.requires_grad) for x in tensors
     ]
-    results = xu.as_list(aten_fn(*tensors))
-    xla_results = xu.as_list(op(*xla_tensors))
+    results = xu.as_list(aten_fn(*tensors, **kwargs))
+    xla_results = xu.as_list(op(*xla_tensors, **kwargs))
     self.compareResults(results, xla_results, rel_err=rel_err, abs_err=abs_err)
 
   def test_add(self):
@@ -1723,6 +1737,67 @@ class TestOpBuilder(XlaTestCase):
 
     self.runOpBuilderTest(
         'test_mul', [torch.randn(2, 2), torch.randn(2, 2)], op_fn)
+
+  def test_conditional(self):
+
+    def op_fn(k, a, b, k0=None):
+
+      def btrue(a, b):
+        return a + b
+
+      def bfalse(a, b):
+        return a - b
+
+      cond = k > xb.Op.scalar(k.builder(), k0, dtype=k.shape().dtype)
+      return cond.mkconditional((a, b), btrue, bfalse)
+
+    def aten_fn(k, a, b, k0=None):
+      return a + b if k.item() > k0 else a - b
+
+    self.runOpBuilderTest(
+        'test_conditional',
+        [torch.tensor(0.2),
+         torch.randn(2, 2),
+         torch.randn(2, 2)],
+        op_fn,
+        aten_fn=aten_fn,
+        kwargs={'k0': 0.1})
+    self.runOpBuilderTest(
+        'test_conditional',
+        [torch.tensor(0.2),
+         torch.randn(2, 2),
+         torch.randn(2, 2)],
+        op_fn,
+        aten_fn=aten_fn,
+        kwargs={'k0': 0.9})
+
+  def test_while(self):
+
+    def op_fn(a, b, limit=None):
+
+      def cond(counter, a, b):
+        return counter < xb.Op.scalar(
+            counter.builder(), limit, dtype=xb.Type.S32)
+
+      def body(counter, a, b):
+        next_counter = counter + xb.Op.scalar(
+            counter.builder(), 1, dtype=xb.Type.S32)
+        return xb.Op.tuple((next_counter, a + b, b))
+
+      zero = xb.Op.scalar(a.builder(), 0, dtype=xb.Type.S32)
+      w = xb.Op.mkwhile((zero, a, b), cond, body)
+      return w.get_tuple_element(1)
+
+    def aten_fn(a, b, limit=None):
+      for _ in range(0, limit):
+        a = a + b
+      return a
+
+    self.runOpBuilderTest(
+        'test_while', [torch.randn(2, 2), torch.randn(2, 2)],
+        op_fn,
+        aten_fn=aten_fn,
+        kwargs={'limit': 10})
 
 
 class TestGeneric(XlaTestCase):

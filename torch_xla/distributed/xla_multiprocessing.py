@@ -316,7 +316,7 @@ class MpModelWrapper(object):
       model = WRAPPED_MODEL.to(device)
       ...
 
-    xmp.spwan(_mp_fn, ..., start_method='fork')
+    xmp.spawn(_mp_fn, ..., start_method='fork')
 
   This method has two advantages. First if uses only one copy of the memory
   pages to host the original model weights, and second it serializes the move
@@ -363,7 +363,7 @@ class MpSerialExecutor(object):
       dataset = SERIAL_EXEC.run(lambda: load_dataset('/tmp/mnist-data'))
       ...
 
-    xmp.spwan(_mp_fn, ...)
+    xmp.spawn(_mp_fn, ...)
   """
 
   def __init__(self):

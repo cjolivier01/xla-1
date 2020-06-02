@@ -54,6 +54,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_memory_format_clone',
         'test_memory_format_factory_like_functions_preserve',  # assertion error
         'test_min_max_binary_op_nan',
+        'test_minmax_illegal_dtype',  # Checking runtime error
         'test_mm_xla_bfloat16',  # FIXME: AssertionError: tensor(0.0625) not less than or equal to 0.001
         'test_lu_solve_batched_non_contiguous',
         'test_linspace_xla',  # Takes forever due to inlined sliced equality tests over 1M elements.
@@ -131,6 +132,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_matrix_rank',  # slow
         'test_triu_tril',
         'test_stft',  # librosa (?!?) missing
+        'test_strided_mismatched_stride_shape',  # Checking runtime error
         'test_tensor_shape_empty',  # LLVM OOM in CI
         'test_cholesky_inverse',  # precision (1e-6)
         'test_cholesky_solve_batched',  # precision (2e-12)
