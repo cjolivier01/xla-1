@@ -73,7 +73,7 @@ tf_cc_shared_object(
     srcs = [
         #"touch.cc",
     ],
-    copts=[], # [ "-ggdb3", "-O0" ],
+    copts = [ "-ggdb3", "-O0" ],
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [
@@ -106,7 +106,7 @@ tf_cc_shared_object(
         "touch.cc",
         #"@com_google_absl//absl/strings",
     ],
-    copts=[], # [ "-ggdb3", "-O0" ],
+    copts = [ "-ggdb3", "-O0" ],
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [
@@ -165,8 +165,9 @@ cc_library(
         "triggered_task.cc",
         "util.cc",
         "xla_util.cc",
+        "xla_computation_client.cc",
         "xrt_computation_client.cc",
-        "xrt_computation_client_wse.cc",
+        "xrt_computation_client_ext_intf.cc",
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
@@ -191,8 +192,8 @@ cc_library(
         "unique.h",
         "util.h",
         "xla_util.h",
+        "xla_computation_client.h",
         "xrt_computation_client.h",
-        "xrt_computation_client_wse.h",
         "xrt_local_service.h",
         "xrt_session.h",
         "xrt_session_cache.h",
@@ -246,6 +247,15 @@ cc_library(
         "//tensorflow/stream_executor:stream_executor_impl",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/strings",
+<<<<<<< HEAD
+=======
+        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
+        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
+        "//tensorflow/compiler/xla/client:xla_builder",
+        "//tensorflow/core/platform/cloud:gcs_file_system",
+        "//tensorflow/compiler/xla/rpc:grpc_service",
+
+>>>>>>> origin/chriso/v2.2.0
     ] + if_cuda_is_configured([
         "@local_config_nccl//:nccl",
         "//tensorflow/compiler/jit:xla_gpu_device",

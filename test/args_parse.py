@@ -14,6 +14,7 @@ def parse_common_options(datadir=None,
                          lr=None,
                          momentum=None,
                          target_accuracy=None,
+                         master=False,
                          opts=None):
   parser = argparse.ArgumentParser(add_help=False)
   parser.add_argument('--datadir', type=str, default=datadir)
@@ -30,6 +31,7 @@ def parse_common_options(datadir=None,
   parser.add_argument('--fake_data', action='store_true')
   parser.add_argument('--tidy', action='store_true')
   parser.add_argument('--metrics_debug', action='store_true')
+  parser.add_argument('--master', type=bool, default=master)  # @cjolivier01
   if opts:
     for name, aopts in opts:
       parser.add_argument(name, **aopts)

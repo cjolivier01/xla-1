@@ -215,6 +215,9 @@ struct MeshService::Impl {
     builder.AddListeningPort(address, ::grpc::InsecureServerCredentials());
     builder.RegisterService(&impl);
     server = builder.BuildAndStart();
+    std::cout << "Mesh service listening on at address: "
+              << "XRT_MESH_SERVICE_ADDRESS=" << address
+              << std::endl << std::flush;
   }
 
   MeshServiceImpl impl;
@@ -258,6 +261,7 @@ MeshClient::MeshClient(const std::string& address) : impl_(new Impl(address)) {
       std::chrono::system_clock::now() +
       std::chrono::seconds(connect_wait_seconds)))
       << "Failed to connect to client mesh master: " << address;
+  std::cout << "Connected to mesh master" << std::endl << std::flush;
 }
 
 MeshClient::~MeshClient() {}

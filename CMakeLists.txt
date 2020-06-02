@@ -42,6 +42,8 @@ message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(/home/chriso/src/ml_frameworks/pytorch_xla/third_party/tensorflow)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-genfiles)
@@ -75,6 +77,10 @@ set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 
 add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
 add_dependencies(ptxla link_torch link_torch_python link_c10 link_shm link_torch_global_deps)
+
+if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+    include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+endif()
 
 link_directories(${CMAKE_BINARY_DIR}/lib)
 

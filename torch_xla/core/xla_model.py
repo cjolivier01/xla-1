@@ -49,7 +49,7 @@ def get_xla_supported_devices(devkind=None, max_devices=None):
     The list of device strings.
   """
   xla_devices = torch_xla._XLAC._xla_get_devices()
-  devkind = devkind or ['TPU', 'GPU', 'CPU']
+  devkind = devkind or ['TPU', 'GPU', 'CPU', 'WSE']
   for kind in devkind:
     kind_devices = []
     for i, device in enumerate(xla_devices):
@@ -631,6 +631,10 @@ def save(data, file_or_path, master_only=True, global_master=False):
   if should_write_data:
     torch.save(cpu_data, file_or_path)
   rendezvous('torch_xla.core.xla_model.save')
+
+def sync_tensors(tensors):
+  torch_xla._XLAC._xla_sync_multi(
+    tensors, devices=[], wait=True, sync_xla_data=True)
 
 
 def _maybe_convert_to_cpu(data, convert=True):

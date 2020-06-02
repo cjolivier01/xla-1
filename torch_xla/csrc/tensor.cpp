@@ -538,7 +538,29 @@ xla::Shape XLATensor::shape_with_layout() const {
       xla_shape.get().element_type(), GetDevice().hw_type);
 }
 
-const Device& XLATensor::GetDevice() const { return data()->device; }
+const Device& XLATensor::GetDevice() const {
+  return CompileWatcher::GetDeviceMapping(data()->device);
+}
+
+void XLATensor::SetDevice(const std::string& device) {
+  const Device new_device(device);
+//  auto prev_data = data();
+  if (data()->device != new_device) {
+//    FetchTensorData();
+//    std::shared_ptr<Data> new_data = std::make_shared<Data>(
+//      prev_data->ir_value,
+//      new_device,
+//      prev_data->logical_element_type
+//    );
+//    data()->device = new_device;
+    //data()->xla_data.reset();
+//    new_data->view = prev_data->view;
+//    new_data->tensor_data = prev_data->tensor_data;
+//    new_data->generation = prev_data->generation;
+
+//    data_ = new_data;
+  }
+}
 
 xla::int64 XLATensor::GetUniqueId() const { return data()->unique_id; }
 
@@ -1087,7 +1109,9 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
     const std::vector<XLATensor>& tensors, const SyncTensorsConfig& config) {
   xla::util::Unique<Device> unique_device;
   for (size_t i = 0; i < tensors.size(); ++i) {
-    unique_device.set(tensors[i].GetDevice());
+    unique_device.set(
+      /*map_device(*/tensors[i].GetDevice()/*)*/
+    );
   }
   SyncTensorCollection coll;
   if (!unique_device) {
@@ -1139,6 +1163,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
         at_tensors.push_back(*tensor_data);
         devices.push_back(tensors[i].GetDevice().ToString());
         at_tensor_index.push_back(i);
+        //print_tensor("CollectSyncTensors", tensors[i]);
       }
     }
   }
@@ -1302,6 +1327,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
                  << " on device " << async->device << " done!";
 
       for (size_t i = 0; i < results.size(); ++i) {
+        //std::cout << "ExecuteComputation result " << i << results[i]->shape() << std::endl << std::flush;
         if (async->tensors_data[i] != nullptr) {
           async->tensors_data[i]->Assign(*results[i]);
         } else {
@@ -1529,6 +1555,12 @@ XLATensor::CompilationResult XLATensor::Compile(
     // turn everything into DEVICE_DATA, so we can activate aliasing.
     BuildInputOutputAliases(tensors, coll.indices, &lowering_ctx);
   }
+  // Might add a proxy device to the Hlo
+  CompileWatcher::PreProcessHlo(
+    xla::ComputationClient::Get(),
+    lowering_ctx.builder(),
+    coll.requesting_tid
+  );
 
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());

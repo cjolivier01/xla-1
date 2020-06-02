@@ -61,10 +61,12 @@ class ComputationClient {
   class Computation {
    public:
     Computation(XlaComputation computation, ProgramShape program_shape,
-                std::vector<std::string> devices)
+                std::vector<std::string> devices,
+                int64 execution_handle = 0)
         : computation_(std::move(computation)),
           program_shape_(std::move(program_shape)),
-          devices_(std::move(devices)) {}
+          devices_(std::move(devices)),
+          execution_handle_(execution_handle){}
 
     virtual ~Computation() {}
 
@@ -74,10 +76,13 @@ class ComputationClient {
 
     const std::vector<std::string>& devices() const { return devices_; }
 
+    const int64 execution_handle() const { return execution_handle_; }
+
    private:
     XlaComputation computation_;
     ProgramShape program_shape_;
     std::vector<std::string> devices_;
+    int64 execution_handle_;  // optional
   };
 
   using ComputationPtr = std::shared_ptr<Computation>;
@@ -267,6 +272,7 @@ class ComputationClient {
   static ComputationClient* Get();
 
  protected:
+
   // Metrics common to all client intrfaces.
   static metrics::Metric* TransferToServerMetric();
   static metrics::Metric* TransferToServerTransformMetric();

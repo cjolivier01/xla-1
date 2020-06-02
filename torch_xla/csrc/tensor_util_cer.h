@@ -6,7 +6,6 @@
 
 #include "torch_xla/csrc/tensor.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
-#include "third_party/xla_client/xrt_computation_client_ext_intf.h"
 
 namespace torch_xla {
 enum EPythonState {
@@ -83,9 +82,6 @@ class CompileWatcher {
 public:
   typedef void *compiler_t;  // TODO: make this the device
   typedef size_t hash_t;
-  static void SetLiveInterface(
-      std::shared_ptr<xla::ptxla::XrtComputationClientExternalInterface> interface
-  );
   static void NotifyCompile(
     compiler_t opaque,
     std::vector<xla::ComputationClient::CompileInstance>& instances,
@@ -103,6 +99,7 @@ public:
     const std::vector<std::string>&
     devices
   );
+  static void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
   static bool IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid);
   static bool IsWseRunReady(compiler_t opaque, pid_t tid);
   static bool IsWseRunning(compiler_t opaque, pid_t tid);
@@ -118,9 +115,19 @@ public:
 //      std::shared_ptr<XLATensor::Async> async);
     //static std::string GetDevice();
     static Device GetDevice();
+    static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
+    static const Device& GetDeviceMapping(const Device& device);
+    static std::string GetDeviceMapping(const std::string& device);
     static bool IsTrainingThread(pid_t tid);
+    static bool PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, pid_t tid);
 private:
-  static void Reset(compiler_t opaque, pid_t tid, bool reset_hash);
+  static void SetAllDevices(const std::vector<std::string>& all_devices);
+  static bool HasWseDevices();
+  static bool Reset(compiler_t opaque, pid_t tid, bool reset_hash);
+  static std::vector<std::string> wse_devices_;
+
+  static std::mutex device_mapping_mtx_;
+  static std::unordered_map<std::string, std::pair<Device, bool>> device_mapping_;
 };
 
 inline pid_t gettid() {

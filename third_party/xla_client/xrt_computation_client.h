@@ -8,6 +8,7 @@
 #include <mutex>
 #include <string>
 #include <utility>
+#include <sstream>
 
 #include "absl/types/optional.h"
 #include "tensorflow/cc/client/client_session.h"
@@ -34,6 +35,7 @@
 namespace xla {
 
 class XrtComputationClient : public ComputationClient {
+  friend class XlaComputationClient;
   struct DeviceHandle {
     std::string device;
     int64 handle;
@@ -53,14 +55,27 @@ class XrtComputationClient : public ComputationClient {
 
   struct XrtData : public Data {
     XrtData(std::string device, Shape device_shape)
-        : Data(std::move(device), std::move(device_shape)) {}
+        : Data(std::move(device), std::move(device_shape)) {
+      if(Data::device().empty()) {
+        std::cout << "XrtData given empty device" << std::endl << std::flush;
+        assert(false);
+      }
+    }
     XrtData(XrtComputationClient* self, std::string device, Shape device_shape,
             int64 handle)
         : Data(std::move(device), std::move(device_shape)),
           handle_ptr(std::make_shared<XrtHandle>(
               handle, [self, device = this->device(), handle]() {
                 self->ReleaseXrtData(device, handle);
-              })) {}
+              })) {
+      if(Data::device().empty()) {
+        std::cout << "XrtData given empty device" << std::endl << std::flush;
+        assert(false);
+      }
+//      if (handle == 9) {
+//        std::cout << "Created XrtData with handle: " << handle << std::endl << std::flush;
+//      }
+    }
 
     int64 get_handle() const { return handle_ptr->handle; }
 
@@ -112,6 +127,12 @@ class XrtComputationClient : public ComputationClient {
 
     bool operator==(const Worker& rhs) const {
       return task_no == rhs.task_no && name == rhs.name;
+    }
+
+    std::string ToString() const {
+      std::stringstream ss;
+      ss << name << ", task_no=" << task_no;
+      return ss.str();
     }
 
     std::string name;
@@ -300,7 +321,7 @@ class XrtComputationClient : public ComputationClient {
   void ReleaseHandle(int64 handle, const std::string& device,
                      std::vector<DeviceHandle>* handles);
 
-  void ReleaseXrtData(const std::string& device, int64 handle);
+  virtual void ReleaseXrtData(const std::string& device, int64 handle);
 
   void ReleaseXrtComputation(const std::string& compilation_device,
                              int64 handle);
@@ -444,6 +465,8 @@ class XrtComputationClient : public ComputationClient {
   const XrtSession::CachedNode& GetSubTupleNode(
       XrtSession* session, const tensorflow::Scope& scope,
       const std::string& device) const;
+
+  std::string DeviceSummary(const std::string& device, bool verbose = false) const;
 
   // Checks the result of a compile operation, and dumps the XLA computation
   // graphs in case of error.

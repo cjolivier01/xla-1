@@ -18,6 +18,7 @@
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_wse.h"
 #include "tensorflow/core/platform/net.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
 #include "tensorflow/core/util/device_name_utils.h"
 
 namespace xla {
@@ -112,6 +113,9 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
       if (!IsLocalDevice(worker, parsed_device, dev_task_map)) {
         continue;
       }
+      std::cout << "Found local device: " << device_xrt_device.first
+                <<  " (" << device_xrt_device.second
+                << std::endl << std::flush;
     }
     options->devices.insert(device_xrt_device.first);
 
@@ -124,6 +128,9 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
     auto it = min_ordinals.find(kind);
     if (it != min_ordinals.end()) {
       options->default_device = absl::StrCat(kind, ":", it->second);
+      std::cout << "Setting default local device to: "
+                << options->default_device
+                << std::endl << std::flush;
       break;
     }
   }
@@ -207,16 +214,24 @@ bool ParseMeshConfig(
     XrtComputationClient::Worker worker(config_worker.name(),
                                         config_worker.task_no());
     options->workers_map.emplace(worker, config_worker.address());
+    std::cout << "Found worker in config: " << config_worker.name()
+              << ", task_no=" << config_worker.task_no()
+              << std::endl << std::flush;
 
     for (auto& device : config_worker.devices()) {
       XrtComputationClient::Device local_device(device.local_name());
+      std::cout << "\tFound worker's global device in config: " << device.global_name()
+                << std::endl << std::flush;
       options->global_device_map.emplace(
           device.global_name(),
           GetXrtDevicePath(worker.name, worker.task_no, local_device.kind,
                            local_device.ordinal));
       if (local_worker == worker &&
           (mp_device.empty() || device.global_name() == mp_device)) {
+        std::cout << "\t+Matched local worker device: " << device.global_name() << std::endl << std::flush;
         options->devices.insert(device.global_name());
+      } else {
+        std::cout << "\t-Discarded unmatched local worker device: " << device.global_name() << std::endl << std::flush;
       }
     }
   }
@@ -269,7 +284,7 @@ std::unique_ptr<ComputationClient> ComputationClient::Create() {
   }
   PopulateLocalDevices(&options);
   return std::unique_ptr<ComputationClient>(
-      new XrtComputationClientWse(options, std::move(topology_proto)));
+      new XlaComputationClient(options, std::move(topology_proto)));
 }
 
 std::shared_ptr<ComputationClient::Computation> ComputationClient::Compile(
