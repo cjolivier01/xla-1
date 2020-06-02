@@ -1,19 +1,19 @@
 #define COMPILING_FROM_PTXLA
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
 
-#include "tensorflow/compiler/xla/rpc/grpc_service.h"
+//#include "tensorflow/compiler/xla/rpc/grpc_service.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/compiler/xla/rpc/xla_service.grpc.pb.h"
 
-#include <memory>
-#include <vector>
-#include <strstream>
+//#include <memory>
+//#include <vector>
+//#include <strstream>
 
-#include <grpcpp/security/server_credentials.h>
-#include <grpcpp/server.h>
-#include <grpcpp/server_builder.h>
-#include <grpcpp/client_context.h>
-#include <grpcpp/security/credentials.h>
+//#include <grpcpp/security/server_credentials.h>
+//#include <grpcpp/server.h>
+//#include <grpcpp/server_builder.h>
+//#include <grpcpp/client_context.h>
+//#include <grpcpp/security/credentials.h>
 
 namespace xla {
 

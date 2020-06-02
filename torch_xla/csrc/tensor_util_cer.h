@@ -80,8 +80,8 @@ class THelper {
  */
 class CompileWatcher {
 public:
-  typedef void *compiler_t;  // TODO: make this the device
-  typedef size_t hash_t;
+  typedef const void *compiler_t;  // TODO: make this the device
+  typedef xla::hash_t hash_t;
   static void NotifyCompile(
     compiler_t opaque,
     std::vector<xla::ComputationClient::CompileInstance>& instances,
@@ -90,7 +90,7 @@ public:
   );
   static void NotifyExecute(
     compiler_t opaque,
-    std::string& device,
+    const std::string& device,
     hash_t hash,
     pid_t tid
   );

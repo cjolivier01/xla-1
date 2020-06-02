@@ -542,25 +542,25 @@ const Device& XLATensor::GetDevice() const {
   return CompileWatcher::GetDeviceMapping(data()->device);
 }
 
-void XLATensor::SetDevice(const std::string& device) {
-  const Device new_device(device);
-//  auto prev_data = data();
-  if (data()->device != new_device) {
-//    FetchTensorData();
-//    std::shared_ptr<Data> new_data = std::make_shared<Data>(
-//      prev_data->ir_value,
-//      new_device,
-//      prev_data->logical_element_type
-//    );
-//    data()->device = new_device;
-    //data()->xla_data.reset();
-//    new_data->view = prev_data->view;
-//    new_data->tensor_data = prev_data->tensor_data;
-//    new_data->generation = prev_data->generation;
-
-//    data_ = new_data;
-  }
-}
+//void XLATensor::SetDevice(const std::string& device) {
+//  const Device new_device(device);
+////  auto prev_data = data();
+//  if (data()->device != new_device) {
+////    FetchTensorData();
+////    std::shared_ptr<Data> new_data = std::make_shared<Data>(
+////      prev_data->ir_value,
+////      new_device,
+////      prev_data->logical_element_type
+////    );
+////    data()->device = new_device;
+//    //data()->xla_data.reset();
+////    new_data->view = prev_data->view;
+////    new_data->tensor_data = prev_data->tensor_data;
+////    new_data->generation = prev_data->generation;
+//
+////    data_ = new_data;
+//  }
+//}
 
 xla::int64 XLATensor::GetUniqueId() const { return data()->unique_id; }
 
@@ -1516,8 +1516,7 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
 XLATensor::CompilationResult XLATensor::Compile(
     const std::vector<XLATensor>& tensors,
     absl::Span<const std::string> devices, const SyncTensorCollection& coll,
-    PostOrderData* po_data,
-    const Device *force_on_device) {
+    PostOrderData* po_data) {
   static const bool enable_aliasing =
       xla::sys_util::GetEnvBool("XLA_ENABLE_PARAM_ALIASING", true);
   ir::LoweringContext lowering_ctx("SyncTensorsGraph", coll.device,

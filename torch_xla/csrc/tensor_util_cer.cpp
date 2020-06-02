@@ -66,7 +66,7 @@ void XLATensor::print_tensor_ex(const std::string& label, const XLATensor& tenso
 void XLATensor::print_tensor_ex(const std::string& label,
     const XLATensor::Data* data, bool assert, ptrdiff_t alias_id) {
   if (data->ir_value) {
-    std::cout << label << " (id=" << data->unique_id << ", type = " << data->tensor_type << ") "
+    std::cout << label << " (id=" << data->unique_id << ") "
               << " IR tensor of shape: " << data->ir_value.shape().ToString()
               << std::endl << std::flush;
     if (assert) {
@@ -75,7 +75,7 @@ void XLATensor::print_tensor_ex(const std::string& label,
     }
   } else if (data->xla_data) {
     // coming from _xla_tensors_from_aten in at least one case
-    std::cout << label << " (id=" << data->unique_id << ", type = " << data->tensor_type << ") "
+    std::cout << label << " (id=" << data->unique_id << ") "
               << " tensor with no ir_value of shape: "
               << data->xla_data->shape().ToString()
               << std::endl << std::flush;
@@ -84,7 +84,7 @@ void XLATensor::print_tensor_ex(const std::string& label,
       assert(!data->view);
     }
   } else if(data->view) {
-    std::cout << label << " (id=" << data->unique_id << ", type = " << data->tensor_type << ") "
+    std::cout << label << " (id=" << data->unique_id << ") "
               << " tensor with view of shape: "
               << data->view->shape().ToString()
               << std::endl << std::flush;
@@ -93,7 +93,7 @@ void XLATensor::print_tensor_ex(const std::string& label,
       assert(!data->xla_data);
     }
   } else {
-    std::cout << label << " (id=" << data->unique_id << ", type = " << data->tensor_type << ") "
+    std::cout << label << " (id=" << data->unique_id << ") "
               << " strange tensor of unknown size"
               << std::endl << std::flush;
   }
@@ -311,7 +311,7 @@ void CompileWatcher::NotifyCompile(
   }
 }
 
-void CompileWatcher::NotifyExecute(compiler_t opaque, std::string& device, hash_t hash, pid_t tid) {
+void CompileWatcher::NotifyExecute(compiler_t opaque, const std::string& device, hash_t hash, pid_t tid) {
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }

@@ -38,7 +38,6 @@
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
 #include "torch_xla/csrc/tensor_util_cer.h"
-#include "third_party/xla_client/xrt_computation_client_ext_intf.h"
 #include "torch_xla/csrc/xla_op_builder.h"
 
 namespace torch_xla {

@@ -247,28 +247,17 @@ cc_library(
         "//tensorflow/stream_executor:stream_executor_impl",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/strings",
-<<<<<<< HEAD
-=======
-        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
-        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
-        "//tensorflow/compiler/xla/client:xla_builder",
-        "//tensorflow/core/platform/cloud:gcs_file_system",
-        "//tensorflow/compiler/xla/rpc:grpc_service",
-
->>>>>>> origin/chriso/v2.2.0
+#        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
+#        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
+#        "//tensorflow/compiler/xla/client:xla_builder",
+#        "//tensorflow/core/platform/cloud:gcs_file_system",
+#        "//tensorflow/compiler/xla/rpc:grpc_service",
     ] + if_cuda_is_configured([
         "@local_config_nccl//:nccl",
         "//tensorflow/compiler/jit:xla_gpu_device",
     ]),
     alwayslink = 1,
     linkstatic = 1,
-)
-
-filegroup(
-    name = "xla_client_runtime_srcs",
-    srcs = [
-    ],
-    #visibility = [":friends"],
 )
 
 filegroup(
