@@ -31,7 +31,7 @@ def is_xla_tensor(tensor):
 
 
 def parse_xla_device(device):
-  m = re.match(r'(CPU|TPU|GPU):(\d+)$', device)
+  m = re.match(r'(CPU|TPU|GPU|WSE):(\d+)$', device)
   if m:
     return (m.group(1), int(m.group(2)))
 

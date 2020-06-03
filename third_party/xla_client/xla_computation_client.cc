@@ -51,7 +51,7 @@ namespace {
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool always_use_proxy = false;
+bool always_use_proxy = true;
 bool wse_set_topology = false;
 bool clone_all_data = true;
 std::string CLONE_DATA_DEVICE = "WSE:1";

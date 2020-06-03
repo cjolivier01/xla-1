@@ -206,17 +206,17 @@ function install_torchvision_from_source() {
 }
 
 function main() {
-  setup_system
-  maybe_install_sources
-  install_req_packages
-  install_llvm_clang
-  install_and_setup_conda
-  build_and_install_torch
-  pushd xla
-  build_and_install_torch_xla
-  popd
+#  setup_system
+#  maybe_install_sources
+#  install_req_packages
+#  install_llvm_clang
+#  install_and_setup_conda
+#  build_and_install_torch
+#  pushd xla
+#  build_and_install_torch_xla
+#  popd
   install_torchvision_from_source
-  install_gcloud
+#  install_gcloud
 }
 
 main
