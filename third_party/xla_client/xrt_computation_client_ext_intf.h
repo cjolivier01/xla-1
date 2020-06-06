@@ -94,7 +94,7 @@ private:
   std::default_random_engine generator_;
   std::uniform_int_distribution<int> distribution_;
 };
-using UidUtilPtr = std::shared_ptr<UidUtil>;
+using UidUtilSP = std::shared_ptr<UidUtil>;
 
 // Quick version of XRTMemoryManager until we can get on
 // the other side of a grpc boundary
@@ -115,7 +115,7 @@ class MemoryManager {
   };
 public:
 
-  MemoryManager(UidUtilPtr uid_util_ptr): uid_util_ptr_(uid_util_ptr) {}
+  MemoryManager(UidUtilSP uid_util_ptr): uid_util_ptr_(uid_util_ptr) {}
 
   /**
    * @brief Check for valid handle
@@ -220,7 +220,7 @@ public:
   }
 
 private:
-  UidUtilPtr uid_util_ptr_;
+  UidUtilSP uid_util_ptr_;
   mutable std::mutex mem_buffers_mtx_;
   std::unordered_map<int64, std::shared_ptr<LiteralDataEntry>> literal_map_;
   std::unordered_map<int64, xla::DeviceHandle> literal_handle_to_device_handle_;
@@ -279,7 +279,7 @@ public:
    * @brief ExecutableManager constructor
    * @param uid_util_ptr UID generator
    */
-  ExecutableManager(UidUtilPtr uid_util_ptr)
+  ExecutableManager(UidUtilSP uid_util_ptr)
     : uid_util_ptr_(uid_util_ptr) {}
 
     /**
@@ -332,7 +332,7 @@ public:
   }
 
 private:
-  UidUtilPtr uid_util_ptr_;
+  UidUtilSP uid_util_ptr_;
   std::mutex executor_map_mtx_;
   std::unordered_map<std::size_t, ExecutableInfoSP> executor_info_map_;
 };
@@ -343,7 +343,7 @@ private:
 class SimpleXlaService : public xla::XlaService::Service {
   typedef xla::XlaService::Service Super;
 public:
-  SimpleXlaService(UidUtilPtr uid_util_ptr)
+  SimpleXlaService(UidUtilSP uid_util_ptr)
     : uid_util_ptr_(uid_util_ptr),
       memory_manager_(std::make_unique<MemoryManager>(uid_util_ptr)),
       executable_manager_(std::make_unique<ExecutableManager>(uid_util_ptr)) {}
@@ -765,7 +765,7 @@ protected:
   }
 
 protected:
-  UidUtilPtr uid_util_ptr_;
+  UidUtilSP uid_util_ptr_;
   std::unique_ptr<::grpc::Server> server_;
   std::unique_ptr<MemoryManager> memory_manager_;
   std::unique_ptr<ExecutableManager> executable_manager_;
