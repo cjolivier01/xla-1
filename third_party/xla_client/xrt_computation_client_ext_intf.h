@@ -267,7 +267,7 @@ private:
   const xla::CompileRequest compile_request_;
   const std::size_t handle_;
 };
-using ExecutableInfoPtr = std::shared_ptr<ExecutableInfo>;
+using ExecutableInfoSP = std::shared_ptr<ExecutableInfo>;
 
 
 /**
@@ -314,7 +314,7 @@ public:
   /**
    * Retreive up an executable by handle
    */
-  ExecutableInfoPtr GetExecutable(handle_t handle) {
+  ExecutableInfoSP GetExecutable(handle_t handle) {
     std::lock_guard<std::mutex> lk(executor_map_mtx_);
     auto found = executor_info_map_.find(handle);
     if (found == executor_info_map_.end()) {
@@ -334,7 +334,7 @@ public:
 private:
   UidUtilPtr uid_util_ptr_;
   std::mutex executor_map_mtx_;
-  std::unordered_map<std::size_t, ExecutableInfoPtr> executor_info_map_;
+  std::unordered_map<std::size_t, ExecutableInfoSP> executor_info_map_;
 };
 
 /**
@@ -411,7 +411,7 @@ protected:
    */
   ::grpc::Status Compile(::grpc::ServerContext* context, const ::xla::CompileRequest* request, ::xla::CompileResponse* response) override {
     std::cout << "XLA Compile" << std::endl << std::flush;
-    ExecutableInfoPtr exec = executable_manager_->Create<ExecutableInfo>(*request);
+    ExecutableInfoSP exec = executable_manager_->Create<ExecutableInfo>(*request);
     response->mutable_handle()->set_handle(exec->handle());
     return ::grpc::Status::OK;
   }
@@ -426,7 +426,7 @@ protected:
   ::grpc::Status Execute(::grpc::ServerContext* context, const ::xla::ExecuteRequest* request, ::xla::ExecuteResponse* response) override {
     std::cout << "XLA Execute" << std::endl << std::flush;
     // Get the executable
-    ExecutableInfoPtr executable = executable_manager_->GetExecutable(request->handle().handle());
+    ExecutableInfoSP executable = executable_manager_->GetExecutable(request->handle().handle());
     if (!executable) {
       return ::grpc::Status(::grpc::StatusCode::NOT_FOUND, "Executable not found");
     }
