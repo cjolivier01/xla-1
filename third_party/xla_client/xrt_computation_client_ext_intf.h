@@ -94,7 +94,7 @@ private:
   std::default_random_engine generator_;
   std::uniform_int_distribution<int> distribution_;
 };
-using UidUtilSP = std::shared_ptr<UidUtil>;
+using UidManagerSP = std::shared_ptr<UidUtil>;
 
 // Quick version of XRTMemoryManager until we can get on
 // the other side of a grpc boundary
@@ -115,7 +115,7 @@ class MemoryManager {
   };
 public:
 
-  MemoryManager(UidUtilSP uid_util_ptr): uid_util_ptr_(uid_util_ptr) {}
+  MemoryManager(UidManagerSP uid_manager): uid_manager_(uid_manager) {}
 
   /**
    * @brief Check for valid handle
@@ -190,7 +190,7 @@ public:
     results.reserve(count);
     for (size_t i = 0; i < count; ++i) {
       const int ordinal = device_ordinals_allocated_++;
-      const int64 handle = uid_util_ptr_->CreateDeviceUid(ordinal);
+      const int64 handle = uid_manager_->CreateDeviceUid(ordinal);
       const int check_ordinal = UidUtil::GetDeviceOrdinalFromHandle(handle);
       assert(check_ordinal == ordinal);
       results.emplace_back(xla::DeviceHandle());
@@ -220,7 +220,7 @@ public:
   }
 
 private:
-  UidUtilSP uid_util_ptr_;
+  UidManagerSP uid_manager_;
   mutable std::mutex mem_buffers_mtx_;
   std::unordered_map<int64, std::shared_ptr<LiteralDataEntry>> literal_map_;
   std::unordered_map<int64, xla::DeviceHandle> literal_handle_to_device_handle_;
@@ -277,10 +277,10 @@ class ExecutableManager {
 public:
   /**
    * @brief ExecutableManager constructor
-   * @param uid_util_ptr UID generator
+   * @param uid_manager UID generator
    */
-  ExecutableManager(UidUtilSP uid_util_ptr)
-    : uid_util_ptr_(uid_util_ptr) {}
+  ExecutableManager(UidManagerSP uid_manager)
+    : uid_manager_(uid_manager) {}
 
     /**
      * @brief Create an executable for the gin device (ala Compiler::RunBackend())
@@ -291,7 +291,7 @@ public:
   std::shared_ptr<EXECUTABLE_T> Create(xla::CompileRequest compile_request) {
     std::shared_ptr<EXECUTABLE_T> result =  std::make_shared<EXECUTABLE_T>(
       std::move(compile_request),
-      uid_util_ptr_->CreateUid()  // can have multiple device handles :(
+      uid_manager_->CreateUid()  // can have multiple device handles :(
     );
     std::lock_guard<std::mutex> lk(executor_map_mtx_);
     executor_info_map_.insert(std::make_pair(result->handle(), result));
@@ -332,7 +332,7 @@ public:
   }
 
 private:
-  UidUtilSP uid_util_ptr_;
+  UidManagerSP uid_manager_;
   std::mutex executor_map_mtx_;
   std::unordered_map<std::size_t, ExecutableInfoSP> executor_info_map_;
 };
@@ -343,10 +343,10 @@ private:
 class SimpleXlaService : public xla::XlaService::Service {
   typedef xla::XlaService::Service Super;
 public:
-  SimpleXlaService(UidUtilSP uid_util_ptr)
-    : uid_util_ptr_(uid_util_ptr),
-      memory_manager_(std::make_unique<MemoryManager>(uid_util_ptr)),
-      executable_manager_(std::make_unique<ExecutableManager>(uid_util_ptr)) {}
+  SimpleXlaService(UidManagerSP uid_manager)
+    : uid_manager_(uid_manager),
+      memory_manager_(std::make_unique<MemoryManager>(uid_manager)),
+      executable_manager_(std::make_unique<ExecutableManager>(uid_manager)) {}
 
   virtual ~SimpleXlaService() {}
 
@@ -765,7 +765,7 @@ protected:
   }
 
 protected:
-  UidUtilSP uid_util_ptr_;
+  UidManagerSP uid_manager_;
   std::unique_ptr<::grpc::Server> server_;
   std::unique_ptr<MemoryManager> memory_manager_;
   std::unique_ptr<ExecutableManager> executable_manager_;
