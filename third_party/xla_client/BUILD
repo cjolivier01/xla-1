@@ -41,7 +41,7 @@ tf_proto_library_cc(
 )
 
 tf_cc_shared_object(
-    name = "lib_xla_computation_client_standalone.so",
+    name = "libxla_computation_client.so",
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [
@@ -68,86 +68,6 @@ tf_cc_shared_object(
     ],
 )
 
-tf_cc_shared_object(
-    name = "libxla_computation_client.so",
-    srcs = [
-        #"touch.cc",
-    ],
-    copts = [ "-ggdb3", "-O0" ],
-    linkopts = select({
-        "//tensorflow:windows": [],
-        "//conditions:default": [
-            "-z defs",
-            "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
-            "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
-        ],
-    }),
-    visibility = ["//visibility:public"],
-    deps = [
-        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
-        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
-        "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/types:optional",
-        "@com_google_absl//absl/types:span",
-        "@com_google_protobuf//:protobuf",
-
-        # "//tensorflow/python:_pywrap_tensorflow_internal.so"
-    ],
-)
-
-tf_cc_shared_object(
-    name = "libxla_computation_client_standalone.so",
-    srcs = [
-        "touch.cc",
-        #"@com_google_absl//absl/strings",
-    ],
-    copts = [ "-ggdb3", "-O0" ],
-    linkopts = select({
-        "//tensorflow:windows": [],
-        "//conditions:default": [
-            "-z defs",
-            "-s",
-            "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
-            "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
-        ],
-    }),
-    visibility = ["//visibility:public"],
-    deps = [
-        ":computation_client_impl",
-        ":xla_client_runtime_hdrs",
-        "//tensorflow/compiler/xla:literal_util",
-        "//tensorflow/compiler/xla/client",
-        "//tensorflow/compiler/xla/client:global_data",
-        "//tensorflow/compiler/xla/client:xla_builder",
-        "//tensorflow/compiler/xla/client:xla_computation",
-        "//tensorflow/compiler/xla/client/lib:svd",
-        "//tensorflow/tools/xla_extract:wse_hlo",
-        "//tensorflow/stream_executor:wse_platform",
-        "//tensorflow/compiler/xla/rpc:grpc_stub",
-        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
-        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
-        "//tensorflow/core:lib",
-        "//tensorflow/core/platform/cloud:gcs_file_system",
-
-        "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/types:optional",
-        "@com_google_absl//absl/types:span",
-        "@com_google_protobuf//:protobuf",
-
-        # "//tensorflow/python:_pywrap_tensorflow_internal.so"
-    ],
-)
-
 cc_library(
     name = "computation_client_impl",
     srcs = [
@@ -167,7 +87,6 @@ cc_library(
         "xla_util.cc",
         "xla_computation_client.cc",
         "xrt_computation_client.cc",
-        "xrt_computation_client_ext_intf.cc",
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
@@ -197,7 +116,6 @@ cc_library(
         "xrt_local_service.h",
         "xrt_session.h",
         "xrt_session_cache.h",
-        ":xla_client_runtime_hdrs",
     ],
     copts = [ "-ggdb3", "-O0" ],
     deps = [
@@ -247,23 +165,9 @@ cc_library(
         "//tensorflow/stream_executor:stream_executor_impl",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/strings",
-#        "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
-#        "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
-#        "//tensorflow/compiler/xla/client:xla_builder",
-#        "//tensorflow/core/platform/cloud:gcs_file_system",
-#        "//tensorflow/compiler/xla/rpc:grpc_service",
     ] + if_cuda_is_configured([
         "@local_config_nccl//:nccl",
         "//tensorflow/compiler/jit:xla_gpu_device",
     ]),
     alwayslink = 1,
-    linkstatic = 1,
-)
-
-filegroup(
-    name = "xla_client_runtime_hdrs",
-    srcs = [
-        "xrt_computation_client_ext_intf.h",
-    ],
-    #visibility = [":friends"],
 )

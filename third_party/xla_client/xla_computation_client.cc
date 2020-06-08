@@ -43,9 +43,11 @@ using namespace tensorflow;
 
 namespace xla {
 
-int StartLocalWseXlaService(int port);
+//int StartLocalWseXlaService(int port);
 
 namespace {
+
+bool verbose = true;
 
 /**
  * @brief Force always using the proxy server for everyting
@@ -56,12 +58,20 @@ bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
 std::string CLONE_DATA_DEVICE = "WSE:0";
-
-bool verbose = true;
+//constexpr int XLA_SERVICE_GRPC_PORT = 1685;
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
 //const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
 const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:0";
+
+std::shared_ptr<xla::ptxla::SimpleXlaService> wse_xla_service{nullptr};
+int StartLocalWseXlaService(int port) {
+  wse_xla_service = std::make_shared<xla::ptxla::SimpleXlaService>(
+    std::make_shared<xla::ptxla::UidUtil>()
+  );
+  wse_xla_service->Start(port, false);
+  return 0;
+}
 #endif
 
 std::vector<std::string> split(const std::string& str, const char delim) {
@@ -145,8 +155,6 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
   }
   return "";
 }
-
-constexpr int XLA_SERVICE_GRPC_PORT = 1685;
 
 using XlaClient = xla::grpc::XlaService::Stub;
 
@@ -267,10 +275,12 @@ public:
       handle_map_[dest].insert(src);
       cloned_data_map_[src] = cloned_data_ptr;
       cloned_data_map_[dest] = cloned_data_ptr;
-      std::cout << "Added mapping: " << handle << " @ " << device << " -> "
-                << cloned_data_ptr->GetOpaqueHandle() << " @ "
-                << cloned_data_ptr->device()
-                << std::endl << std::flush;
+      if (verbose) {
+        std::cout << "Added mapping: " << handle << " @ " << device << " -> "
+                  << cloned_data_ptr->GetOpaqueHandle() << " @ "
+                  << cloned_data_ptr->device()
+                  << std::endl << std::flush;
+      }
     } else {
       // Assure there's an entry, although it may be empty
       std::lock_guard<std::recursive_mutex> lock(mtx_);
@@ -303,11 +313,17 @@ public:
       if (cloned_iter != cloned_data_map_.end()) {
         ComputationClient::DataPtr p = cloned_iter->second;
         if (p->GetOpaqueHandle() == handle && p->device() == device) {
-          std::cout << "Freeing via LOCAL mapped: " << p->GetOpaqueHandle() << " @ " << p->device()
-                    << std::endl << std::flush;
+          if (verbose) {
+            std::cout << "Freeing via LOCAL mapped: " << p->GetOpaqueHandle() << " @ "
+                      << p->device()
+                      << std::endl << std::flush;
+          }
         } else {
-          std::cout << "Freeing via MAPPED  mapped: " << p->GetOpaqueHandle() << " @ " << p->device()
-                    << std::endl << std::flush;
+          if (verbose) {
+            std::cout << "Freeing via MAPPED  mapped: " << p->GetOpaqueHandle() << " @ "
+                      << p->device()
+                      << std::endl << std::flush;
+          }
         }
         cloned_data_map_.erase(cloned_iter);
         return p;
@@ -388,9 +404,7 @@ XlaComputationClient::XlaComputationClient(
 #endif
 }
 
-XlaComputationClient::~XlaComputationClient() {
-  std::cout << "DESTROY XlaComputationClient" << std::endl << std::flush;
-}
+XlaComputationClient::~XlaComputationClient() {}
 
 void XlaComputationClient::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
   std::shared_ptr<XlaClient> old_client;  // if exists, to be destroyed out of lock scope
@@ -412,6 +426,7 @@ void XlaComputationClient::SetDeviceProxyAddress(const std::string& device, cons
       std::make_pair(device, new_info)
     ).first;
     new_info->address_ = proxy_address;
+#ifdef START_LOCAL_WSE_XLA_SERVICE
     std::vector<std::string> addr = split(proxy_address, ':');
     if (addr.size() == 2 && addr[0] == "*") {
       const int port = std::atoi(addr[1].c_str());
@@ -420,6 +435,7 @@ void XlaComputationClient::SetDeviceProxyAddress(const std::string& device, cons
       new_info->address_ += ":";
       new_info->address_ += addr[1];
     }
+#endif
   } else {
     // was already there
     if (iter->second->address_ != proxy_address) {
@@ -495,15 +511,14 @@ bool XlaComputationClient::UseProxyForDevice(const std::string& device) const {
 
 void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handle) {
   // is it a wse device?
-  if (handle == 900000027) {
-    std::cout << "Found handle!" << std::endl;
-  }
   assert(!device.empty());
   if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
     auto client = GetXlaClient<XlaClient>(device, always_use_proxy);
     if (client && handle) {
-      ColorScope grn(Color::FG_GREEN);
-      std::cout << "Releasing global data handle: " << handle << std::endl << std::flush;
+      if (verbose) {
+        ColorScope grn(Color::FG_GREEN);
+        std::cout << "Releasing global data handle: " << handle << std::endl << std::flush;
+      }
       ::grpc::ClientContext context;
       xla::UnregisterRequest request;
       xla::UnregisterResponse response;
@@ -610,7 +625,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenSer
   bool add_mapping_entry
 ) {
   MoveScope moving_data;
-  HERE();
+  //HERE();
   auto results =
     split_types<std::vector<ComputationClient::DataPtr>>(
       source_data,
@@ -667,10 +682,11 @@ ComputationClient::DataPtr XlaComputationClient::TransferLiteralToServer(
     throw std::runtime_error(status.error_message());
   }
 
-  std::cout << "Sent data , received handle: " << response.data().handle()
-            << ", shape=" << literal.shape().ToString()
-            << std::endl << std::flush;
-
+  if (verbose) {
+    std::cout << "Sent data , received handle: " << response.data().handle()
+              << ", shape=" << literal.shape().ToString()
+              << std::endl << std::flush;
+  }
   return std::make_shared<XrtData>(
     this,
     device,
@@ -813,7 +829,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
   // TODO: ComputationPtr to return have modified HloModule and
   //       call Super with it (no proxy) on compile failure
   //
-  HERE();
+  //HERE();
   //raise(SIGTRAP);
   std::string compilation_device;
   auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
@@ -832,7 +848,9 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
         }
         compilation_device = device2;  // When switchign devices,
       }
-      std::cout << "Compile(" << compilation_device << ")" << std::endl << std::flush;
+      if (verbose) {
+        std::cout << "Compile(" << compilation_device << ")" << std::endl << std::flush;
+      }
       return UseProxyForDevice(compilation_device);
     },
     [this, &compilation_device](std::vector<CompileInstance>& instances) {
@@ -872,9 +890,11 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
             const ProgramShape program_shape = instance.computation.GetProgramShape().ValueOrDie();
             for (const Shape& parameter_shape : program_shape.parameters()) {
               ColorScope clr(Color::FG_CYAN);
-              std::cout << "Compile: Param " << param_num++
-                        <<  ", shape: " << parameter_shape
-                        << std::endl << std::flush;
+              if (verbose) {
+                std::cout << "Compile: Param " << param_num++
+                          <<  ", shape: " << parameter_shape
+                          << std::endl << std::flush;
+              }
               compile_request.add_input_shape_with_layout()->CopyFrom(parameter_shape.ToProto());
             }
 
@@ -888,9 +908,11 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
             const ::grpc::Status status =
               xla_client->Compile(&context, compile_request, &compile_response);
             if (status.ok()) {
-              std::cout << "computation id: " << compile_response.handle().handle()
-                        << " from proto id " << compile_request.mutable_computation()->id()
-                        << std::endl << std::flush;
+              if (verbose) {
+                std::cout << "computation id: " << compile_response.handle().handle()
+                          << " from proto id " << compile_request.mutable_computation()->id()
+                          << std::endl << std::flush;
+              }
               // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
               ComputationClient::ComputationPtr computation_ptr =
                 std::make_shared<ComputationClient::Computation>(
@@ -967,9 +989,11 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation
     request.set_allocated_handle(execution_handle.release());
 
     for (DataPtr argument : arguments) {
-      std::cout << "incoming argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
-                << " shape = " << argument->shape()
-                << std::endl << std::flush;
+      if (verbose) {
+        std::cout << "incoming argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
+                  << " shape = " << argument->shape()
+                  << std::endl << std::flush;
+      }
       if (argument->device() != effective_device && effective_device == CLONE_DATA_DEVICE) {
         if (data_mapper_->HasMapping(argument->device(), argument->GetOpaqueHandle())) {
           DataPtr mapped_argument = data_mapper_->GetMapping(
@@ -985,22 +1009,28 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation
               false,
               true
             );
-            std::cout << "Moved data for argument: "
-                      << argument->GetOpaqueHandle() << " @" << argument->device()
-                      << " ==> " << moved_arguments[0]->GetOpaqueHandle() << " @" << moved_arguments[0]->device()
-                      << std::endl << std::flush;
+            if (verbose) {
+              std::cout << "Moved data for argument: "
+                        << argument->GetOpaqueHandle() << " @" << argument->device()
+                        << " ==> " << moved_arguments[0]->GetOpaqueHandle() << " @" << moved_arguments[0]->device()
+                        << std::endl << std::flush;
+            }
             argument = moved_arguments[0];
           }
         } else {
           ColorScope red(Color::FG_RED);
-          std::cout << "\t*** No mapping for argument handle:"
-                    << argument->GetOpaqueHandle() << " @" << argument->device()
-                    << std::endl << std::flush;
+          if (verbose) {
+            std::cout << "\t*** No mapping for argument handle:"
+                      << argument->GetOpaqueHandle() << " @" << argument->device()
+                      << std::endl << std::flush;
+          }
           //throw std::runtime_error("Unable to map argument to new device");
         }
-        std::cout << "\t-> effective argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
-                  << " shape = " << argument->shape()
-                  << std::endl << std::flush;
+        if (verbose) {
+          std::cout << "\t-> effective argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
+                    << " shape = " << argument->shape()
+                    << std::endl << std::flush;
+        }
       }
       request.add_arguments()->set_handle(argument->GetOpaqueHandle());
     }
@@ -1072,9 +1102,11 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation
           Shape(response.shape()),
           element_handle.handle()
         );
-        std::cout << "WSE Execution result data: " << result_data->GetOpaqueHandle() << " @ " << result_data->device()
-                  << ", shape = " << result_data->shape().ToString()
-                  << std::endl << std::flush;
+        if (verbose) {
+          std::cout << "WSE Execution result data: " << result_data->GetOpaqueHandle() << " @ " << result_data->device()
+                    << ", shape = " << result_data->shape().ToString()
+                    << std::endl << std::flush;
+        }
         results.emplace_back(result_data);
       }
     } else {

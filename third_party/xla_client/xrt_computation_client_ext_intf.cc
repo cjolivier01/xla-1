@@ -511,6 +511,7 @@ std::shared_ptr<xla::ptxla::SimpleXlaService> wse_xla_service{nullptr};
 
 }
 
+std::shared_ptr<xla::ptxla::SimpleXlaService> wse_xla_service{nullptr};
 int StartLocalWseXlaService(int port) {
   wse_xla_service = std::make_shared<xla::ptxla::SimpleXlaService>(
     std::make_shared<xla::ptxla::UidUtil>()
