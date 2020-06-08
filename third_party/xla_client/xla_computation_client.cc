@@ -51,7 +51,7 @@ namespace {
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool using_grpc_service_main_cpu = true;
+bool using_grpc_service_main_cpu = false;
 bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
