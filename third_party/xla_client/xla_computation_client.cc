@@ -51,16 +51,17 @@ namespace {
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
+bool using_grpc_service_main_cpu = true;
 bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
-std::string CLONE_DATA_DEVICE = "WSE:1";
+std::string CLONE_DATA_DEVICE = "WSE:0";
 
 bool verbose = true;
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
 //const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
-const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:1";
+const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:0";
 #endif
 
 std::vector<std::string> split(const std::string& str, const char delim) {
@@ -446,7 +447,7 @@ std::shared_ptr<XlaClient>
       ::grpc::ClientContext client_context;
       xla::GetDeviceHandlesRequest request;
       xla::GetDeviceHandlesResponse response;
-      request.set_device_count(2); // HOW MANY DEVICES??
+      request.set_device_count(using_grpc_service_main_cpu ? 1 : 2); // HOW MANY DEVICES??
       ::grpc::Status status = iter->second->xla_client_->GetDeviceHandles(
         &client_context,
         request,
@@ -458,8 +459,6 @@ std::shared_ptr<XlaClient>
       iter->second->device_handles_.resize(0);
       iter->second->device_handles_.reserve(response.device_handles_size());
       for (const ::xla::DeviceHandle& device_handle : response.device_handles()) {
-        std::cout << "device handle: " << device_handle.handle()
-                  << std::endl << std::flush;
         iter->second->device_handles_.emplace_back(device_handle);
       }
     }
