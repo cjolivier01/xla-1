@@ -11,7 +11,7 @@ file(GLOB PTXLA_LIBDIRS "${PTXLA_DIR}/build/lib.*")
 list(GET PTXLA_LIBDIRS 0 PTXLA_LIBDIR)
 message("Selected PT/XLA library folder ${PTXLA_LIBDIR}")
 
-if ("${PT_DIR}" STREQUAL "")
+if (NOT "$ENV{Torch_DIR}" STREQUAL "")
   set(PT_DIR "$ENV{Torch_DIR}")
 endif()
 
@@ -111,6 +111,9 @@ execute_process(COMMAND "ln" "-s" "-f"
 
 find_library(PTXLA_LIB "libptxla.so"
   HINTS "${PTXLA_LIBDIR}")
+
+message(ERROR " PT_DIR=${PT_DIR}")
+
 find_library(PTPY_LIB "libtorch_python.so"
   HINTS "${PT_DIR}/torch/lib")
 
