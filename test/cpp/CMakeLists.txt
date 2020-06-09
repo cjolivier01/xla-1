@@ -11,6 +11,12 @@ file(GLOB PTXLA_LIBDIRS "${PTXLA_DIR}/build/lib.*")
 list(GET PTXLA_LIBDIRS 0 PTXLA_LIBDIR)
 message("Selected PT/XLA library folder ${PTXLA_LIBDIR}")
 
+if ("${PT_DIR}" STREQUAL "")
+  set(PT_DIR "$ENV{Torch_DIR}")
+endif()
+
+message(STATUS "PT_DIR=${PT_DIR}")
+
 project(ptxla_test)
 
 find_package(PythonLibs)

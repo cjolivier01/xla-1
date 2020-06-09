@@ -42,16 +42,14 @@ message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(/home/chriso/src/ml_frameworks/pytorch_xla/third_party/tensorflow)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-genfiles)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-bin)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/protobuf_archive/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_protobuf/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/eigen_archive)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_absl)
+#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-genfiles)
+#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
 
 include_directories(${TORCH_PATH})
 include_directories(${TORCH_PATH}/torch/csrc)
@@ -102,7 +100,7 @@ target_link_libraries(
         -lutil
         -pthread
         -lstdc++
-#        -lprotobuf
+        #-lprotobuf
         -ldl
 )
 
@@ -158,12 +156,20 @@ if (BUILD_TENSORFLOW)
     message(STATUS "TO LINK: ${TF_SOURCE_FILE} -> ${TF_DEST_FILE}")
 
     add_custom_target(
+            libxla_computation_client_mkdir
+            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
+            COMMAND "mkdir" "-p"
+            "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib"
+            DEPENDS libxla_computation_client_build
+    )
+
+    add_custom_target(
             libxla_computation_client
             BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
             COMMAND "ln" "-s" "-f"
             "${TF_SOURCE_FILE}"
             "${TF_DEST_FILE}"
-            DEPENDS libxla_computation_client_build
+            DEPENDS libxla_computation_client_mkdir libxla_computation_client_build
     )
 
 else()
