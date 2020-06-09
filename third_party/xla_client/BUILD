@@ -1,7 +1,5 @@
 licenses(["notice"])  # Apache 2.0
 
-load("//tensorflow:tensorflow.bzl", "tf_python_pybind_extension")
-
 package(default_visibility = ["//tensorflow:internal"])
 
 load(
@@ -90,7 +88,6 @@ cc_library(
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
-        "@com_google_absl//absl/strings",
     ],
     hdrs = [
         "cache.h",

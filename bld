@@ -1,2 +1,2 @@
 #/bin/bash
-PYTORCH_SOURCE_PATH=$(realpath $(pwd)/../pytorch) USE_CUDA=1 python setup.py bdist_wheel
+BUILD_CPP_TESTS=0 PYTORCH_SOURCE_PATH=$(realpath $(pwd)/../pytorch) USE_CUDA=1 python setup.py bdist_wheel

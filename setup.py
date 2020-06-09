@@ -303,7 +303,7 @@ setup(
         ],
     },
     data_files=[
-        'test/cpp/build/test_ptxla',
+        #'test/cpp/build/test_ptxla',
         'scripts/fixup_binary.py',
     ],
     cmdclass={

@@ -112,11 +112,6 @@ execute_process(COMMAND "ln" "-s" "-f"
 find_library(PTXLA_LIB "libptxla.so"
   HINTS "${PTXLA_LIBDIR}")
 
-message(ERROR " PT_DIR=${PT_DIR}")
-
-find_library(PTPY_LIB "libtorch_python.so"
-  HINTS "${PT_DIR}/torch/lib")
-
 # Use --unresolved-symbols=ignore-all to get around the c10::Half::from_bits
 # undefined symbol error at link time. At runtime everything resolves correctly.
 target_link_libraries(
