@@ -94,7 +94,7 @@ message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
 target_link_libraries(
         ptxla
         -Wl,--unresolved-symbols=ignore-in-shared-libs
-        "${TORCH_LIBRARIES}"
+#        "${TORCH_LIBRARIES}"
         "${PTPY_LIB}"
         "${PYTHON_LIBRARY}"
         -lutil
