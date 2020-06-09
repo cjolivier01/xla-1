@@ -976,6 +976,13 @@ void InitXlaModuleBindings(py::module m) {
     const xla::Shape& shape = XlaHelpers::ShapeOfXlaOp(op->op);
     return op_builder::ShapeToPyShape(shape);
   });
+  m.def("_set_device_override", [](std::string device) {
+    CompileWatcher::SetDeviceMapping(
+      GetDefaultDevice()->ToString(),
+      CompileWatcher::GetDevice().ToString()
+    );
+    // will GetCurrentDevice()/SetCurrentDevice() work?
+  });
   m.def("_xla_op_builder", [](op_builder::OpPtr op) { return op->builder; });
   m.def("_xla_op_create",
         [](op_builder::BuilderPtr builder, const std::string& opname,
