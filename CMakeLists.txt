@@ -90,18 +90,21 @@ set_target_properties(
 )
 
 message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
+message(STATUS "PTPY_LIB=${PTPY_LIB}")
+
+set(USE_TORCH_LIBRARIES torch torch_cpu c10 torch_python)
 
 target_link_libraries(
         ptxla
         -Wl,--unresolved-symbols=ignore-in-shared-libs
-#        "${TORCH_LIBRARIES}"
+        "${USE_TORCH_LIBRARIES}"
         "${PTPY_LIB}"
         "${PYTHON_LIBRARY}"
         -lutil
         -pthread
         -lstdc++
         #-lprotobuf
-        -ldl
+        #-ldl
 )
 
 add_custom_target(
@@ -113,42 +116,15 @@ add_custom_target(
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="-Wl,--gdb-index" ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
 
 if (BUILD_TENSORFLOW)
-    # get tensorflow include dirs, see https://www.tensorflow.org/how_tos/adding_an_op/
-#    execute_process(COMMAND python3 -c "import tensorflow; print(tensorflow.sysconfig.get_include())" OUTPUT_VARIABLE Tensorflow_INCLUDE_DIRS)
-#    execute_process(COMMAND python3 -c "import tensorflow as tf; print(' '.join(tf.sysconfig.get_link_flags()), end='')" OUTPUT_VARIABLE Tensorflow_LINK_FLAGS)
-#    execute_process(COMMAND python3 -c "import tensorflow as tf; print(' '.join(tf.sysconfig.get_compile_flags()), end='')" OUTPUT_VARIABLE Tensorflow_COMPILE_FLAGS)
+    set(LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME "libxla_computation_client.so")
+    set(LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME ${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME})
+    list(APPEND TENSORFLOW_TARGETS "//tensorflow/compiler/xla/xla_client:${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME}" PARENT_SCOPE)
 
-#    message(STATUS "Tensorflow_COMPILE_FLAGS: ${Tensorflow_COMPILE_FLAGS}")
-#    message(STATUS "Tensorflow_INCLUDE_DIRS: ${Tensorflow_INCLUDE_DIRS}")
-#    message(STATUS "Tensorflow_LINK_FLAGS: ${Tensorflow_LINK_FLAGS}")
-
-    #set(TF_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/third_party/tensorflow)
-
-#    if (STANDALONE_COMPUTATION_CLIENT)
-#        list(APPEND TENSORFLOW_TARGETS "//tensorflow/compiler/xla/xla_client:xla_computation_client_standalone.so")
-#    else()
-#        list(APPEND TENSORFLOW_TARGETS "//tensorflow/compiler/xla/xla_client:libxla_computation_client.so")
-#    endif()
-
-    #list(APPEND FRAMEWORK_LIBS ${TF_DIRECTORY}/bazel-out/host/bin/tensorflow/libtensorflow_framework.so)
-#        if (STANDALONE_COMPUTATION_CLIENT)
-#            set(LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME "_xla_computation_client_standalone.so")
-#            set(LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME lib${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME})
-#            list(APPEND TENSORFLOW_TARGETS "//tensorflow/compiler/xla/xla_client:${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
-#        else()
-            list(APPEND FRAMEWORK_LIBS ${TF_DIRECTORY}/bazel-bin/tensorflow/python/_pywrap_tensorflow_internal.so)
-            set(LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME "libxla_computation_client.so")
-            set(LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME ${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME})
-            list(APPEND TENSORFLOW_TARGETS "//tensorflow/compiler/xla/xla_client:${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME}" PARENT_SCOPE)
-#        endif()
-        set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
-        message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
-        target_link_libraries(ptxla ${LIBXLA_COMPUTATION_CLIENT_LIB})
-        target_link_libraries(ptxla ${FRAMEWORK_LIBS})
-        add_dependencies(ptxla libxla_computation_client)
-    #else()
-        #message(STATUS "Not linking to libxla_computation_client")
-    #endif()
+    set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
+    message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
+    target_link_libraries(ptxla ${LIBXLA_COMPUTATION_CLIENT_LIB})
+    target_link_libraries(ptxla ${FRAMEWORK_LIBS})
+    add_dependencies(ptxla libxla_computation_client)
 
     set(TF_SOURCE_FILE "${TF_DIRECTORY}/bazel-bin/tensorflow/compiler/xla/xla_client/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     set(TF_DEST_FILE "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
