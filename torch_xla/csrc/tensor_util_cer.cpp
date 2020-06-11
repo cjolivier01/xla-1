@@ -260,7 +260,7 @@ void CompileWatcher::SetDeviceProxyAddress(
   } else {
     throw std::runtime_error("Device proxying is not enabled");
   }
-  HEREX();
+  //HEREX();
 }
 
 bool CompileWatcher::HasWseDevices() {

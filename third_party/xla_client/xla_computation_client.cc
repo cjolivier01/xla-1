@@ -47,7 +47,7 @@ namespace xla {
 
 namespace {
 
-bool verbose = true;
+bool verbose = false;
 
 /**
  * @brief Force always using the proxy server for everyting
@@ -460,6 +460,7 @@ std::shared_ptr<XlaClient>
   if (!iter->second->xla_client_ && create) {
     iter->second->xla_client_ = CreateXlaClientInternal(iter->second->address_);
     if (iter->second->xla_client_) {
+
       ::grpc::ClientContext client_context;
       xla::GetDeviceHandlesRequest request;
       xla::GetDeviceHandlesResponse response;
@@ -475,7 +476,20 @@ std::shared_ptr<XlaClient>
       iter->second->device_handles_.resize(0);
       iter->second->device_handles_.reserve(response.device_handles_size());
       for (const ::xla::DeviceHandle& device_handle : response.device_handles()) {
+        // Add device to our device list
         iter->second->device_handles_.emplace_back(device_handle);
+
+        // Reset the device
+        ::grpc::ClientContext client_context;
+        xla::ResetDeviceRequest reset_device_request;
+        xla::ResetDeviceResponse reset_device_response;
+        *reset_device_request.mutable_device_handle() = device_handle;
+        ::grpc::Status status = iter->second->xla_client_->ResetDevice(
+          &client_context, reset_device_request, &reset_device_response
+        );
+        if (!status.ok()) {
+          throw std::runtime_error(status.error_message());
+        }
       }
     }
   }
