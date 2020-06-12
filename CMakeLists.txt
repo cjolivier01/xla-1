@@ -103,6 +103,7 @@ target_link_libraries(
         -lutil
         -pthread
         -lstdc++
+        -latomic
         #-lprotobuf
         #-ldl
 )
