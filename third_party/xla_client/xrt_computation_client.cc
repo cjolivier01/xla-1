@@ -26,7 +26,7 @@
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_local_service.h"
 #include "tensorflow/compiler/xrt/xrt_util.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/util.h"

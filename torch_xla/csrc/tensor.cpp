@@ -38,7 +38,7 @@
 #include "torch_xla/csrc/ops/xla_ops.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
-#include "torch_xla/csrc/tensor_util_cer.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 
 extern "C" {
 extern int is_autograd_thread();
@@ -1117,13 +1117,12 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
   }
   TF_VLOG(4) << "Waiting on device barrier for device " << coll.device
              << " done!";
-  CompileWatcher::ResetConsideredSyncOutputs(xla::ComputationClient::Get(), coll.requesting_tid);
   for (size_t i = 0; i < tensors.size(); ++i) {
     if (tensors[i].CurrentXlaData() == nullptr) {
       ir::Value ir_value = tensors[i].CurrentIrValue();
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
-          if (!CompileWatcher::IsAllowedOutput(xla::ComputationClient::Get(), tensors[i], coll.requesting_tid)) {
+          if (!CompileWatcher::IsAllowedOutput(tensors[i], coll.requesting_tid)) {
             static int message_count = 0;
             if (!message_count++) {
                 print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor (one message only)", tensors[i]);
@@ -1199,7 +1198,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
   }
   XLA_VALUE_METRIC("TensorsGraphSize", po_data->post_order.size());
   TF_VLOG(5) << "TensorsGraphSize=" << po_data->post_order.size();
-
+//  if (CompileWatcher::IsReadyHash(coll->hash, coll->requesting_tid)) {
+//    return nullptr;  // send back for compile for WSE device (same hash)
+//  }
   return ScheduleSyncTensorsGraph(
       tensors, coll, std::move(po_data->parameters_data),
       coll->device.ToString(), std::move(cached_computation));
@@ -1294,12 +1295,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
   auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      CompileWatcher::NotifyExecute(
-          xla::ComputationClient::Get(),
-          async->device,
-          hash,
-          requesting_tid
-      );
+      CompileWatcher::NotifyExecute(async->device, hash, requesting_tid);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
@@ -1535,12 +1531,13 @@ XLATensor::CompilationResult XLATensor::Compile(
     // turn everything into DEVICE_DATA, so we can activate aliasing.
     BuildInputOutputAliases(tensors, coll.indices, &lowering_ctx);
   }
+
+  std::stringstream ss;
+  ss << coll.hash;
+  print_all_tensors(ss.str(), tensors);
+
   // Might add a proxy device to the Hlo
-  CompileWatcher::PreProcessHlo(
-    xla::ComputationClient::Get(),
-    lowering_ctx.builder(),
-    coll.requesting_tid
-  );
+  CompileWatcher::PreProcessHlo(lowering_ctx.builder(), coll.hash, coll.requesting_tid);
 
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());
@@ -1553,12 +1550,7 @@ XLATensor::CompilationResult XLATensor::Compile(
                            coll.device.ToString(), devices),
                        &shape});
 
-  CompileWatcher::NotifyCompile(
-      xla::ComputationClient::Get(),
-      instances,
-      coll.hash,
-      coll.requesting_tid
-  );
+  CompileWatcher::NotifyCompile(instances, coll.hash, coll.requesting_tid);
 
   TF_VLOG(3) << "Compiling IR graph hash " << xla::util::HexHash(coll.hash)
              << " on device " << coll.device << " ...";

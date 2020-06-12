@@ -8,22 +8,22 @@
 
 namespace xla {
 
-class XlaComputationClient : public XrtComputationClient {
+class XlaComputationProxy : public XrtComputationClient {
     typedef XrtComputationClient Super;
 public:
   /**
-   * @brief Create XlaComputationClient object
+   * @brief Create XlaComputationProxy object
    * @param options
    * @param topology_proto
    */
-  XlaComputationClient(
+  XlaComputationProxy(
       Options options,
       std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
   );
   /**
-   * @brief Destroy the XlaComputationClient object
+   * @brief Destroy the XlaComputationProxy object
    */
-  ~XlaComputationClient();
+  ~XlaComputationProxy();
 
   // Creates a Data object with no actual device handle in it. The device handle
   // will be populated in an asynchrounous fashion.
@@ -59,8 +59,8 @@ public:
 //  void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
 //  std::string GetDeviceMapping(const std::string& device);
 
-  static XlaComputationClient *Get() {
-    return dynamic_cast<XlaComputationClient *>(Super::Get());
+  static XlaComputationProxy *Get() {
+    return dynamic_cast<XlaComputationProxy *>(Super::Get());
   }
 
 private:

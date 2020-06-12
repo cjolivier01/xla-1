@@ -37,7 +37,7 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
-#include "torch_xla/csrc/tensor_util_cer.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/xla_op_builder.h"
 
 namespace torch_xla {
@@ -229,7 +229,7 @@ void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
   auto opt_device = GetOptionalDevice(device_str);
   const Device* device = opt_device ? &opt_device.value() : nullptr;
-  CompileWatcher::NotifyStepMarker(xla::ComputationClient::Get(), devices);
+  CompileWatcher::NotifyStepMarker(devices);
   XLATensor::SyncLiveTensorsGraph(device, devices, wait);
   XLATensor::MarkStep(device);
 }
@@ -249,15 +249,8 @@ std::string GetTensorsHloGraph(const std::vector<at::Tensor>& tensors) {
   return XLATensor::DumpHloComputation(xtensors);
 }
 
-void SetInputsOutputs(const std::vector<at::Tensor>& input_tensors,
-                      const std::vector<at::Tensor>& output_tensors,
-                      bool append) {
-  CompileWatcher::SetInputsOutputs(
-      xla::ComputationClient::Get(),
-      input_tensors,
-      output_tensors,
-      append
-  );
+void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
+  CompileWatcher::SetOutputs(output_tensors, append);
 }
 
 void SetDeviceAddress(const std::string& device, const std::string& proxy_address) {
@@ -640,14 +633,11 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::vector<at::Tensor>& tensors) -> std::string {
           return GetTensorsHloGraph(tensors);
         });
-  m.def("_set_inputs_outputs",
-        [](const std::vector<at::Tensor>& input_tensors,
-             const std::vector<at::Tensor>& output_tensors,
-             bool append
+  m.def("_xla_set_outputs",
+        [](const std::vector<at::Tensor>& output_tensors, bool append
          ) {
-          SetInputsOutputs(input_tensors, output_tensors, append);
+          SetOutputs(output_tensors, append);
         },
-        py::arg("input_tensors") = std::vector<at::Tensor>(),
         py::arg("output_tensors") = std::vector<at::Tensor>(),
         py::arg("append") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
@@ -977,10 +967,11 @@ void InitXlaModuleBindings(py::module m) {
     return op_builder::ShapeToPyShape(shape);
   });
   m.def("_set_device_override", [](std::string device) {
-    CompileWatcher::SetDeviceMapping(
-      GetDefaultDevice()->ToString(),
-      CompileWatcher::GetDevice().ToString()
-    );
+    assert(false);  // not called yet, may not use
+//    CompileWatcher::SetDeviceMapping(
+//      GetDefaultDevice()->ToString(),
+//      CompileWatcher::GetDevice().ToString()
+//    );
     // will GetCurrentDevice()/SetCurrentDevice() work?
   });
   m.def("_xla_op_builder", [](op_builder::OpPtr op) { return op->builder; });

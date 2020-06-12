@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from six import iteritems, itervalues
 import threading
+import os
 import torch
 import torch_xla
 import torch_xla.utils.keyd_queue as kq
@@ -72,7 +73,7 @@ class ParallelLoader(object):
                batchdim=0,
                fixed_batch_size=False,
                loader_prefetch_size=8,
-               device_prefetch_size=4):
+               device_prefetch_size=None):
     self._loader = loader
     self._devices = [torch.device(x) for x in devices]
     self._batchdim = batchdim
@@ -80,6 +81,9 @@ class ParallelLoader(object):
     self._per_device_samples = len(loader) // len(devices)
     self._done = False
     self._queues = dict()
+    if not device_prefetch_size:
+      device_prefetch_size = int(
+        os.environ.get("XLA_DEFAULT_DEVICE_PREFETCH_SIZE", "4"))
     for device in self._devices:
       self._queues[device] = PerDeviceQueue(device, loader_prefetch_size,
                                             device_prefetch_size)

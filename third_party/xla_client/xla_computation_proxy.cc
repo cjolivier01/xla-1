@@ -1,6 +1,6 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/literal.h"
@@ -53,8 +53,8 @@ bool verbose = false;
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool using_grpc_service_main_cpu = false;
-bool always_use_proxy = false;
+bool using_grpc_service_main_cpu = true;
+bool always_use_proxy = true;
 bool wse_set_topology = false;
 bool clone_all_data = true;
 std::string CLONE_DATA_DEVICE = "WSE:0";
@@ -235,7 +235,7 @@ __thread size_t MoveScope::in_move_scope_ = 0;
 
 }  // anonymous namespace
 
-class XlaComputationClient::XlaClientInfo {
+class XlaComputationProxy::XlaClientInfo {
 public:
 
   inline std::shared_ptr<XlaClient> operator ()() { return xla_client_; }
@@ -249,7 +249,7 @@ public:
 /**
  * @brief GlobalDataHandleMapper handles data mapping between devices
  */
-class XlaComputationClient::GlobalDataHandleMapper {
+class XlaComputationProxy::GlobalDataHandleMapper {
 public:
   typedef int64 handle_t;
 
@@ -386,13 +386,13 @@ public:
 };
 
 
-XlaComputationClient::XlaComputationClient(
+XlaComputationProxy::XlaComputationProxy(
   Options options,
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)),
     data_mapper_(std::make_unique<GlobalDataHandleMapper>()) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
-  std::cout << "CREATE XlaComputationClient" << std::endl << std::flush;
+  std::cout << "CREATE XlaComputationProxy" << std::endl << std::flush;
 
 #ifdef START_LOCAL_WSE_XLA_SERVICE
   xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
@@ -404,9 +404,9 @@ XlaComputationClient::XlaComputationClient(
 #endif
 }
 
-XlaComputationClient::~XlaComputationClient() {}
+XlaComputationProxy::~XlaComputationProxy() {}
 
-void XlaComputationClient::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
+void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
   std::shared_ptr<XlaClient> old_client;  // if exists, to be destroyed out of lock scope
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   std::cout << "Setting device proxy: " << device << " -> " << proxy_address
@@ -449,7 +449,7 @@ void XlaComputationClient::SetDeviceProxyAddress(const std::string& device, cons
 
 template<>
 std::shared_ptr<XlaClient>
-  XlaComputationClient::GetXlaClient<XlaClient>(const std::string& device, bool create) {
+  XlaComputationProxy::GetXlaClient<XlaClient>(const std::string& device, bool create) {
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   auto iter = xla_client_map_.find(device);
   if (iter == xla_client_map_.end()) {
@@ -479,16 +479,18 @@ std::shared_ptr<XlaClient>
         // Add device to our device list
         iter->second->device_handles_.emplace_back(device_handle);
 
-        // Reset the device
-        ::grpc::ClientContext client_context;
-        xla::ResetDeviceRequest reset_device_request;
-        xla::ResetDeviceResponse reset_device_response;
-        *reset_device_request.mutable_device_handle() = device_handle;
-        ::grpc::Status status = iter->second->xla_client_->ResetDevice(
-          &client_context, reset_device_request, &reset_device_response
-        );
-        if (!status.ok()) {
-          throw std::runtime_error(status.error_message());
+        // Reset the device if supported
+        if (!using_grpc_service_main_cpu) {
+          ::grpc::ClientContext client_context;
+          xla::ResetDeviceRequest reset_device_request;
+          xla::ResetDeviceResponse reset_device_response;
+          *reset_device_request.mutable_device_handle() = device_handle;
+          ::grpc::Status status = iter->second->xla_client_->ResetDevice(
+            &client_context, reset_device_request, &reset_device_response
+          );
+          if (!status.ok()) {
+            throw std::runtime_error(status.error_message());
+          }
         }
       }
     }
@@ -496,7 +498,7 @@ std::shared_ptr<XlaClient>
   return iter->second->xla_client_;
 }
 
-xla::DeviceHandle XlaComputationClient::GetDeviceHandle(const std::string& device) {
+xla::DeviceHandle XlaComputationProxy::GetDeviceHandle(const std::string& device) {
   if (!GetXlaClient<XlaClient>(device, true)) {
     throw std::runtime_error("Failed to get XLA client for device");
   }
@@ -514,16 +516,17 @@ xla::DeviceHandle XlaComputationClient::GetDeviceHandle(const std::string& devic
   return info->device_handles_[ordinal];
 }
 
-bool XlaComputationClient::IsProxyDevice(const std::string& device) const {
+bool XlaComputationProxy::IsProxyDevice(const std::string& device) const {
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   return xla_client_map_.find(device) != xla_client_map_.end();
 }
 
-bool XlaComputationClient::UseProxyForDevice(const std::string& device) const {
-  assert(!device.empty());return IsProxyDevice(device) && (always_use_proxy || is_wse_device(device));
+bool XlaComputationProxy::UseProxyForDevice(const std::string& device) const {
+  assert(!device.empty());
+  return IsProxyDevice(device) && (always_use_proxy || is_wse_device(device));
 }
 
-void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handle) {
+void XlaComputationProxy::ReleaseXrtData(const std::string& device, int64 handle) {
   // is it a wse device?
   assert(!device.empty());
   if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
@@ -554,7 +557,7 @@ void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handl
   }
 }
 
-//void XlaComputationClient::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {
+//void XlaComputationProxy::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  assert(!from_device.empty());
 //  assert(from_device != to_device);
@@ -565,7 +568,7 @@ void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handl
 //  }
 //}
 //
-//std::string XlaComputationClient::GetDeviceMapping(const std::string& device) {
+//std::string XlaComputationProxy::GetDeviceMapping(const std::string& device) {
 //  assert(!device.empty());
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  auto iter = device_mapping_.find(device);
@@ -576,7 +579,7 @@ void XlaComputationClient::ReleaseXrtData(const std::string& device, int64 handl
 //}
 
 ComputationClient::DataPtr
-XlaComputationClient::CreateDataPlaceholder(std::string device, Shape shape) {
+XlaComputationProxy::CreateDataPlaceholder(std::string device, Shape shape) {
   // In case we wish to create a special type of DataPtr
   return Super::CreateDataPlaceholder(device, shape);
 }
@@ -632,7 +635,7 @@ void *get_data_ptr(xla::Literal& literal) {
  * @param to_device
  * @return
  */
-std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenServers(
+std::vector<ComputationClient::DataPtr> XlaComputationProxy::MoveDataBetweenServers(
   const std::vector<ComputationClient::DataPtr>& source_data,
   const std::string& to_device,
   bool release_from_source,  // TODO: always kill the old one and then move it back when necessary
@@ -675,7 +678,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::MoveDataBetweenSer
   return std::move(results);
 }
 
-ComputationClient::DataPtr XlaComputationClient::TransferLiteralToServer(
+ComputationClient::DataPtr XlaComputationProxy::TransferLiteralToServer(
   const std::string& device,
   const Literal& literal
 ) {
@@ -710,12 +713,12 @@ ComputationClient::DataPtr XlaComputationClient::TransferLiteralToServer(
 }
 
 // Transfers local tensor values to the TPU servers and fetches the handles.
-std::vector<ComputationClient::DataPtr> XlaComputationClient::TransferToServer(
+std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServer(
   absl::Span<const TensorSource> tensors
 ) {
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
-    std::cout << getpid() << " XlaComputationClient::TransferToServer( ";
+    std::cout << getpid() << " XlaComputationProxy::TransferToServer( ";
     size_t i = 0;
     for (const TensorSource& t : tensors) {
       if (i++) {
@@ -785,7 +788,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationClient::TransferToServer(
 
 // Reads the tensor literal values stored at TPU server sites, behind the
 // supplied handles.
-std::vector<Literal> XlaComputationClient::TransferFromServer(
+std::vector<Literal> XlaComputationProxy::TransferFromServer(
   absl::Span<const DataPtr> handles
 ) {
   std::vector<DataPtr> all_handles(handles.begin(), handles.end());
@@ -836,7 +839,7 @@ std::vector<Literal> XlaComputationClient::TransferFromServer(
 }
 
 // Compiles a set of computations.
-std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
+std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
   std::vector<CompileInstance> instances
 ) {
   //
@@ -844,7 +847,6 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
   //       call Super with it (no proxy) on compile failure
   //
   //HERE();
-  //raise(SIGTRAP);
   std::string compilation_device;
   auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
     instances,
@@ -860,7 +862,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
           std::cout << "SWITCHING DEVICES: " << device1 << " -> " << device2
                     << std::endl << std::flush;
         }
-        compilation_device = device2;  // When switchign devices,
+        compilation_device = device2;  // When switching devices,
       }
       if (verbose) {
         std::cout << "Compile(" << compilation_device << ")" << std::endl << std::flush;
@@ -955,7 +957,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
     [this](std::vector<CompileInstance>& instances) {
       assert(!always_use_proxy);
       // CPU or other (false)
-      std::cout << "Delegating compile" << std::endl << std::flush;
+      //std::cout << "Delegating compile" << std::endl << std::flush;
       return std::move(Super::Compile(std::move(instances)));
     }
   );
@@ -967,14 +969,20 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationClient::Compile(
 // The passed device must match the common device of the arguments Data.
 // If options.explode_tuple is true, the output tuple will be decomposed into
 // its single elements.
-std::vector<ComputationClient::DataPtr> XlaComputationClient::ExecuteComputation(
+std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   const Computation &computation,
   absl::Span<const DataPtr> arguments,
   const std::string &device,
   const ExecuteComputationOptions &options
 ) {
   //HERE();
-  //std::cout << "XlaComputationClient::ExecuteComputation()" << std::endl << std::flush;
+  auto comp = dynamic_cast<const XrtComputation *>(&computation);
+  if (comp) {
+    std::cout << "XlaComputationProxy::ExecuteComputation(): HANDLE="
+              << std::hex << comp->get_handle() << std::dec
+              << std::endl << std::flush;
+  }
+
   const std::string device1 = device;
   const std::string device2 = get_proxy_device(computation.computation().proto());
   std::string effective_device;
@@ -1158,7 +1166,7 @@ int get_env_int(const char *s, const int dflt) {
 }
 }
 
-tensorflow::tpu::TopologyProto XlaComputationClient::InitializeAndFetchTopology(
+tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   const std::string& job,
   int task_no,
   const std::string& worker_host_port,

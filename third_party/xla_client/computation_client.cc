@@ -17,7 +17,7 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/core/platform/net.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/core/util/device_name_utils.h"
 
 namespace xla {
@@ -283,7 +283,7 @@ std::unique_ptr<ComputationClient> ComputationClient::Create() {
   }
   PopulateLocalDevices(&options);
   return std::unique_ptr<ComputationClient>(
-      new XlaComputationClient(options, std::move(topology_proto)));
+      new XlaComputationProxy(options, std::move(topology_proto)));
 }
 
 std::shared_ptr<ComputationClient::Computation> ComputationClient::Compile(

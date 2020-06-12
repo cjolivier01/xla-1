@@ -80,52 +80,38 @@ class THelper {
  */
 class CompileWatcher {
 public:
-  typedef const void *compiler_t;  // TODO: make this the device
   typedef xla::hash_t hash_t;
-  static void NotifyCompile(
-    compiler_t opaque,
-    std::vector<xla::ComputationClient::CompileInstance>& instances,
-    hash_t hash,
-    pid_t tid
-  );
-  static void NotifyExecute(
-    compiler_t opaque,
-    const std::string& device,
-    hash_t hash,
-    pid_t tid
-  );
-  static void NotifyStepMarker(
-    compiler_t opaque,
-    const std::vector<std::string>&
-    devices
-  );
+
+  // Configuration
   static void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
-  static bool IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid);
-  static bool IsWseRunReady(compiler_t opaque, pid_t tid);
-  static bool IsWseRunning(compiler_t opaque, pid_t tid);
-  static bool IsAllowedOutput(compiler_t opaque, XLATensor tensor, pid_t tid);
-  static void SetInputsOutputs(compiler_t opaque,
-                               const std::vector<at::Tensor>& input_tensors,
-                               const std::vector<at::Tensor>& output_tensors,
-                               bool append);
-  static void ResetConsideredSyncOutputs(compiler_t opaque, pid_t tid);
-//  static std::vector<xla::ComputationClient::DataPtr> WseExecute(
-//      compiler_t opaque,
-//      hash_t hash,
-//      std::shared_ptr<XLATensor::Async> async);
-    //static std::string GetDevice();
-    static Device GetDevice();
-    static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
-    static const Device& GetDeviceMapping(const Device& device);
-    static std::string GetDeviceMapping(const std::string& device);
-    static bool IsTrainingThread(pid_t tid);
-    static bool PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, pid_t tid);
+  static void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append);
+
+  // Notification handlers
+  static void NotifyCompile(std::vector<xla::ComputationClient::CompileInstance>& instances, hash_t hash, pid_t tid);
+  static void NotifyExecute(const std::string& device, hash_t hash, pid_t tid);
+  static void NotifyStepMarker(const std::vector<std::string>& devices);
+
+  // Interception and external mapping
+  static bool IsReadyHash(hash_t hash, pid_t tid);
+  static bool IsAllowedOutput(const XLATensor& tensor, pid_t tid);
+  static bool PreProcessHlo(xla::XlaBuilder *builder, hash_t hash, pid_t tid);
+
 private:
+  static Device GetDevice();
+  static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
+  static const Device& GetDeviceMapping(const Device& device);
+  static std::string GetDeviceMapping(const std::string& device);
+  static bool IsTrainingThread(pid_t tid);
+  static bool IsWseRunning(pid_t tid);
+  static bool IsWseRunStep(pid_t tid);
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();
-  static bool Reset(compiler_t opaque, pid_t tid, bool reset_hash);
-  static std::vector<std::string> wse_devices_;
+  static bool Reset(pid_t tid, bool reset_hash);
 
+  //
+  // Data
+  //
+  static std::vector<std::string> wse_devices_;
   static std::mutex device_mapping_mtx_;
   static std::unordered_map<std::string, std::pair<Device, bool>> device_mapping_;
 };

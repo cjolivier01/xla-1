@@ -1,9 +1,9 @@
 #include "torch_xla/csrc/tensor.h"
-#include "torch_xla/csrc/tensor_util_cer.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_client.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/core/util/util.h"
 
@@ -14,15 +14,24 @@
 
 #include <pybind11/pybind11.h>
 
+#undef assert
+#  define assert(expr)							\
+     (static_cast <bool> (expr)						\
+      ? void (0)							\
+      : __assert_fail (#expr, __FILE__, __LINE__, __ASSERT_FUNCTION))
+
+
 /**
  * Most of this can eventually move to monolith
  */
 namespace torch_xla {
 //std::atomic<size_t> active_parameter_count{0};
 
-bool verbose = false;
+bool verbose = true;
+
 const bool IGNORE_FIRST_MARK_STEP = true;
 const bool ENABLE_DEVICE_REMAPPING = true;
+const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
 
 bool is_true(const char *s) {
   if (s && *s) {
@@ -167,6 +176,7 @@ static void _PushPythonState(EPythonState state, pid_t __tid=0) {
   python_state.push(state, __tid);
 }
 
+
 void PushPythonState(EPythonState state) {
   _PushPythonState(state);
 }
@@ -177,44 +187,102 @@ void PopPythonState() {
 
 namespace {
 
+template<typename DEST_MSG, typename SRC_MSG_ARRAY>
+const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
+  const int64_t total_count = array.size();
+  for (int64_t i = 0; i < total_count; ++i) {
+    auto& obj = array[i];
+    if (obj.id() == id) {
+      return &obj;
+    }
+  }
+  return nullptr;
+}
+
+std::string get_proxy_device(const xla::HloModuleProto& module) {
+  //save_msg(module, "my_hlo_module.json");
+  const int64_t entry_computation_id = module.entry_computation_id();
+  if (entry_computation_id) {
+    auto computation = get_id<xla::HloComputationProto>(
+      module.computations(),
+      entry_computation_id
+    );
+    const int64_t root_id = computation->root_id();
+    if (root_id) {
+      auto root_instruction = get_id<xla::HloInstructionProto>(
+        computation->instructions(),
+        root_id
+      );
+      const xla::FrontendAttributes &frontend_attributes =
+        root_instruction->frontend_attributes();
+      auto iter = frontend_attributes.map().find("PROXY_DEVICE");
+      if (iter != frontend_attributes.map().end()) {
+        // A compile may have failed, in which case it
+        // gets delegated back to the default device
+        auto cancel_iter = frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
+        if (cancel_iter != frontend_attributes.map().end()) {
+          if (cancel_iter->second == iter->second) {
+            return "";  // this proxying was cancelled (i.e. failed compile)
+          }
+        }
+        return iter->second;
+      }
+    }
+  }
+  return "";
+}
+
+using Lock = std::lock_guard<std::recursive_mutex>;
+
 struct CompileInfo {
-  CompileWatcher::compiler_t last_opaque_ = nullptr;
-  std::atomic<size_t> run_count_{0};
-  std::atomic<size_t> mark_step_{0};
-  std::atomic<size_t> mark_steps_since_reset_{0};
-  std::atomic<EPythonState> python_state_{EPS_INVALID};
-  //std::shared_ptr<std::vector<at::Tensor>> input_tensors_;
-  //std::shared_ptr<std::vector<at::Tensor>> output_tensors_;
-  std::unique_ptr<CompileWatcher::hash_t> hash_;
+  std::atomic<size_t> run_count_since_hash_change_{0};
+  std::atomic<size_t> run_count_at_last_mark_step_{0};
+  std::atomic<size_t> mark_step_count_since_last_reset_{0};
   std::unordered_set<size_t> output_ids_;
 
-  std::shared_ptr<std::vector<XLATensor>> removed_outputs_;
-  std::unordered_set<size_t> removed_output_ids_;
-
   void set_hash(CompileWatcher::hash_t hash) {
-      std::cout << "Setting hash to: " << hash << std::endl << std::flush;
-      hash_ = std::make_unique<CompileWatcher::hash_t>(hash);
+    if (hash != hash_.load()) {
+      //std::cout << "hash " << hash_.load() << " -> " << hash << std::endl << std::flush;
+      //std::cout << "Setting hash to: " << hash << std::endl << std::flush;
+      hash_ = std::move(hash);
+    }
   }
+  bool hash_equal(const CompileWatcher::hash_t& hash) const {
+    return hash == hash_.load();
+  }
+  bool is_approved_hash(const CompileWatcher::hash_t& hash) const {
+    Lock lk(mtx_);
+    return wse_compile_hashes_.count(hash) != 0;
+  }
+  bool add_approved_hash(CompileWatcher::hash_t hash) {
+    Lock lk(mtx_);
+    wse_compile_hashes_.emplace(std::move(hash));
+  }
+  CompileWatcher::hash_t hash() const { return hash_; }
+private:
+  std::atomic<CompileWatcher::hash_t> hash_{0};
+  mutable std::recursive_mutex mtx_;
+  absl::flat_hash_set<CompileWatcher::hash_t> wse_compile_hashes_;  // needs to be locked?
 };
 
 std::mutex compile_info_map_mtx_;
-//std::map<CompileWatcher::compiler_t, std::shared_ptr<CompileInfo>> compile_info_map;
 std::map<pid_t, std::shared_ptr<CompileInfo>> compile_info_map;
 
-//std::shared_ptr<CompileInfo> GetCompileInfo(CompileWatcher::compiler_t opaque) {
-std::shared_ptr<CompileInfo> GetCompileInfo(pid_t opaque) {
+std::shared_ptr<CompileInfo> GetCompileInfo(pid_t tid) {
   std::lock_guard<std::mutex> lk(compile_info_map_mtx_);
-  std::shared_ptr<CompileInfo> sp = compile_info_map[opaque];
+  std::shared_ptr<CompileInfo> sp = compile_info_map[tid];
   if (!sp) {
-    sp = compile_info_map[opaque] = std::make_shared<CompileInfo>();
+    sp = compile_info_map[tid] = std::make_shared<CompileInfo>();
   }
   return std::move(sp);
 }
 
-//const size_t MARK_STEPS_TILL_COMPILE = 15;
-
-size_t get_runs_till_compile() {
-  const size_t DEFAULT_RUNS_TILL_COMPILE = 15;
+size_t get_number_of_required_runs_since_reset() {
+  static bool trusted_model = xla::sys_util::GetEnvBool("XLA_TRUSTED_MODEL", false);
+  if (trusted_model) {
+    return 0;
+  }
+  constexpr size_t DEFAULT_RUNS_TILL_COMPILE = 1;
   static size_t rtc =
     xla::sys_util::GetEnvInt(
       "XLA_RUNS_TILL_COMPILE",
@@ -223,7 +291,7 @@ size_t get_runs_till_compile() {
   return rtc;
 }
 
-static std::mutex init_devices_mutex;
+std::mutex init_devices_mutex;
 }  // namespace
 
 std::vector<std::string> CompileWatcher::wse_devices_;
@@ -239,28 +307,35 @@ void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) 
   }
 }
 
-bool CompileWatcher::PreProcessHlo(compiler_t opaque, xla::XlaBuilder *builder, pid_t tid) {
-  if (!HasWseDevices() || !IsTrainingThread(tid) || !IsWseRunReady(opaque, tid)) {
-    return false;
+bool CompileWatcher::PreProcessHlo(xla::XlaBuilder *builder, hash_t hash, pid_t tid) {
+  if (HasWseDevices() && !IsTrainingThread(tid)) {
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+    bool approved = false;
+    if (IsWseRunStep(tid)) {
+      compile_info->add_approved_hash(hash);
+      approved = true;
+    }
+    if (approved || compile_info->is_approved_hash(hash)) {
+      // This is a WSE-viable compile
+      xla::FrontendAttributes frontend_attributes;
+      frontend_attributes.CopyFrom(builder->frontend_attributes());
+      (*frontend_attributes.mutable_map())["PROXY_DEVICE"] = GetDevice().ToString();
+      builder->SetFrontendAttributes(frontend_attributes);
+      return true;
+    }
   }
-  xla::FrontendAttributes frontend_attributes;
-  frontend_attributes.CopyFrom(builder->frontend_attributes());
-  (*frontend_attributes.mutable_map())["PROXY_DEVICE"] = GetDevice().ToString();
-  builder->SetFrontendAttributes(frontend_attributes);
-  return true;
+  return false;
 }
 
 void CompileWatcher::SetDeviceProxyAddress(
   const std::string& device, const std::string& proxy_address) {
   xla::ComputationClient *cc = xla::XrtComputationClient::Get();
-  xla::XlaComputationClient *computation_client =
-    dynamic_cast<xla::XlaComputationClient *>(cc);
+  auto computation_client = dynamic_cast<xla::XlaComputationProxy *>(cc);
   if (computation_client) {
     computation_client->SetDeviceProxyAddress(device, proxy_address);
   } else {
     throw std::runtime_error("Device proxying is not enabled");
   }
-  //HEREX();
 }
 
 bool CompileWatcher::HasWseDevices() {
@@ -269,6 +344,7 @@ bool CompileWatcher::HasWseDevices() {
     std::lock_guard<std::mutex> lk(init_devices_mutex);
     if (!got_devices) {
       SetAllDevices(xla::XrtComputationClient::Get()->GetAllDevices());
+      got_devices = true;
     }
   }
   return !wse_devices_.empty();
@@ -278,54 +354,91 @@ bool CompileWatcher::IsTrainingThread(pid_t tid) {
   return GetPythonState(tid) == EPS_IN_TRAIN_LOOP;
 }
 
+bool CompileWatcher::IsReadyHash(hash_t hash, pid_t tid) {
+  //return GetCompileInfo(tid)->hash_equal(hash) && IsWseRunStep(tid);
+  return false;
+}
+
 void CompileWatcher::NotifyCompile(
-    compiler_t opaque,
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash,
     pid_t tid
 ) {
+#if 0
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }
   HEREX();
-  if (IsWseRunReady(opaque, tid)) {
-//      {
-//          ColorScope clr(Color::FG_GREEN);
-//          std::cout << "SET FOR WSE COMPILE" << std::endl << std::flush;
-//      }
-//      const std::string wse_device = GetDevice();
-//      assert(instances.size() == 1);
-//      std::vector<std::string>& devices = instances[0].devices;
-//      assert(std::find(devices.begin(), devices.end(), wse_device) == devices.end());
-//      assert(devices.size() == 1);
-//      devices.push_back(GetDevice());
-  } else if (!IsWseRunning(opaque, tid)) {
-    std::cout << "Compiling hash=" << hash << ENDL;
-    assert(opaque != nullptr);
-    Reset(opaque, tid, true);
-    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-    compile_info->python_state_ = GetPythonState(tid);
-    compile_info->set_hash(hash);
+
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+
+  std::cout << "NotifyCompile(): ";
+  if (hash != compile_info->hash()) {
+    std::cout << "hash = " << hash << " ( current = " << compile_info->hash() << " )" << std::endl << std::flush;
   } else {
-    std::cout << "COMPILING WHILE RUNNING" << std::endl << std::flush;
+    std::cout << "Hash is unchanged" << std::endl << std::flush;
   }
+
+  assert(instances.size() == 1);  // what to do if more than one?
+  if (compile_info->hash_equal(hash)) {
+    std::cout << "Compiling same hash again?" << std::endl << std::flush;
+    return;
+  }
+  const std::string proxy_device = get_proxy_device(instances[0].computation.proto());
+  if (!proxy_device.empty() && proxy_device == GetDevice().ToString()) {
+    ColorScope color(Color::FG_RED);
+    std::cout << "Presumably compiling for WSE device" << ENDL;
+    // Set hash to WSE's hash value
+    assert(compile_info->hash_equal(hash));
+    compile_info->add_approved_hash(hash);
+    //compile_info->set_hash(hash);
+  //} else if (!IsWseRunning(tid)) {
+  }
+//  else if (!compile_info->is_approved_hash(hash)) {
+//    std::cout << "Compiling hash=" << hash << ENDL;
+//    Reset(tid, true);
+//    compile_info->set_hash(hash);
+//  }
+  else {
+    if (!compile_info->is_approved_hash(hash)) {
+      // Should drop out of WSE device...
+      ColorScope color(Color::FG_RED);
+      std::cout << "COMPILING FOR TRAINING WHILE RUNNING" << std::endl << std::flush;
+      //Reset(tid, true);
+    }
+  }
+#endif
 }
 
-void CompileWatcher::NotifyExecute(compiler_t opaque, const std::string& device, hash_t hash, pid_t tid) {
+void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t tid) {
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }
+  HEREX();
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+
+  if (hash != compile_info->hash()) {
+    std::cout << "NotifyExecute(): hash = " << hash
+              << " ( current = " << compile_info->hash() << " )"
+              << std::endl << std::flush;
+  }
+
   bool new_hash = false;
-  if (!compile_info->hash_.get()) {
+  if (!compile_info->hash()) {
       compile_info->set_hash(hash);
       new_hash = true;
   }
-  if (opaque == compile_info->last_opaque_ &&
-      compile_info->hash_.get() && hash == *compile_info->hash_) {
+
+  if (compile_info->is_approved_hash(hash)) {
+    return;
+  }
+
+  if (compile_info->hash_equal(hash)) {
+    ++compile_info->run_count_since_hash_change_;
+#if 0
     // Here we can determine if more runs than steps are occuring
-    if (compile_info->run_count_++ == get_runs_till_compile()) {
-      if (compile_info->run_count_ <= compile_info->mark_steps_since_reset_) {
+    if (compile_info->run_count_since_hash_change_ == get_number_of_required_runs_since_reset()) {
+      if (compile_info->run_count_since_hash_change_ <= compile_info->mark_step_count_since_last_reset_) {
         ColorScope clr(Color::FG_GREEN);
         // TODO: Should also have a check that everything required is available,
         //  like grads and whatnot in the live tensors.
@@ -337,57 +450,46 @@ void CompileWatcher::NotifyExecute(compiler_t opaque, const std::string& device,
         }
       } else {
         // THIS COULD BE ASYNC
-//              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_
+//              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_since_hash_change_
 //                        << ", hash=" << hash << ", device=" << device << std::endl << std::flush;
       }
     } else {
-//          if (!IsWseRunning(opaque)) {
-//              std::cout << "REPEAT RUN " << compile_info->run_count_
+//          if (!IsWseRunning()) {
+//              std::cout << "REPEAT RUN " << compile_info->run_count_since_hash_change_
 //                        << ", hash=" << hash << std::endl << std::flush;
 //          }
     }
-  } else if(IsWseRunReady(opaque, tid)) {
-    // Set new hash since this is WSE version of the same graph
-    ColorScope clr(Color::FG_BLUE);
-    std::cout << "Resetting hash to WSE's compile" << std::endl << std::flush;
-    compile_info->set_hash(hash);
+#endif
   } else {
-    ColorScope clr(Color::FG_RED);
-    if (!compile_info->hash_.get()) {
-      // TODO: need to recognize ineligible (i.e. dataset fetch) vis python scope check
-      std::cout << "No hash" << std::endl;
-    }
-    if (Reset(opaque, !new_hash, tid)) {
-      std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_.load()
-                << ", hash " << *compile_info->hash_ << " -> " << hash
-                << ", device=" << device << std::endl << std::flush;
-    }
+    Reset(tid, false);
+    // Switched to another graph
+//    std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_since_hash_change_.load()
+//              << ", hash " << compile_info->hash() << " -> " << hash
+//              << ", device=" << device << std::endl << std::flush;
+    compile_info->set_hash(hash);
+    assert(compile_info->run_count_since_hash_change_.load() == 0);
+    ++compile_info->run_count_since_hash_change_;
   }
 }
 
-static __thread std::atomic<unsigned long long> total_mark_steps{0};
-
-void CompileWatcher::NotifyStepMarker(compiler_t opaque, const std::vector<std::string>& devices) {
+void CompileWatcher::NotifyStepMarker(const std::vector<std::string>& devices) {
+  //std::cout << "*************** CompileWatcher::NotifyStepMarker" << std::endl << std::flush;
+  HEREXC(Color::FG_YELLOW);
   const pid_t tid = gettid();
-//  assert(IsTrainingThread(tid));
-//  if (!IsTrainingThread(tid)) {
-//    return;
-//  }
-  if (++total_mark_steps == 1 && IGNORE_FIRST_MARK_STEP) {
-    return;
-  }
   if (!IsTrainingThread(tid)) {
     assert(GetPythonState(tid) == EPS_INVALID);
     // The assumption is that only the training thread can call _XLAC._mark_step()
     _PushPythonState(EPS_IN_TRAIN_LOOP, tid);
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  //if (!compile_info->output_ids_.empty()) {
-    const size_t total_steps = ++compile_info->mark_step_;
-    const size_t steps_since_reset = ++compile_info->mark_steps_since_reset_;
-    ColorScope clr(IsWseRunning(opaque, gettid()) ? Color::FG_YELLOW : Color::FG_WHITE);
-    //std::cout << "Mark step: " << steps_since_reset << "/" << total_steps << std::endl << std::flush;
-  //}
+  const std::size_t current_run_count = compile_info->run_count_since_hash_change_.load();
+  if (compile_info->run_count_at_last_mark_step_.load() == compile_info->run_count_since_hash_change_.load()) {
+    // First or superfluous step marker
+    return;
+  }
+  ++compile_info->mark_step_count_since_last_reset_;
+  assert(current_run_count > compile_info->run_count_at_last_mark_step_.load());
+  compile_info->run_count_at_last_mark_step_ = current_run_count;
 }
 
 Device CompileWatcher::GetDevice() {
@@ -397,7 +499,7 @@ Device CompileWatcher::GetDevice() {
     return Device(DeviceType::CPU, 0);
 }
 
-bool CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
+bool CompileWatcher::Reset(pid_t tid, bool reset_hash) {
   if(!IsTrainingThread(tid)) {
     EPythonState state = GetPythonState(tid);
     if (state == EPS_INVALID) {
@@ -406,111 +508,85 @@ bool CompileWatcher::Reset(compiler_t opaque, pid_t tid, bool reset_hash) {
     assert(state == EPS_IN_TRAIN_LOOP);
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  assert(compile_info->last_opaque_ == nullptr || compile_info->last_opaque_ == opaque);
-  compile_info->last_opaque_ = opaque;
-  compile_info->run_count_ = 0;
-  compile_info->mark_steps_since_reset_ = 0;
-  compile_info->python_state_ = EPS_INVALID;
-  //compile_info->input_tensors_.reset();
-  //compile_info->output_tensors_.reset();
+
+  compile_info->run_count_since_hash_change_ = 0;
+  compile_info->run_count_at_last_mark_step_ = 0;
+  compile_info->mark_step_count_since_last_reset_ = 0;
+  compile_info->output_ids_.clear();
   if (reset_hash) {
-    compile_info->hash_.reset();
+    compile_info->set_hash(0);
   }
-  // reset mark_step_, or that's the same thing as run_count_?
+  // reset mark_step_, or that's the same thing as run_count_since_hash_change_?
   return true;
 }
 
-// TODO: This should be based on the computation cache hash value
-bool CompileWatcher::IsWseRunReady(compiler_t opaque, hash_t hash, pid_t tid) {
+bool CompileWatcher::IsWseRunStep(pid_t tid) {
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  return compile_info->run_count_ == get_runs_till_compile() &&
-      compile_info->hash_.get() &&
-      *compile_info->hash_ == hash;
-}
-
-bool CompileWatcher::IsWseRunReady(compiler_t opaque, pid_t tid) {
-  if (!HasWseDevices() || !IsTrainingThread(tid)) {
+  const std::size_t mark_step_count_since_reset = compile_info->mark_step_count_since_last_reset_.load(); 
+  if (!mark_step_count_since_reset) {
+    // The first step is superfluous
     return false;
   }
-  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  const bool ready = compile_info->run_count_ == get_runs_till_compile();
+#if 1
+  const std::size_t steps_required = get_number_of_required_runs_since_reset();
+  const bool ready = mark_step_count_since_reset - 1 == steps_required;
+#else
+  const std::size_t runs_since_compile = get_number_of_required_runs_since_reset();
+  const std::size_t current_runs_since_compile_count = compile_info->run_count_since_hash_change_.load();
+  const bool ready = runs_since_compile == current_runs_since_compile_count;
   if (ready) {
     std::cout << "WseRunReady" << std::endl << std::flush;
+  } else if (current_runs_since_compile_count < runs_since_compile) {
+    std::cout << "Before compile window" << std::endl << std::flush;
+  } else
+  if (runs_since_compile > current_runs_since_compile_count) {
+    std::cout << "Past compile window" << std::endl << std::flush;
+  }
+#endif
+  if (ready) {
+    std::cout << "Run ready" << std::endl << std::flush;
   }
   return ready;
 }
 
-bool CompileWatcher::IsWseRunning(compiler_t opaque, pid_t tid) {
+bool CompileWatcher::IsWseRunning(pid_t tid) {
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  return compile_info->run_count_ >= get_runs_till_compile();
+  return compile_info->run_count_since_hash_change_ >= get_number_of_required_runs_since_reset();
 }
 
-void CompileWatcher::SetInputsOutputs(compiler_t opaque,
-                                      const std::vector<at::Tensor>& input_tensors,
-                                      const std::vector<at::Tensor>& output_tensors,
-                                      bool append) {
+void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
   if (!HasWseDevices()) {
     return;
   }
   const pid_t tid = gettid();
   assert(IsTrainingThread(tid));
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-//  if (!append || !compile_info->input_tensors_) {
-//      compile_info->input_tensors_ = std::make_shared<std::vector<at::Tensor>>(input_tensors);
-//  }
-//  if (!append || !compile_info->output_tensors_) {
-//      compile_info->output_tensors_ = std::make_shared<std::vector<at::Tensor>>(output_tensors);
-//  }
-
-  if (verbose) {
-      for (const at::Tensor &tensor : input_tensors) {
-          XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
-          ColorScope color_scope(Color::FG_YELLOW, true);
-          XLATensor::print_tensor_ex("Input", xla_tensor);
-      }
-  }
   if (!append) {
     compile_info->output_ids_.clear();
   }
   for (const at::Tensor& tensor : output_tensors) {
     XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
-    if (verbose) {
-        ColorScope color_scope(Color::FG_YELLOW, true);
-        XLATensor::print_tensor("Output", xla_tensor);
-    }
     const bool added = compile_info->output_ids_.insert(
         xla_tensor.data()->unique_id).second;
     assert(added);
   }
 }
 
-//std::vector<xla::ComputationClient::DataPtr> CompileWatcher::WseExecute(
-//    compiler_t opaque,
-//    hash_t hash,
-//    std::shared_ptr<XLATensor::Async> async) {
-//}
-
-void CompileWatcher::ResetConsideredSyncOutputs(compiler_t opaque, pid_t tid) {
+bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor, pid_t tid) {
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  compile_info->removed_outputs_.reset();
-}
-
-bool CompileWatcher::IsAllowedOutput(compiler_t opaque, XLATensor tensor, pid_t tid) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  if (!IsWseRunning(opaque, tid)) {
+  if (!IsWseRunning(tid)) {
     return true;
   }
   if (compile_info->output_ids_.empty()) {
     return true;  // they haven't specified, so try everything
   }
-  const bool found =  compile_info->output_ids_.find(tensor.data()->unique_id)
-      != compile_info->output_ids_.end();
+  const bool found =  compile_info->output_ids_.find(tensor.data()->unique_id) != compile_info->output_ids_.end();
   // TODO: Ensure that the directly-ensuing compile is this set of input/outputs
   return found;
 }

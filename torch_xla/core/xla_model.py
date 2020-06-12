@@ -571,7 +571,28 @@ def reduce_gradients(optimizer, groups=None):
     all_reduce(REDUCE_SUM, gradients, scale=1.0 / count, groups=groups)
 
 
-def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None):
+def _restrict_output_params(optimizer, loss, restrict_output_params):
+  """
+  Optionally restrict outputs to loass and final weight updates as
+  well as whatever other tensors are given (if restrict_output_params is a list
+  of tensors rather than a boolean)
+  :param optimizer: The optimizer
+  :param restrict_output_params: boolean or list of additional outputs
+  :return:
+  """
+  if restrict_output_params:
+    for group in optimizer.param_groups:
+      if isinstance(group, dict) and 'params' in group:
+        model_parameters = group['params']
+        if isinstance(model_parameters, list):
+            outputs = [loss] + model_parameters
+            if isinstance(restrict_output_params, list):
+              outputs.append(restrict_output_params)
+            torch_xla._XLAC._xla_set_outputs(outputs)
+        break
+
+
+def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None, restrict_output_params=True):
   """Run the provided optimizer step and issue the XLA device step computation.
 
   Args:
@@ -596,6 +617,8 @@ def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None):
   """
   reduce_gradients(optimizer, groups=groups)
   loss = optimizer.step(**optimizer_args)
+
+  _restrict_output_params(optimizer, loss, restrict_output_params)
   if barrier:
     mark_step()
   return loss
@@ -766,16 +789,18 @@ _PY_STATE_IN_OPTIMIZER_STEP = 3
 _PY_STATE_IN_DEBUG = 4
 
 @contextlib.contextmanager
-def in_train_loop():
+def in_train_loop(set_python_state=True):
   """
   Yields:
       None.
   """
-  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_TRAIN_LOOP)
+  if set_python_state:
+    torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_TRAIN_LOOP)
   try:
     yield
   finally:
-    torch_xla._XLAC._xla_pop_python_state()
+    if set_python_state:
+      torch_xla._XLAC._xla_pop_python_state()
 
 
 @contextlib.contextmanager
