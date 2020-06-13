@@ -236,7 +236,7 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
 using Lock = std::lock_guard<std::recursive_mutex>;
 
 struct CompileInfo {
-  std::atomic<size_t> run_count_since_hash_change_{0};
+  std::atomic<size_t> sync_count_since_hash_change_{0};
   std::atomic<size_t> run_count_at_last_mark_step_{0};
   std::atomic<size_t> mark_step_count_since_last_reset_{0};
   std::unordered_set<size_t> output_ids_;
@@ -413,7 +413,8 @@ void CompileWatcher::NotifyCompile(
 #endif
 }
 
-void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t tid) {
+void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t tid, bool scheduled) {
+#if 0
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return;
   }
@@ -437,11 +438,11 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t
   }
 
   if (compile_info->hash_equal(hash)) {
-    ++compile_info->run_count_since_hash_change_;
+    ++compile_info->sync_count_since_hash_change_;
 #if 0
     // Here we can determine if more runs than steps are occuring
-    if (compile_info->run_count_since_hash_change_ == get_number_of_required_runs_since_reset()) {
-      if (compile_info->run_count_since_hash_change_ <= compile_info->mark_step_count_since_last_reset_) {
+    if (compile_info->sync_count_since_hash_change_ == get_number_of_required_runs_since_reset()) {
+      if (compile_info->sync_count_since_hash_change_ <= compile_info->mark_step_count_since_last_reset_) {
         ColorScope clr(Color::FG_GREEN);
         // TODO: Should also have a check that everything required is available,
         //  like grads and whatnot in the live tensors.
@@ -453,12 +454,12 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t
         }
       } else {
         // THIS COULD BE ASYNC
-//              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->run_count_since_hash_change_
+//              std::cout << "TOO MANY RUNS PER STEP: " << compile_info->sync_count_since_hash_change_
 //                        << ", hash=" << hash << ", device=" << device << std::endl << std::flush;
       }
     } else {
 //          if (!IsWseRunning()) {
-//              std::cout << "REPEAT RUN " << compile_info->run_count_since_hash_change_
+//              std::cout << "REPEAT RUN " << compile_info->sync_count_since_hash_change_
 //                        << ", hash=" << hash << std::endl << std::flush;
 //          }
     }
@@ -466,13 +467,47 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t
   } else {
     Reset(tid, false);
     // Switched to another graph
-//    std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->run_count_since_hash_change_.load()
+//    std::cout << "RESETTING EXECUTION COUNTER FROM " << compile_info->sync_count_since_hash_change_.load()
 //              << ", hash " << compile_info->hash() << " -> " << hash
 //              << ", device=" << device << std::endl << std::flush;
     compile_info->set_hash(hash);
-    assert(compile_info->run_count_since_hash_change_.load() == 0);
-    ++compile_info->run_count_since_hash_change_;
+    assert(compile_info->sync_count_since_hash_change_.load() == 0);
+    ++compile_info->sync_count_since_hash_change_;
   }
+#endif
+}
+
+std::vector<xla::ComputationClient::DataPtr> CompileWatcher::NotifyScheduleSyncTensorsGraph(
+  std::vector<xla::ComputationClient::DataPtr> tensors,
+  XLATensor::SyncTensorCollection* coll,
+  std::shared_ptr<xla::ComputationClient::Computation>& computation
+) {
+  if (!is_in_mark_step) {
+    // Anything outside of mark step is a reset
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll->requesting_tid);
+    compile_info->sync_count_since_hash_change_ = 0;
+    compile_info->set_hash(0);
+    return std::move(tensors);
+  }
+
+  std::for_each(tensors.begin(), tensors.end(), [](auto& t){
+    std::cout << "SyncTensorsGraph tensor shape: " << t->shape() << ENDL;
+  });
+  //XLATensor::print_all_tensors("SyncTensorsGraph tensors", tensors);
+
+  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll->requesting_tid);
+  if (!compile_info->hash()) {
+    compile_info->set_hash(coll->hash);
+    compile_info->sync_count_since_hash_change_ = 1;
+  } else if (coll->hash == compile_info->hash()) {
+    ++compile_info->sync_count_since_hash_change_;
+  } else {
+    ColorScope clr(Color::FG_CYAN);
+    std::cout << "ScheduleSyncTensorsGraph() hash change: " << compile_info->hash() << " -> " << coll->hash << ENDL;
+    compile_info->set_hash(coll->hash);
+    compile_info->sync_count_since_hash_change_ = 1;
+  }
+  return std::move(tensors);
 }
 
 void CompileWatcher::NotifyStepMarkerBegin(const std::string& device_str, const std::vector<std::string>& devices) {
@@ -488,8 +523,8 @@ void CompileWatcher::NotifyStepMarkerBegin(const std::string& device_str, const 
     _PushPythonState(EPS_IN_TRAIN_LOOP, tid);
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  const std::size_t current_run_count = compile_info->run_count_since_hash_change_.load();
-  if (compile_info->run_count_at_last_mark_step_.load() == compile_info->run_count_since_hash_change_.load()) {
+  const std::size_t current_run_count = compile_info->sync_count_since_hash_change_.load();
+  if (compile_info->run_count_at_last_mark_step_.load() == compile_info->sync_count_since_hash_change_.load()) {
     // First or superfluous step marker
     return;
   }
@@ -528,14 +563,14 @@ bool CompileWatcher::Reset(pid_t tid, bool reset_hash) {
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
 
-  compile_info->run_count_since_hash_change_ = 0;
+  compile_info->sync_count_since_hash_change_ = 0;
   compile_info->run_count_at_last_mark_step_ = 0;
   compile_info->mark_step_count_since_last_reset_ = 0;
   compile_info->output_ids_.clear();
   if (reset_hash) {
     compile_info->set_hash(0);
   }
-  // reset mark_step_, or that's the same thing as run_count_since_hash_change_?
+  // reset mark_step_, or that's the same thing as sync_count_since_hash_change_?
   return true;
 }
 
@@ -557,7 +592,7 @@ bool CompileWatcher::IsWseRunStep(pid_t tid) {
   const bool ready = mark_step_count_since_reset - 1 == steps_required;
 #else
   const std::size_t runs_since_compile = get_number_of_required_runs_since_reset();
-  const std::size_t current_runs_since_compile_count = compile_info->run_count_since_hash_change_.load();
+  const std::size_t current_runs_since_compile_count = compile_info->sync_count_since_hash_change_.load();
   const bool ready = runs_since_compile == current_runs_since_compile_count;
   if (ready) {
     std::cout << "WseRunReady" << std::endl << std::flush;
@@ -579,7 +614,7 @@ bool CompileWatcher::IsWseRunStep(pid_t tid) {
 //    return false;
 //  }
 //  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-//  return compile_info->run_count_since_hash_change_ >= get_number_of_required_runs_since_reset();
+//  return compile_info->sync_count_since_hash_change_ >= get_number_of_required_runs_since_reset();
 //}
 
 void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {

@@ -89,9 +89,10 @@ public:
 
   // Notification handlers
   static void NotifyCompile(std::vector<xla::ComputationClient::CompileInstance>& instances, hash_t hash, pid_t tid);
-  static void NotifyExecute(const std::string& device, hash_t hash, pid_t tid);
+  static void NotifyExecute(const std::string& device, hash_t hash, pid_t tid, bool scheduled);
   static void NotifyStepMarkerBegin(const std::string& device_str, const std::vector<std::string>& devices);
   static void NotifyStepMarkerEnd();
+  static std::vector<xla::ComputationClient::DataPtr> NotifyScheduleSyncTensorsGraph(std::vector<xla::ComputationClient::DataPtr> tensors_data, XLATensor::SyncTensorCollection* coll, std::shared_ptr<xla::ComputationClient::Computation>& computation);
 
   // Interception and external mapping
   static bool IsReadyHash(hash_t hash, pid_t tid);

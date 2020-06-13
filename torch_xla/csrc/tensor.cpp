@@ -655,6 +655,7 @@ void XLATensor::TryLimitGraphSize() {
   if (data()->ir_value && ++g_tls_data.trim_counter % kCheckFrequency == 0) {
     size_t graph_size = ir::Util::GetGraphSize({data()->ir_value.node.get()});
     if (graph_size > kMaxPendingGraphSize) {
+      std::cout << "********** TRIMMING GRAPH SIZE" << std::endl << std::flush;
       XLA_COUNTER("TrimIrGraph", 1);
       ApplyPendingGraph();
     }
@@ -1295,7 +1296,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
   auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      CompileWatcher::NotifyExecute(async->device, hash, requesting_tid);
+      CompileWatcher::NotifyExecute(async->device, hash, requesting_tid, false);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
@@ -1344,7 +1345,8 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
     std::vector<XLATensor>* tensors, SyncTensorCollection* coll,
     std::vector<xla::ComputationClient::DataPtr> parameters_data,
     std::string device, ComputationCache::TypePtr cached_computation) {
-  auto tensors_data = FetchTensorData(tensors, coll->config, coll->indices);
+  auto tensors_data = FetchTensorData(std::move(tensors), coll->config, coll->indices);
+  tensors_data = CompileWatcher::NotifyScheduleSyncTensorsGraph(tensors_data, coll, cached_computation->computation);
   return ScheduleSyncTensorsGraph(coll, std::move(parameters_data),
                                   std::move(tensors_data),
                                   std::move(cached_computation));

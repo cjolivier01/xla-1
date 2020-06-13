@@ -456,6 +456,16 @@ void XlaComputationProxy::XlaProxyData::Assign(const ComputationClient::Data& da
   }
 }
 
+ComputationClient::DataPtr XlaComputationProxy::CreateDataPlaceholder(std::string device, Shape shape) {
+  //HERE();
+  if(ProxyName::is_proxy_device_name(device)) {
+    std::string unproxy_device = ProxyName::unproxy_device_name(device);
+    return std::make_shared<XlaProxyData>(
+      std::move(device), std::move(unproxy_device), std::move(shape));
+  }
+  return Super::CreateDataPlaceholder(std::move(device), std::move(shape));
+}
+
 XlaComputationProxy::XlaComputationProxy(
   Options options,
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
@@ -655,12 +665,6 @@ void XlaComputationProxy::ReleaseXrtData(const std::string& device, int64 handle
 //  }
 //  return device;
 //}
-
-ComputationClient::DataPtr
-XlaComputationProxy::CreateDataPlaceholder(std::string device, Shape shape) {
-  // In case we wish to create a special type of DataPtr
-  return Super::CreateDataPlaceholder(device, shape);
-}
 
 template<typename PType>
 void *get_data_pointer(xla::Literal& literal) {
