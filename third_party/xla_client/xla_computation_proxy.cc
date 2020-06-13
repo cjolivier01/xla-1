@@ -1002,7 +1002,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
       local_results.reserve(instances.size());
       for (CompileInstance& instance : instances) {
 
-        const std::string& compilation_device = instance.compilation_device;
+        const std::string& compilation_device = ProxyName::proxy_device_name(instance.compilation_device);
         bool handled = false;
 
         auto xla_client = GetXlaClient(compilation_device);
