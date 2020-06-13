@@ -95,21 +95,24 @@ public:
   static std::vector<xla::ComputationClient::DataPtr> NotifyScheduleSyncTensorsGraph(std::vector<xla::ComputationClient::DataPtr> tensors_data, XLATensor::SyncTensorCollection* coll, std::shared_ptr<xla::ComputationClient::Computation>& computation);
 
   // Interception and external mapping
-  static bool IsReadyHash(hash_t hash, pid_t tid);
-  static bool IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTensorCollection& coll);
-  static bool PreProcessHlo(xla::XlaBuilder *builder, hash_t hash, pid_t tid);
+  static xla::hash_t PostmarkHash(std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll);
+  static void OnHashChange(const xla::hash_t& prev_hash, const XLATensor::SyncTensorCollection& coll);
+
+  //static xla::hash_t OnEndHashCalc(const xla::hash_t& prev_hash, const xla::hash_t& new_hash);
+  static bool PreProcessHlo(xla::XlaBuilder *builder, const XLATensor::SyncTensorCollection& coll);
 
 private:
+  static bool IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTensorCollection& coll);
   static Device GetDevice();
   static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
   static const Device& GetDeviceMapping(const Device& device);
   static std::string GetDeviceMapping(const std::string& device);
   static bool IsTrainingThread(pid_t tid);
   //static bool IsWseRunning(pid_t tid);
-  static bool IsWseRunStep(pid_t tid);
+  static bool IsQualifyingStep(pid_t tid/*, bool or_higher = false*/);
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();
-  static bool Reset(pid_t tid, bool reset_hash);
+  //static bool Reset(pid_t tid, bool reset_hash);
 
   //
   // Data

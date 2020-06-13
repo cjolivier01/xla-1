@@ -1123,6 +1123,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       ir::Value ir_value = tensors[i].CurrentIrValue();
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
+#if 0
           if (!CompileWatcher::IsAllowedOutput(tensors[i], coll)) {
             static int message_count = 0;
             if (!message_count++) {
@@ -1133,6 +1134,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
           } else {
             //print_tensor("CollectSyncTensors", tensors[i]);
           }
+#endif
           // Add only tensors which need to be synced.
           coll.hash = xla::util::HashCombine(coll.hash, ir_value.hash());
           coll.indices.push_back(i);
@@ -1145,7 +1147,6 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
         at_tensors.push_back(*tensor_data);
         devices.push_back(tensors[i].GetDevice().ToString());
         at_tensor_index.push_back(i);
-        //print_tensor("CollectSyncTensors", tensors[i]);
       }
     }
   }
@@ -1199,9 +1200,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
   }
   XLA_VALUE_METRIC("TensorsGraphSize", po_data->post_order.size());
   TF_VLOG(5) << "TensorsGraphSize=" << po_data->post_order.size();
-  if (CompileWatcher::IsReadyHash(coll->hash, coll->requesting_tid)) {
-    return nullptr;  // send back for compile for WSE device (same hash)
-  }
   return ScheduleSyncTensorsGraph(
       tensors, coll, std::move(po_data->parameters_data),
       coll->device.ToString(), std::move(cached_computation));
@@ -1546,7 +1544,7 @@ XLATensor::CompilationResult XLATensor::Compile(
   print_all_tensors(ss.str(), tensors);
 
   // Might add a proxy device to the Hlo
-  CompileWatcher::PreProcessHlo(lowering_ctx.builder(), coll.hash, coll.requesting_tid);
+  CompileWatcher::PreProcessHlo(lowering_ctx.builder(), coll);
 
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());
@@ -1589,14 +1587,21 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   if (coll.indices.empty()) {
     return nullptr;
   }
+
+  const xla::hash_t pre_value = CompileWatcher::PostmarkHash(tensors, coll);
+
   DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
                                   &coll.indices);
 
   PostOrderData po_data = RunPostOrder(*tensors, coll.indices);
   coll.hash = xla::util::HashCombine(
       coll.hash, xla::util::Hash(po_data.parameter_sequence));
+
+  CompileWatcher::OnHashChange(pre_value, coll);
+
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
+
   std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
   if (async != nullptr) {
     return async;
@@ -1609,6 +1614,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
   auto cached_computation = std::make_shared<CachedComputation>(
       std::move(compile_result.computation));
+
   GetComputationCache()->Add(coll.hash, cached_computation);
 
   return ScheduleSyncTensorsGraph(

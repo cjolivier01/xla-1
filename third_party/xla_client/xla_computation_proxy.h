@@ -24,7 +24,7 @@ public:
   /**
    * @brief Destroy the XlaComputationProxy object
    */
-  ~XlaComputationProxy();
+  ~XlaComputationProxy() = default;
 
   // Creates a Data object with no actual device handle in it. The device handle
   // will be populated in an asynchrounous fashion.

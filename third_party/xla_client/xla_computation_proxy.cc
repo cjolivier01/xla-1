@@ -484,8 +484,6 @@ XlaComputationProxy::XlaComputationProxy(
 #endif
 }
 
-XlaComputationProxy::~XlaComputationProxy() {}
-
 bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, const std::string &proxy_device) {
   assert(!source_device.empty());
   std::lock_guard<std::mutex> lk(proxy_mapping_mtx_);
@@ -964,16 +962,20 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
   //       call Super with it (no proxy) on compile failure
   //
   //HERE();
-  std::string compilation_device;
+  //std::string compilation_device;
   auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
     instances,
-    [this, &compilation_device](const CompileInstance& instance) -> bool {
+    [this /*, &compilation_device*/](const CompileInstance& instance) -> bool {
 #if 1
       if (always_use_proxy) {
         return true;
       }
       const std::string proxy_device = get_proxy_device(instance.computation.proto());
-      return !proxy_device.empty() && proxy_device == instance.compilation_device;
+      if (proxy_device.empty()) {
+        return false;
+      }
+      assert(proxy_device == instance.compilation_device);
+      return true;
 #else
       const std::string device1 = instance.compilation_device;
       const std::string device2 = get_proxy_device(instance.computation.proto());
@@ -994,12 +996,13 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
       return UseProxyForDevice(compilation_device);
 #endif
     },
-    [this, &compilation_device](std::vector<CompileInstance>& instances) {
+    [this /*, &compilation_device*/](std::vector<CompileInstance>& instances) {
       // WSE (true)
       std::vector<ComputationClient::ComputationPtr> local_results;
       local_results.reserve(instances.size());
       for (CompileInstance& instance : instances) {
 
+        const std::string& compilation_device = instance.compilation_device;
         bool handled = false;
 
         auto xla_client = GetXlaClient(compilation_device);
@@ -1044,8 +1047,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
             *compile_request.mutable_execution_options()->mutable_shape_with_output_layout() =
               program_shape.result().ToProto();
 
-            const Status status =
-              xla_client->Compile(&compile_request, &compile_response);
+            const Status status = xla_client->Compile(&compile_request, &compile_response);
             if (status.ok()) {
               if (verbose) {
                 std::cout << "computation id: " << compile_response.handle().handle()
