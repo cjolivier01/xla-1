@@ -34,7 +34,7 @@
 namespace xla {
 namespace {
 
-bool verbose = true;
+bool verbose = false;
 static const char* const kLocalService = "localservice";
 
 thread_local std::vector<std::string> g_replication_devices;
@@ -240,6 +240,7 @@ XrtComputationClient::Device::Device(const std::string& device_str) {
 }
 
 void XrtComputationClient::XrtData::Assign(const Data& data) {
+  //HEREX();
   const XrtData& xrt_data = dynamic_cast<const XrtData&>(data);
   if (&xrt_data != this) {
     handle_ptr = xrt_data.handle_ptr;

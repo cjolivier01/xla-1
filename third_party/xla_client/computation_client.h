@@ -76,13 +76,13 @@ class ComputationClient {
 
     const std::vector<std::string>& devices() const { return devices_; }
 
-    const int64 execution_handle() const { return execution_handle_; }
+    const uint64_t execution_handle() const { return execution_handle_; }
 
    private:
     XlaComputation computation_;
     ProgramShape program_shape_;
     std::vector<std::string> devices_;
-    int64 execution_handle_;  // optional
+    uint64_t execution_handle_;  // optional
   };
 
   using ComputationPtr = std::shared_ptr<Computation>;

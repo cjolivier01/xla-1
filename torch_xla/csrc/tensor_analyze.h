@@ -11,9 +11,10 @@ namespace torch_xla {
 enum EPythonState {
   EPS_INVALID = 0,
   EPS_IN_TRAIN_LOOP = 1,
-  EPS_IN_DATA_BATCH = 2,
-  EPS_IN_OPTIMIZER_STEP = 3,
-  EPS_IN_DEBUG = 4,
+  EPS_IN_MARK_STEP = 2,
+  EPS_IN_DATA_BATCH = 3,
+  EPS_IN_OPTIMIZER_STEP = 4,
+  EPS_IN_DEBUG = 5,
 };
 
 //extern std::stack<int> python_state_;
@@ -89,11 +90,12 @@ public:
   // Notification handlers
   static void NotifyCompile(std::vector<xla::ComputationClient::CompileInstance>& instances, hash_t hash, pid_t tid);
   static void NotifyExecute(const std::string& device, hash_t hash, pid_t tid);
-  static void NotifyStepMarker(const std::vector<std::string>& devices);
+  static void NotifyStepMarkerBegin(const std::string& device_str, const std::vector<std::string>& devices);
+  static void NotifyStepMarkerEnd();
 
   // Interception and external mapping
   static bool IsReadyHash(hash_t hash, pid_t tid);
-  static bool IsAllowedOutput(const XLATensor& tensor, pid_t tid);
+  static bool IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTensorCollection& coll);
   static bool PreProcessHlo(xla::XlaBuilder *builder, hash_t hash, pid_t tid);
 
 private:
@@ -102,7 +104,7 @@ private:
   static const Device& GetDeviceMapping(const Device& device);
   static std::string GetDeviceMapping(const std::string& device);
   static bool IsTrainingThread(pid_t tid);
-  static bool IsWseRunning(pid_t tid);
+  //static bool IsWseRunning(pid_t tid);
   static bool IsWseRunStep(pid_t tid);
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();

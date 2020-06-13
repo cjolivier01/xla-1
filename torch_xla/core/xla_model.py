@@ -581,6 +581,12 @@ def _restrict_output_params(optimizer, loss, restrict_output_params):
   :return:
   """
   if restrict_output_params:
+    if not hasattr(optimizer, '_ptxla_local_step'):
+      optimizer._ptxla_local_step = 1
+    else:
+      optimizer._ptxla_local_step += 1
+    if optimizer._ptxla_local_step == 1:
+      mark_step()  # compute grads
     for group in optimizer.param_groups:
       if isinstance(group, dict) and 'params' in group:
         model_parameters = group['params']
@@ -588,7 +594,8 @@ def _restrict_output_params(optimizer, loss, restrict_output_params):
             outputs = [loss] + model_parameters
             if isinstance(restrict_output_params, list):
               outputs.append(restrict_output_params)
-            torch_xla._XLAC._xla_set_outputs(outputs)
+            if outputs:
+              torch_xla._XLAC._xla_set_outputs(outputs, append=False)
         break
 
 
@@ -615,7 +622,9 @@ def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None, res
   Returns:
     The same value returned by the `optimizer.step()` call.
   """
-  reduce_gradients(optimizer, groups=groups)
+  if restrict_output_params:
+    reduce_gradients(optimizer, groups=groups)
+
   loss = optimizer.step(**optimizer_args)
 
   _restrict_output_params(optimizer, loss, restrict_output_params)

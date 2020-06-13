@@ -1122,7 +1122,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       ir::Value ir_value = tensors[i].CurrentIrValue();
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
-          if (!CompileWatcher::IsAllowedOutput(tensors[i], coll.requesting_tid)) {
+          if (!CompileWatcher::IsAllowedOutput(tensors[i], coll)) {
             static int message_count = 0;
             if (!message_count++) {
                 print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor (one message only)", tensors[i]);
@@ -1198,9 +1198,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
   }
   XLA_VALUE_METRIC("TensorsGraphSize", po_data->post_order.size());
   TF_VLOG(5) << "TensorsGraphSize=" << po_data->post_order.size();
-//  if (CompileWatcher::IsReadyHash(coll->hash, coll->requesting_tid)) {
-//    return nullptr;  // send back for compile for WSE device (same hash)
-//  }
+  if (CompileWatcher::IsReadyHash(coll->hash, coll->requesting_tid)) {
+    return nullptr;  // send back for compile for WSE device (same hash)
+  }
   return ScheduleSyncTensorsGraph(
       tensors, coll, std::move(po_data->parameters_data),
       coll->device.ToString(), std::move(cached_computation));
@@ -1306,7 +1306,14 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
 
       for (size_t i = 0; i < results.size(); ++i) {
         if (async->tensors_data[i] != nullptr) {
-          async->tensors_data[i]->Assign(*results[i]);
+          if (async->tensors_data[i]->device() == results[i]->device()) {
+            async->tensors_data[i]->Assign(*results[i]);
+          } else {
+            std::cout << "Assigning tensor to data ptr of different device: "
+                      << async->tensors_data[i]->device() << + " -> " << results[i]->device()
+                      << std::endl << std::flush;
+            async->tensors_data[i] = std::move(results[i]);
+          }
         } else {
           async->tensors_data[i] = std::move(results[i]);
         }

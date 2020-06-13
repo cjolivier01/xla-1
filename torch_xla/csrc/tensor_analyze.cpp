@@ -32,6 +32,7 @@ bool verbose = true;
 const bool IGNORE_FIRST_MARK_STEP = true;
 const bool ENABLE_DEVICE_REMAPPING = true;
 const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
+constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 99;
 
 bool is_true(const char *s) {
   if (s && *s) {
@@ -282,16 +283,18 @@ size_t get_number_of_required_runs_since_reset() {
   if (trusted_model) {
     return 0;
   }
-  constexpr size_t DEFAULT_RUNS_TILL_COMPILE = 1;
   static size_t rtc =
     xla::sys_util::GetEnvInt(
       "XLA_RUNS_TILL_COMPILE",
-      DEFAULT_RUNS_TILL_COMPILE
+      DEFAULT_STEPS_TILL_COMPILE
     );
   return rtc;
 }
 
 std::mutex init_devices_mutex;
+
+static bool __thread is_in_mark_step = false;
+
 }  // namespace
 
 std::vector<std::string> CompileWatcher::wse_devices_;
@@ -308,7 +311,7 @@ void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) 
 }
 
 bool CompileWatcher::PreProcessHlo(xla::XlaBuilder *builder, hash_t hash, pid_t tid) {
-  if (HasWseDevices() && !IsTrainingThread(tid)) {
+  if (HasWseDevices() && IsTrainingThread(tid)) {
     std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
     bool approved = false;
     if (IsWseRunStep(tid)) {
@@ -472,9 +475,12 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t
   }
 }
 
-void CompileWatcher::NotifyStepMarker(const std::vector<std::string>& devices) {
-  //std::cout << "*************** CompileWatcher::NotifyStepMarker" << std::endl << std::flush;
-  HEREXC(Color::FG_YELLOW);
+void CompileWatcher::NotifyStepMarkerBegin(const std::string& device_str, const std::vector<std::string>& devices) {
+  is_in_mark_step = true;
+  {
+    ColorScope clr(Color::FG_YELLOW);
+    std::cout << "*************** CompileWatcher::NotifyStepMarker: device=" << device_str << std::endl << std::flush;
+  }
   const pid_t tid = gettid();
   if (!IsTrainingThread(tid)) {
     assert(GetPythonState(tid) == EPS_INVALID);
@@ -490,6 +496,19 @@ void CompileWatcher::NotifyStepMarker(const std::vector<std::string>& devices) {
   ++compile_info->mark_step_count_since_last_reset_;
   assert(current_run_count > compile_info->run_count_at_last_mark_step_.load());
   compile_info->run_count_at_last_mark_step_ = current_run_count;
+  if (IsWseRunStep(tid)) {
+    ColorScope red(Color::FG_RED);
+    std::cout << "BEGIN WseRunStep()" << std::endl << std::flush;
+  }
+}
+
+void CompileWatcher::NotifyStepMarkerEnd() {
+  assert(is_in_mark_step);
+  if (IsWseRunStep(gettid())) {
+    ColorScope red(Color::FG_RED);
+    std::cout << "END WseRunStep()" << std::endl << std::flush;
+  }
+  is_in_mark_step = false;
 }
 
 Device CompileWatcher::GetDevice() {
@@ -521,6 +540,9 @@ bool CompileWatcher::Reset(pid_t tid, bool reset_hash) {
 }
 
 bool CompileWatcher::IsWseRunStep(pid_t tid) {
+  if (!is_in_mark_step) {
+    return true;
+  }
   if (!HasWseDevices() || !IsTrainingThread(tid)) {
     return false;
   }
@@ -552,13 +574,13 @@ bool CompileWatcher::IsWseRunStep(pid_t tid) {
   return ready;
 }
 
-bool CompileWatcher::IsWseRunning(pid_t tid) {
-  if (!HasWseDevices() || !IsTrainingThread(tid)) {
-    return false;
-  }
-  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  return compile_info->run_count_since_hash_change_ >= get_number_of_required_runs_since_reset();
-}
+//bool CompileWatcher::IsWseRunning(pid_t tid) {
+//  if (!HasWseDevices() || !IsTrainingThread(tid)) {
+//    return false;
+//  }
+//  const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+//  return compile_info->run_count_since_hash_change_ >= get_number_of_required_runs_since_reset();
+//}
 
 void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
   if (!HasWseDevices()) {
@@ -578,17 +600,21 @@ void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors, b
   }
 }
 
-bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor, pid_t tid) {
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  if (!IsWseRunning(tid)) {
-    return true;
+bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTensorCollection& coll) {
+  if (is_in_mark_step) {
+    const pid_t tid = gettid();
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
+    if (!compile_info->output_ids_.empty()) {
+      assert(coll.requesting_tid == tid);
+      if (IsWseRunStep(tid)) {
+        coll.is_wse_compile = true;
+        const bool found = compile_info->output_ids_.find(tensor.data()->unique_id) !=
+          compile_info->output_ids_.end();
+        return found;
+      }
+    }
   }
-  if (compile_info->output_ids_.empty()) {
-    return true;  // they haven't specified, so try everything
-  }
-  const bool found =  compile_info->output_ids_.find(tensor.data()->unique_id) != compile_info->output_ids_.end();
-  // TODO: Ensure that the directly-ensuing compile is this set of input/outputs
-  return found;
+  return true;
 }
 
 void CompileWatcher::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {

@@ -229,9 +229,17 @@ void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
   auto opt_device = GetOptionalDevice(device_str);
   const Device* device = opt_device ? &opt_device.value() : nullptr;
-  CompileWatcher::NotifyStepMarker(devices);
-  XLATensor::SyncLiveTensorsGraph(device, devices, wait);
-  XLATensor::MarkStep(device);
+//  if (opt_device) {
+//    std::cout << "OPTIONAL DEVICE: " << device->ToString() << std::endl << std::flush;
+//  }
+  CompileWatcher::NotifyStepMarkerBegin(device_str, devices);
+  try {
+    XLATensor::SyncLiveTensorsGraph(device, devices, wait);
+    XLATensor::MarkStep(device);
+  } catch (...) {
+    throw;
+  }
+  CompileWatcher::NotifyStepMarkerEnd();
 }
 
 void SetRngSeed(xla::uint64 seed, const std::string& device_str) {
@@ -634,11 +642,10 @@ void InitXlaModuleBindings(py::module m) {
           return GetTensorsHloGraph(tensors);
         });
   m.def("_xla_set_outputs",
-        [](const std::vector<at::Tensor>& output_tensors, bool append
-         ) {
+        [](const std::vector<at::Tensor>& output_tensors, bool append) {
           SetOutputs(output_tensors, append);
         },
-        py::arg("output_tensors") = std::vector<at::Tensor>(),
+        py::arg("output_tensors"),
         py::arg("append") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
