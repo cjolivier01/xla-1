@@ -68,35 +68,48 @@ private:
   class XlaClientInfo;
   class GlobalDataHandleMapper;
 
-  class XlaProxyData : public Data {
-  public:
-    using XlaHandle = XrtHandle;
-    using XlaHandlePtr = std::shared_ptr<XlaHandle>;
-
-    XlaProxyData(std::string device, std::string as_proxy_for_device, Shape device_shape)
-    : Data(std::move(device), std::move(device_shape)), as_proxy_for_device_(std::move(as_proxy_for_device)) {}
-
-    XlaProxyData(XlaComputationProxy* self, std::string device, std::string as_proxy_for_device, Shape shape, int64 handle)
-      : Data(std::move(device), std::move(shape)), as_proxy_for_device_(std::move(as_proxy_for_device)),
-        handle_ptr_(std::make_shared<XrtHandle>(
-          handle, [self, device = this->device(), handle]() {
-          self->ReleaseXlaProxyData(device, handle);
-        })) {}
-
-    const std::string& get_as_proxy_for_device() const { return  as_proxy_for_device_; }
-
-    int64 get_handle() const { return handle_ptr_->handle; }
-
-    OpaqueHandle GetOpaqueHandle() override { return get_handle(); }
-
-    void Assign(const Data& data) override;
-
-    bool HasValue() const override { return handle_ptr_ != nullptr; }
-
-  private:
-    XlaHandlePtr handle_ptr_;
-    std::string as_proxy_for_device_;
-  };
+//  class XrtData : public XrtData {
+//  public:
+//    //using XlaHandle = XrtHandle;
+//    //using XlaHandlePtr = std::shared_ptr<XlaHandle>;
+//
+//    XrtData(std::string device, std::string proxy_device, Shape device_shape)
+//    : XrtData(std::move(device), std::move(device_shape)), proxy_device_(std::move(proxy_device)) {}
+//
+//    XrtData(XrtComputationClient* self, std::string device, Shape shape, int64 handle)
+//      : XrtData(std::move(device), std::move(device_shape)) {
+//      handle_ptr = std::make_shared<XrtHandle>(
+//        handle,
+//        [self, this, handle]() {
+//          self->ReleaseXrtData(this->device(), handle);
+//        }
+//      );
+//    };
+//    XrtData(XlaComputationProxy* self, std::string device, std::string proxy_device, Shape device_shape, int64 handle)
+//      : XrtData(std::move(device), std::move(device_shape)), proxy_device_(std::move(proxy_device)) {
+//      handle_ptr = std::make_shared<XrtHandle>(
+//        handle,
+//        [self, this, handle]() {
+//          self->ReleaseXrtData(this->device(), handle);
+//        }
+//      );
+//    }
+//
+//    const std::string& get_proxy_device() const { return proxy_device_; }
+//
+////    int64 get_handle() const { return handle_ptr_->handle; }
+////    OpaqueHandle GetOpaqueHandle() override { return get_handle(); }
+//
+//    const std::string& device() const override { return proxy_device_.empty() ? XrtData::device() : proxy_device_; }
+//
+//    void Assign(const Data& data) override;
+//
+////    bool HasValue() const override { return handle_ptr_ != nullptr; }
+//
+//  private:
+//    //XlaHandlePtr handle_ptr_;
+//    std::string proxy_device_;
+//  };
 
   mutable std::recursive_mutex xla_client_map_mtx_;
   std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
@@ -118,15 +131,18 @@ private:
     bool release_from_source,
     bool add_mapping_entry
   );
-  ComputationClient::DataPtr TransferLiteralToServer(
-    const std::string& device,
-    const Literal& literal
-  );
   /**
    * @brief Is device capable of proxy?
    * @param device
    * @return
    */
+
+  std::vector<DataPtr> NormalizeDataToDevice(absl::Span<const DataPtr> tensors, const std::string& device, bool in_place);
+
+  ComputationClient::DataPtr TransferLiteralToServer(
+    const std::string& device,
+    const Literal& literal
+  );
   //bool IsProxyDevice(const std::string& device) const;
   bool SetProxyForDevice(const std::string& source_device, const std::string& proxy_device);
   bool ShouldCloneDataForDevice(const std::string& device) const;

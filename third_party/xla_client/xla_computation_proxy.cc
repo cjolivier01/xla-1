@@ -310,6 +310,7 @@ public:
  * @brief GlobalDataHandleMapper handles data mapping between devices
  */
 class XlaComputationProxy::GlobalDataHandleMapper {
+  static constexpr bool verbose = true;
 public:
   typedef int64 handle_t;
 
@@ -446,22 +447,21 @@ public:
   std::map<HandleAndDevice, ComputationClient::DataPtr> cloned_data_map_;
 };
 
-void XlaComputationProxy::XlaProxyData::Assign(const ComputationClient::Data& data) {
-  HEREX();
-  auto& proxy_data = dynamic_cast<const XlaProxyData&>(data);
-  assert(&proxy_data);
-  if (&proxy_data != this) {
-    handle_ptr_ = proxy_data.handle_ptr_;
-    as_proxy_for_device_ = proxy_data.as_proxy_for_device_;
-  }
-}
+//void XlaComputationProxy::XrtData::Assign(const ComputationClient::Data& data) {
+//  HEREX();
+//  XrtData::Assign(data);
+//  auto& proxy_data = dynamic_cast<const XrtData&>(data);
+//  assert(&proxy_data);
+//  if (&proxy_data != this) {
+//    proxy_device_ = proxy_data.proxy_device_;
+//  }
+//}
 
 ComputationClient::DataPtr XlaComputationProxy::CreateDataPlaceholder(std::string device, Shape shape) {
   //HERE();
   if(ProxyName::is_proxy_device_name(device)) {
     std::string unproxy_device = ProxyName::unproxy_device_name(device);
-    return std::make_shared<XlaProxyData>(
-      std::move(device), std::move(unproxy_device), std::move(shape));
+    return std::make_shared<XrtData>(std::move(unproxy_device), std::move(shape));
   }
   return Super::CreateDataPlaceholder(std::move(device), std::move(shape));
 }
@@ -623,24 +623,33 @@ void XlaComputationProxy::ReleaseXlaProxyData(const std::string& device, int64 h
     if (status.ok()) {
       return;
     }
+    // Do we need to do something with the data mapper here?
   }
 }
 
 void XlaComputationProxy::ReleaseXrtData(const std::string& device, int64 handle) {
-  // is it a wse device?
-  assert(!device.empty());
-  assert(!always_use_proxy);
+  if (handle < 50000) {
+    std::cout << "small handle: " << handle << ENDL;
+    assert(ProxyName::is_proxy_device_name(device));
+  }
+  if (ProxyName::is_proxy_device_name(device)) {
+    ReleaseXlaProxyData(device, handle);
+  } else {
+    // is it a wse device?
+    assert(!device.empty());
+    assert(!always_use_proxy);
 //  if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
-//    ReleaseXlaProxyData(device, handle);
+//    ReleaseXrtData(device, handle);
 //  } else {
     //if (clone_all_data && device != CLONE_DATA_DEVICE && UseProxyForDevice(CLONE_DATA_DEVICE)) {
     if (ShouldCloneDataForDevice(device)) {
-        // when the return DataPtr object goes out of scope,
+      // when the return DataPtr object goes out of scope,
       // it should cause ReleaseXrtData to be called eventually
       data_mapper_->FreeMapping(device, handle);
     }
     Super::ReleaseXrtData(device, handle);
 //  }
+  }
 }
 
 //void XlaComputationProxy::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {
@@ -784,10 +793,10 @@ ComputationClient::DataPtr XlaComputationProxy::TransferLiteralToServer(
               << std::endl << std::flush;
   }
   if (ProxyName::is_proxy_device_name(device)) {
-    return std::make_shared<XlaProxyData>(
+    return std::make_shared<XrtData>(
       this,
-      device,
-      ProxyName::unproxy_device_name(device),  // probably not necessary
+      ProxyName::unproxy_device_name(device),
+      device,  // probably not necessary
       literal.shape(),
       response.data().handle()
     );
@@ -898,14 +907,16 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
       // won't work, actually... need proper device set on data ptr
       //return UseProxyForDevice(data_ptr->device());
       //return ProxyName::is_proxy_device_name(data_ptr->device());
-      return dynamic_cast<XlaProxyData *>(data_ptr.get()) != nullptr;
+      //return dynamic_cast<XrtData *>(data_ptr.get()) != nullptr;
+      return ProxyName::is_proxy_device_name(data_ptr->device());
     },
     [this](std::vector<DataPtr>& wse_handles) {
       // WSE (true)
       std::vector<Literal> local_results;
       local_results.reserve(wse_handles.size());
       for (DataPtr& data_ptr : wse_handles) {
-        assert(dynamic_cast<XlaProxyData *>(data_ptr.get()) != nullptr);
+        assert(ProxyName::is_proxy_device_name(data_ptr->device()));
+        //assert(dynamic_cast<XrtData *>(data_ptr.get()) != nullptr);
         xla::TransferToClientRequest request;
         xla::TransferToClientResponse response;
 
@@ -1091,6 +1102,64 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
   return std::move(results);
 }
 
+std::vector<ComputationClient::DataPtr> XlaComputationProxy::NormalizeDataToDevice(
+  absl::Span<const DataPtr> tensors,
+  const std::string& device,
+  bool in_place
+) {
+  auto results = split_types<std::vector<ComputationClient::DataPtr>>(
+    tensors,
+    [&device](const ComputationClient::DataPtr& tensor) {
+      return tensor->device() == device;
+    },
+    [](std::vector<ComputationClient::DataPtr>& local_tensors) {
+      return std::move(local_tensors);
+    },
+    [this, in_place, &device](std::vector<ComputationClient::DataPtr>& local_tensors) {
+      // Need to move the tensor data
+      for (ComputationClient::DataPtr tensor : local_tensors) {
+        if (ProxyName::is_proxy_device_name(tensor->device())) {
+          // PROXY -> XRT
+          assert(device == ProxyName::unproxy_device_name(tensor->device()));
+        } else {
+          // XRT -> PROXY
+          assert(device == ProxyName::proxy_device_name(tensor->device()));
+          assert(false);  // need to move implementation from execute() along with the mapping
+        }
+      }
+      std::vector<Literal> literals = TransferFromServer(local_tensors);
+      std::vector<TensorSource> tensor_sources;
+      tensor_sources.reserve(tensor_sources.size());
+      for (Literal& literal : literals) {
+        TensorSource td(literal.shape(), device, [&literal](const TensorSource& src, void* buff, size_t size){
+          memcpy(buff, get_data_ptr(literal), size);
+        });
+        tensor_sources.emplace_back(std::move(td));
+      }
+      std::vector<ComputationClient::DataPtr> results = TransferToServer(tensor_sources);
+      if (in_place) {
+        // modify the data pointers in-place
+        std::size_t index = 0;
+        for (ComputationClient::DataPtr transferred_tensor : results) {
+          // in-place
+          results[index] = local_tensors[index];
+          results[index]->Assign(*transferred_tensor);
+          ++index;
+        }
+      } else {
+        std::size_t index = 0;
+        for (ComputationClient::DataPtr transferred_tensor : results) {
+          // in-place
+          //data_mapper_-> what sort of mapping, if any?
+          ++index;
+        }
+      }
+      return std::move(results);
+    }
+  );
+  return std::move(results);
+}
+
 // Executes computation with arguments and returns the result.
 // The passed device must match the common device of the arguments Data.
 // If options.explode_tuple is true, the output tuple will be decomposed into
@@ -1245,13 +1314,16 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
         if (!status.ok()) {
           throw std::runtime_error(status.error_message());
         }
-        DataPtr result_data = std::make_shared<XlaProxyData>(
+        DataPtr result_data = std::make_shared<XrtData>(
           this,
-          ProxyName::proxy_device_name(device),  // will this confused the csrc code? mayne shoukd be reversed? maybe don't need?
           device,
+          ProxyName::proxy_device_name(device),
           Shape(response.shape()),
           element_handle.handle()
         );
+        if (element_handle.handle() == 47) {
+          std::cout << "element_handle.handle() == 47" << ENDL;
+        }
         if (verbose) {
           std::cout << "WSE Execution result data: " << result_data->GetOpaqueHandle() << " @ " << result_data->device()
                     << ", shape = " << result_data->shape().ToString()
@@ -1261,15 +1333,16 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
       }
     } else {
       results.emplace_back(
-        std::make_shared<XrtData>(this, effective_device, Shape(response_shape), response.output().handle())
+        std::make_shared<XrtData>(this, device, effective_device, Shape(response_shape), response.output().handle())
       );
     }
     return std::move(results);
   }
 
   assert(!always_use_proxy);
+  std::vector<DataPtr> new_args = NormalizeDataToDevice(arguments, effective_device, false);
   std::vector<ComputationClient::DataPtr> results =
-    Super::ExecuteComputation(computation, arguments, effective_device, options);
+    Super::ExecuteComputation(computation, new_args, effective_device, options);
 
   if (clone_all_data) {
     std::vector<ComputationClient::DataPtr> cloned_results;

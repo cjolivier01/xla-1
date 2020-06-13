@@ -1291,7 +1291,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       coll, std::move(parameters_data), std::move(tensors_data),
       std::move(cached_computation));
 
-  auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
+  auto syncfn = [debug_trace=coll->debug_trace, async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
       CompileWatcher::NotifyExecute(async->device, hash, requesting_tid, false);
@@ -1303,16 +1303,13 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " done!";
 
+      if (debug_trace) {
+        std::cout << "TRACE: Back from ExecuteComputation" << ENDL;
+      }
+
       for (size_t i = 0; i < results.size(); ++i) {
         if (async->tensors_data[i] != nullptr) {
-          if (async->tensors_data[i]->device() == results[i]->device()) {
-            async->tensors_data[i]->Assign(*results[i]);
-          } else {
-            std::cout << "Assigning tensor to data ptr of different device: "
-                      << async->tensors_data[i]->device() << + " -> " << results[i]->device()
-                      << std::endl << std::flush;
-            async->tensors_data[i] = std::move(results[i]);
-          }
+          async->tensors_data[i]->Assign(*results[i]);
         } else {
           async->tensors_data[i] = std::move(results[i]);
         }

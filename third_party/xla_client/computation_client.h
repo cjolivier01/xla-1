@@ -33,7 +33,7 @@ class ComputationClient {
 
     virtual ~Data() {}
 
-    const std::string& device() const { return device_; }
+    virtual const std::string& device() const { return device_; }
 
     const Shape& shape() const { return shape_; }
 

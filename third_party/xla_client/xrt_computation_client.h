@@ -60,9 +60,19 @@ class XrtComputationClient : public ComputationClient {
             int64 handle)
         : Data(std::move(device), std::move(device_shape)),
           handle_ptr(std::make_shared<XrtHandle>(
-              handle, [self, device = this->device(), handle]() {
-                self->ReleaseXrtData(device, handle);
+              handle, [self, this, handle]() {
+                self->ReleaseXrtData(this->device(), handle);
               })) {}
+
+    // memory on proxy device
+    XrtData(XrtComputationClient* self, std::string device, std::string proxy_device, Shape device_shape,
+            int64 handle)
+      : Data(std::move(device), std::move(device_shape)),
+        proxy_device_(std::move(proxy_device)),
+        handle_ptr(std::make_shared<XrtHandle>(
+          handle, [self, device=this->device(), handle]() {
+            self->ReleaseXrtData(device, handle);
+          })) {}
 
     int64 get_handle() const { return handle_ptr->handle; }
 
@@ -72,6 +82,9 @@ class XrtComputationClient : public ComputationClient {
 
     bool HasValue() const override { return handle_ptr != nullptr; }
 
+    const std::string& device() const override { return proxy_device_.empty() ? Data::device() : proxy_device_; }
+
+    std::string proxy_device_;
     XrtHandlePtr handle_ptr;
   };
 

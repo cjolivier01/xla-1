@@ -88,7 +88,9 @@ void XLATensor::print_tensor_ex(const std::string& label,
   } else if (data->xla_data) {
     // coming from _xla_tensors_from_aten in at least one case
     std::cout << label << " (id=" << data->unique_id << ") "
-              << " tensor with no ir_value of shape: "
+              << " tensor with no xla_data handle=" << data->xla_data->GetOpaqueHandle()
+              << " on device: " << data->xla_data->device()
+              << " of shape: "
               << data->xla_data->shape().ToString()
               << std::endl << std::flush;
     if (assert) {
@@ -512,6 +514,7 @@ xla::hash_t CompileWatcher::PostmarkHash(std::vector<XLATensor>* tensors, XLATen
       coll.indices = std::move(adjusted_indices);
       std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> " << exe->get_adjusted_hash() << ENDL;
       coll.hash = exe->get_adjusted_hash();
+      coll.debug_trace = true;
       return coll.hash;
     } else {
       // Nothing left, so can't do this on proxy

@@ -140,12 +140,25 @@ if (BUILD_TENSORFLOW)
     )
 
     add_custom_target(
+            libxla_computation_client_make_writable
+            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
+            COMMAND "chmod" "+w" "${TF_SOURCE_FILE}"
+            DEPENDS libxla_computation_client_build
+    )
+    add_custom_target(
+            libxla_computation_client_gdb_add_index
+            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
+            COMMAND "gdb-add-index"
+            "${TF_SOURCE_FILE}"
+            DEPENDS libxla_computation_client_make_writable
+    )
+    add_custom_target(
             libxla_computation_client
             BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
             COMMAND "ln" "-s" "-f"
             "${TF_SOURCE_FILE}"
             "${TF_DEST_FILE}"
-            DEPENDS libxla_computation_client_mkdir libxla_computation_client_build
+            DEPENDS libxla_computation_client_gdb_add_index libxla_computation_client_mkdir libxla_computation_client_build
     )
 
 else()

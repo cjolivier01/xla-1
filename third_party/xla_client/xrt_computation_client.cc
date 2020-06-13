@@ -242,8 +242,10 @@ XrtComputationClient::Device::Device(const std::string& device_str) {
 void XrtComputationClient::XrtData::Assign(const Data& data) {
   //HEREX();
   const XrtData& xrt_data = dynamic_cast<const XrtData&>(data);
+  assert(&xrt_data);
   if (&xrt_data != this) {
     handle_ptr = xrt_data.handle_ptr;
+    proxy_device_ = xrt_data.proxy_device_;
   }
 }
 
@@ -1070,6 +1072,9 @@ tensorflow::Tensor XrtComputationClient::GetArgumentsInputs(
                                    tensorflow::TensorShape({(long)arguments.size()}));
   for (size_t i = 0; i < arguments.size(); ++i) {
     const XrtData& xrt_data = dynamic_cast<const XrtData&>(*arguments[i]);
+    if(device != xrt_data.device()) {
+      std::cout << "Argument devices differ: " << device << " and " << xrt_data.device() << ENDL;
+    }
     XLA_CHECK_EQ(device, xrt_data.device());
     inputs_tensor.flat<tensorflow::int64>()(i) = xrt_data.get_handle();
   }
