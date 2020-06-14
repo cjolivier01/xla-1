@@ -329,6 +329,7 @@ public:
   ) {
     assert(!device.empty() && handle);
     assert(!cloned_data_ptr || device != cloned_data_ptr->device());
+    assert(!ProxyName::is_proxy_device_name(device));
     const HandleAndDevice src{handle, device};
     if (cloned_data_ptr) {
       const HandleAndDevice dest{cloned_data_ptr->GetOpaqueHandle(), cloned_data_ptr->device()};
@@ -1147,10 +1148,28 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::NormalizeDataToDevi
           ++index;
         }
       } else {
+        //assert(false);  // TODO: finish me
         std::size_t index = 0;
         for (ComputationClient::DataPtr transferred_tensor : results) {
-          // in-place
-          //data_mapper_-> what sort of mapping, if any?
+          // Not sure if this is correct to do mapping here
+          const DataPtr& src_tensor = local_tensors[index];
+          if (ProxyName::is_proxy_device_name(src_tensor->device())) {
+            // PROXY -> XRT
+            assert(!ProxyName::is_proxy_device_name(transferred_tensor->device()));
+            data_mapper_->AddMapping(
+              transferred_tensor->device(),
+              transferred_tensor->GetOpaqueHandle(),
+              src_tensor
+            );
+          } else {
+            assert(false);  // TODO: finish me
+            // XRT -> PROXY
+//            data_mapper_->AddMapping(
+//              src_tensor->device(),
+//              src_tensor->GetOpaqueHandle(),
+//              transferred_tensor->GetOpaqueHandle()
+//            );
+          }
           ++index;
         }
       }
