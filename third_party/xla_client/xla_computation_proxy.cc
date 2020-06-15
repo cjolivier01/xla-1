@@ -905,10 +905,6 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
   std::vector<Literal> results = split_types<std::vector <Literal>>(
     all_handles,
     [this](const DataPtr& data_ptr){
-      // won't work, actually... need proper device set on data ptr
-      //return UseProxyForDevice(data_ptr->device());
-      //return ProxyName::is_proxy_device_name(data_ptr->device());
-      //return dynamic_cast<XrtData *>(data_ptr.get()) != nullptr;
       return ProxyName::is_proxy_device_name(data_ptr->device());
     },
     [this](std::vector<DataPtr>& wse_handles) {
@@ -917,7 +913,6 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
       local_results.reserve(wse_handles.size());
       for (DataPtr& data_ptr : wse_handles) {
         assert(ProxyName::is_proxy_device_name(data_ptr->device()));
-        //assert(dynamic_cast<XrtData *>(data_ptr.get()) != nullptr);
         xla::TransferToClientRequest request;
         xla::TransferToClientResponse response;
 
