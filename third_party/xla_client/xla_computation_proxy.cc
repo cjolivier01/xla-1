@@ -1335,9 +1335,6 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
           Shape(response.shape()),
           element_handle.handle()
         );
-        if (element_handle.handle() == 47) {
-          std::cout << "element_handle.handle() == 47" << ENDL;
-        }
         if (verbose) {
           std::cout << "WSE Execution result data: " << result_data->GetOpaqueHandle() << " @ " << result_data->device()
                     << ", shape = " << result_data->shape().ToString()

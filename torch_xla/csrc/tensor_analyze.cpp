@@ -409,7 +409,9 @@ void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) 
 
 bool CompileWatcher::PreProcessHlo(xla::XlaBuilder *builder, const XLATensor::SyncTensorCollection& coll) {
   if (HasWseDevices() && IsTrainingThread(coll.requesting_tid)) {
-    std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
+    if (verbose) {
+      std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
+    }
     ExecutablePtr exe = ex_cache->get_executable_by_adjusted_hash(coll.hash);
     if (exe) {
       if (exe->is_active()) {
