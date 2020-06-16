@@ -29,7 +29,7 @@
 namespace torch_xla {
 //std::atomic<size_t> active_parameter_count{0};
 
-bool verbose = true;
+bool verbose = false;
 
 const bool IGNORE_FIRST_MARK_STEP = true;
 const bool ENABLE_DEVICE_REMAPPING = true;
@@ -506,15 +506,16 @@ xla::hash_t CompileWatcher::PostmarkHash(std::vector<XLATensor>* tensors, XLATen
         //adjusted_tensors.emplace_back(tensor);
         adjusted_indices.push_back(coll.indices[i]);
       } else {
-        XLATensor::print_tensor("Removing output", tensor);
+        //XLATensor::print_tensor("Removing output", tensor);
       }
     }
     if (!adjusted_indices.empty()) {
       //*tensors = std::move(adjusted_tensors);
       coll.indices = std::move(adjusted_indices);
-      std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> " << exe->get_adjusted_hash() << ENDL;
+      if (verbose) {
+        std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> " << exe->get_adjusted_hash() << ENDL;
+      }
       coll.hash = exe->get_adjusted_hash();
-      coll.debug_trace = true;
       return coll.hash;
     } else {
       // Nothing left, so can't do this on proxy
@@ -680,7 +681,7 @@ std::vector<xla::ComputationClient::DataPtr> CompileWatcher::NotifyScheduleSyncT
 void CompileWatcher::NotifyStepMarkerBegin(const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
-  {
+  if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << "*************** CompileWatcher::NotifyStepMarker: device=" << device_str << std::endl << std::flush;
   }

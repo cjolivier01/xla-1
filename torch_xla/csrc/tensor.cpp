@@ -1291,7 +1291,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       coll, std::move(parameters_data), std::move(tensors_data),
       std::move(cached_computation));
 
-  auto syncfn = [debug_trace=coll->debug_trace, async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
+  auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
       CompileWatcher::NotifyExecute(async->device, hash, requesting_tid, false);
@@ -1302,10 +1302,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
           async->device, options);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " done!";
-
-      if (debug_trace) {
-        std::cout << "TRACE: Back from ExecuteComputation" << ENDL;
-      }
 
       for (size_t i = 0; i < results.size(); ++i) {
         if (async->tensors_data[i] != nullptr) {

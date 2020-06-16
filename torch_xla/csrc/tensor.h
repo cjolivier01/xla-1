@@ -1130,7 +1130,6 @@ class XLATensor {
     std::vector<xla::util::ExceptionCleanup> unlocker;
     // Save the thread that is requesting
     pid_t requesting_tid = syscall(__NR_gettid);
-    bool debug_trace = false;
     Device device;
   };
 

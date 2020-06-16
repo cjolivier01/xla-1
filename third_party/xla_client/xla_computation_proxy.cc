@@ -67,7 +67,7 @@ namespace xla {
 
 namespace {
 
-bool verbose = true;
+bool verbose = false;
 
 /**
  * @brief Force always using the proxy server for everyting
@@ -310,7 +310,7 @@ public:
  * @brief GlobalDataHandleMapper handles data mapping between devices
  */
 class XlaComputationProxy::GlobalDataHandleMapper {
-  static constexpr bool verbose = true;
+  static constexpr bool verbose = false;
 public:
   typedef int64 handle_t;
 
@@ -629,10 +629,6 @@ void XlaComputationProxy::ReleaseXlaProxyData(const std::string& device, int64 h
 }
 
 void XlaComputationProxy::ReleaseXrtData(const std::string& device, int64 handle) {
-  if (handle < 50000) {
-    std::cout << "small handle: " << handle << ENDL;
-    assert(ProxyName::is_proxy_device_name(device));
-  }
   if (ProxyName::is_proxy_device_name(device)) {
     ReleaseXlaProxyData(device, handle);
   } else {
@@ -732,7 +728,9 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::MoveDataBetweenDevi
   bool add_mapping_entry
 ) {
   MoveScope moving_data;
-  HERE();
+  if (verbose) {
+    HERE();
+  }
   auto results =
     split_types<std::vector<ComputationClient::DataPtr>>(
       source_data,
@@ -1185,11 +1183,13 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   const ExecuteComputationOptions &options
 ) {
   //HERE();
-  auto comp = dynamic_cast<const XrtComputation *>(&computation);
-  if (comp) {
-    std::cout << "XlaComputationProxy::ExecuteComputation(): HANDLE="
-              << std::hex << comp->get_handle() << std::dec
-              << std::endl << std::flush;
+  if (verbose) {
+    auto comp = dynamic_cast<const XrtComputation *>(&computation);
+    if (comp) {
+      std::cout << "XlaComputationProxy::ExecuteComputation(): HANDLE="
+                << std::hex << comp->get_handle() << std::dec
+                << std::endl << std::flush;
+    }
   }
 
   const std::string device1 = device;
