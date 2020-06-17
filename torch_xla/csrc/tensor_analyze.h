@@ -103,10 +103,10 @@ public:
 
 private:
   static bool IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTensorCollection& coll);
-  static Device GetDevice();
-  static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
-  static const Device& GetDeviceMapping(const Device& device);
-  static std::string GetDeviceMapping(const std::string& device);
+  //static Device GetDevice();
+//  static void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
+//  static const Device& GetDeviceMapping(const Device& device);
+//  static std::string GetDeviceMapping(const std::string& device);
   static bool IsTrainingThread(pid_t tid);
   //static bool IsWseRunning(pid_t tid);
   static bool IsQualifyingStep(pid_t tid/*, bool or_higher = false*/);
