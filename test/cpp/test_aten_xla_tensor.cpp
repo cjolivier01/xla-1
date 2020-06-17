@@ -1467,8 +1467,44 @@ TEST_F(AtenXlaTensorTest, TestGroupNorm) {
     });
 
     ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
-    ExpectCounterChanged("xla::native_batch_norm",
+    ExpectCounterChanged("xla::native_group_norm",
                          cpp_test::GetIgnoredCounters());
+  }
+}
+
+TEST_F(AtenXlaTensorTest, TestGroupNormBackward) {
+  int num_channels = 6;
+  torch::Tensor input =
+      torch::rand({20, num_channels, 10, 10},
+                  torch::TensorOptions(torch::kFloat).requires_grad(true));
+  torch::Tensor weight = torch::rand(
+      {num_channels}, torch::TensorOptions(torch::kFloat).requires_grad(true));
+  torch::Tensor bias = torch::rand(
+      {num_channels}, torch::TensorOptions(torch::kFloat).requires_grad(true));
+  double eps = 1e-05;
+  for (bool undef_weight : {true, false}) {
+    for (int num_groups : {3, 6, 1}) {
+      auto testfn =
+          [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+        return torch::group_norm(
+            /*input=*/inputs[0], num_groups, inputs[1], inputs[2],
+            /*eps=*/eps,
+            /*cudnn_enabled=*/false);
+      };
+      torch::Tensor undef;
+      ForEachDevice([&](const torch::Device& device) {
+        TestBackward(
+            {input, undef_weight ? undef : weight, undef_weight ? undef : bias},
+            device, testfn,
+            /*rtol=*/1e-3, /*atol=*/1e-4);
+      });
+
+      ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+      ExpectCounterChanged("xla::native_group_norm",
+                           cpp_test::GetIgnoredCounters());
+      ExpectCounterChanged("xla::native_group_norm_backward",
+                           cpp_test::GetIgnoredCounters());
+    }
   }
 }
 
@@ -4655,21 +4691,18 @@ TEST_F(AtenXlaTensorTest, TestIndexAdd) {
               : torch::randint(100, value_sizes,
                                torch::TensorOptions(scalar_type));
       torch::Tensor result = torch::index_add(base, dim, index, value);
-      ForEachDevice(
-          {DeviceType::CPU, DeviceType::TPU}, [&](const torch::Device& device) {
-            torch::Tensor xla_base = CopyToDevice(base, device);
-            torch::Tensor xla_index = CopyToDevice(index, device);
-            torch::Tensor xla_value = CopyToDevice(value, device);
-            torch::Tensor xla_result =
-                torch::index_add(xla_base, dim, xla_index, xla_value);
-            AllEqual(result, xla_result);
-
-            ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
-            ExpectCounterChanged("xla::index_add_",
-                                 cpp_test::GetIgnoredCounters());
-          });
+      ForEachDevice([&](const torch::Device& device) {
+        torch::Tensor xla_base = CopyToDevice(base, device);
+        torch::Tensor xla_index = CopyToDevice(index, device);
+        torch::Tensor xla_value = CopyToDevice(value, device);
+        torch::Tensor xla_result =
+            torch::index_add(xla_base, dim, xla_index, xla_value);
+        AllClose(result, xla_result);
+      });
     }
   }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::index_add_", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestIndexAddInPlace) {
@@ -4679,41 +4712,37 @@ TEST_F(AtenXlaTensorTest, TestIndexAddInPlace) {
        {torch::kFloat, torch::kByte, torch::kChar, torch::kShort, torch::kInt,
         torch::kLong}) {
     for (int dim = -rank; dim < rank; ++dim) {
-      ForEachDevice(
-          {DeviceType::CPU, DeviceType::TPU}, [&](const torch::Device& device) {
-            torch::Tensor base =
-                isFloatingType(scalar_type)
-                    ? torch::rand({5, 3, 7}, torch::TensorOptions(scalar_type))
-                    : torch::randint(100, {5, 3, 7},
-                                     torch::TensorOptions(scalar_type));
-            torch::Tensor index =
-                torch::randint(0, base.size(dim), {index_size},
-                               torch::TensorOptions(torch::kLong));
-            std::vector<int64_t> value_sizes(base.sizes().begin(),
-                                             base.sizes().end());
-            int canonical_dim = dim < 0 ? dim + rank : dim;
-            value_sizes[canonical_dim] = index_size;
-            torch::Tensor value =
-                isFloatingType(scalar_type)
-                    ? torch::rand(value_sizes,
-                                  torch::TensorOptions(scalar_type))
-                    : torch::randint(100, value_sizes,
-                                     torch::TensorOptions(scalar_type));
-            torch::Tensor xla_base = CopyToDevice(base.clone(), device);
-            torch::Tensor result = base.index_add_(dim, index, value);
-            torch::Tensor xla_index = CopyToDevice(index, device);
-            torch::Tensor xla_value = CopyToDevice(value, device);
-            torch::Tensor xla_result =
-                xla_base.index_add_(dim, xla_index, xla_value);
-            AllEqual(result, xla_result);
-            AllEqual(base, xla_base);
-
-            ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
-            ExpectCounterChanged("xla::index_add_",
-                                 cpp_test::GetIgnoredCounters());
-          });
+      ForEachDevice([&](const torch::Device& device) {
+        torch::Tensor base =
+            isFloatingType(scalar_type)
+                ? torch::rand({5, 3, 7}, torch::TensorOptions(scalar_type))
+                : torch::randint(100, {5, 3, 7},
+                                 torch::TensorOptions(scalar_type));
+        torch::Tensor index =
+            torch::randint(0, base.size(dim), {index_size},
+                           torch::TensorOptions(torch::kLong));
+        std::vector<int64_t> value_sizes(base.sizes().begin(),
+                                         base.sizes().end());
+        int canonical_dim = dim < 0 ? dim + rank : dim;
+        value_sizes[canonical_dim] = index_size;
+        torch::Tensor value =
+            isFloatingType(scalar_type)
+                ? torch::rand(value_sizes, torch::TensorOptions(scalar_type))
+                : torch::randint(100, value_sizes,
+                                 torch::TensorOptions(scalar_type));
+        torch::Tensor xla_base = CopyToDevice(base.clone(), device);
+        torch::Tensor result = base.index_add_(dim, index, value);
+        torch::Tensor xla_index = CopyToDevice(index, device);
+        torch::Tensor xla_value = CopyToDevice(value, device);
+        torch::Tensor xla_result =
+            xla_base.index_add_(dim, xla_index, xla_value);
+        AllClose(result, xla_result);
+        AllClose(base, xla_base);
+      });
     }
   }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::index_add_", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestIndexAddRank0) {
@@ -6624,6 +6653,87 @@ TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DNoBatch) {
       AllClose(output, xla_output);
     });
   }
+}
+
+TEST_F(AtenXlaTensorTest, TestMaxUnpool2D) {
+  int kernel_size = 2;
+  torch::Tensor input =
+      torch::rand({2, 2, 8, 8}, torch::TensorOptions(torch::kFloat));
+  for (int stride = 1; stride <= 2; ++stride) {
+    for (int padding = 0; padding <= 1; ++padding) {
+      // Test ceil_mode=true through the CPU interop.
+      for (bool ceil_mode : {false, true}) {
+        // Test dilation through the CPU interop.
+        for (int dilation = 1; dilation <= 2; ++dilation) {
+          torch::Tensor output;
+          torch::Tensor indices;
+          std::tie(output, indices) = torch::max_pool2d_with_indices(
+              input, /*kernel_size=*/{kernel_size, kernel_size},
+              /*stride=*/{stride, stride},
+              /*padding=*/{padding, padding}, /*dilation=*/{dilation, dilation},
+              /*ceil_mode=*/ceil_mode);
+
+          std::vector<int64_t> output_size({input.size(2), input.size(3)});
+          at::Tensor utensor =
+              torch::max_unpool2d(output, indices, output_size);
+
+          ForEachDevice([&](const torch::Device& device) {
+            torch::Tensor xla_output = CopyToDevice(output, device);
+            torch::Tensor xla_indices = CopyToDevice(indices, device);
+            at::Tensor xla_utensor =
+                torch::max_unpool2d(xla_output, xla_indices, output_size);
+            AllClose(utensor, xla_utensor);
+          });
+        }
+      }
+    }
+  }
+
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::max_unpool2d", cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestMaxUnpool3D) {
+  int kernel_size = 2;
+  torch::Tensor input =
+      torch::rand({2, 2, 8, 8, 8}, torch::TensorOptions(torch::kFloat));
+  for (int stride = 1; stride <= 2; ++stride) {
+    for (int padding = 0; padding <= 1; ++padding) {
+      // Test ceil_mode=true through the CPU interop.
+      for (bool ceil_mode : {false, true}) {
+        // Test dilation through the CPU interop.
+        for (int dilation = 1; dilation <= 2; ++dilation) {
+          torch::Tensor output;
+          torch::Tensor indices;
+          std::tie(output, indices) = torch::max_pool3d_with_indices(
+              input, /*kernel_size=*/{kernel_size, kernel_size, kernel_size},
+              /*stride=*/{stride, stride, stride},
+              /*padding=*/{padding, padding, padding},
+              /*dilation=*/{dilation, dilation, dilation},
+              /*ceil_mode=*/ceil_mode);
+
+          std::vector<int64_t> output_size(
+              {input.size(2), input.size(3), input.size(4)});
+          at::Tensor utensor = torch::max_unpool3d(
+              output, indices, output_size, /*stride=*/{stride, stride, stride},
+              /*padding=*/{padding, padding, padding});
+
+          ForEachDevice([&](const torch::Device& device) {
+            torch::Tensor xla_output = CopyToDevice(output, device);
+            torch::Tensor xla_indices = CopyToDevice(indices, device);
+            at::Tensor xla_utensor =
+                torch::max_unpool3d(xla_output, xla_indices, output_size,
+                                    /*stride=*/{stride, stride, stride},
+                                    /*padding=*/{padding, padding, padding});
+            AllClose(utensor, xla_utensor);
+          });
+        }
+      }
+    }
+  }
+
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::max_unpool3d", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestNllLoss) {
@@ -8689,6 +8799,84 @@ TEST_F(AtenXlaTensorTest, TestMaxPool3DNoBatchBackward) {
       }
     }
   }
+}
+
+TEST_F(AtenXlaTensorTest, TestMaxUnpool2DBackward) {
+  int kernel_size = 2;
+  torch::Tensor input =
+      torch::rand({2, 2, 8, 8}, torch::TensorOptions(torch::kFloat));
+  for (int stride = 1; stride <= 2; ++stride) {
+    for (int padding = 0; padding <= 1; ++padding) {
+      // Test ceil_mode=true through the CPU interop.
+      for (bool ceil_mode : {false, true}) {
+        for (int dilation = 1; dilation <= 2; ++dilation) {
+          torch::Tensor output;
+          torch::Tensor indices;
+          std::tie(output, indices) = torch::max_pool2d_with_indices(
+              input, /*kernel_size=*/{kernel_size, kernel_size},
+              /*stride=*/{stride, stride},
+              /*padding=*/{padding, padding}, /*dilation=*/{dilation, dilation},
+              /*ceil_mode=*/ceil_mode);
+
+          std::vector<int64_t> output_size({input.size(2), input.size(3)});
+          auto testfn =
+              [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+            return torch::max_unpool2d(inputs[0], inputs[1], output_size);
+          };
+
+          ForEachDevice([&](const torch::Device& device) {
+            TestBackward({output.requires_grad_(true), indices}, device,
+                         testfn);
+          });
+        }
+      }
+    }
+  }
+
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::max_unpool2d_backward",
+                       cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestMaxUnpool3DBackward) {
+  int kernel_size = 2;
+  torch::Tensor input =
+      torch::rand({2, 2, 8, 8, 8}, torch::TensorOptions(torch::kFloat));
+  for (int stride = 1; stride <= 2; ++stride) {
+    for (int padding = 0; padding <= 1; ++padding) {
+      // Test ceil_mode=true through the CPU interop.
+      for (bool ceil_mode : {false, true}) {
+        for (int dilation = 1; dilation <= 2; ++dilation) {
+          torch::Tensor output;
+          torch::Tensor indices;
+          std::tie(output, indices) = torch::max_pool3d_with_indices(
+              input, /*kernel_size=*/{kernel_size, kernel_size, kernel_size},
+              /*stride=*/{stride, stride, stride},
+              /*padding=*/{padding, padding, padding},
+              /*dilation=*/{dilation, dilation, dilation},
+              /*ceil_mode=*/ceil_mode);
+
+          std::vector<int64_t> output_size(
+              {input.size(2), input.size(3), input.size(4)});
+          auto testfn =
+              [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+            return torch::max_unpool3d(inputs[0], inputs[1], output_size,
+                                       /*stride=*/{stride, stride, stride},
+                                       /*padding=*/{padding, padding, padding});
+          };
+
+          ForEachDevice([&](const torch::Device& device) {
+            TestBackward({output.requires_grad_(true), indices}, device,
+                         testfn);
+          });
+        }
+      }
+    }
+  }
+
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::max_unpool3d_backward",
+                       cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestTanhBackward) {

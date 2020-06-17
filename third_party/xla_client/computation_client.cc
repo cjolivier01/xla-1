@@ -18,6 +18,7 @@
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/core/platform/net.h"
+#include "tensorflow/core/platform/stacktrace_handler.h"
 #include "tensorflow/core/util/device_name_utils.h"
 
 namespace xla {
@@ -30,8 +31,15 @@ struct DeviceCountDefaults {
   int num_wses = 0;
 };
 
+std::atomic<ComputationClient*> g_computation_client(nullptr);
+std::once_flag g_computation_client_once;
+
 ComputationClient* CreateClient() {
-  return ComputationClient::Create().release();
+  if (sys_util::GetEnvBool("XLA_DUMP_FATAL_STACK", false)) {
+    tensorflow::testing::InstallStacktraceHandler();
+  }
+  auto client = ComputationClient::Create();
+  return client.release();
 }
 
 std::string MakeGrpcEndPoint(const std::string& server) {
@@ -321,8 +329,13 @@ int64 ComputationClient::GetDeviceOrdinal(const std::string& device) {
 }
 
 ComputationClient* ComputationClient::Get() {
-  static ComputationClient* computation_client = CreateClient();
-  return computation_client;
+  std::call_once(g_computation_client_once,
+                 [&]() { g_computation_client = CreateClient(); });
+  return g_computation_client.load();
+}
+
+ComputationClient* ComputationClient::GetIfInitialized() {
+  return g_computation_client.load();
 }
 
 metrics::Metric* ComputationClient::TransferToServerMetric() {

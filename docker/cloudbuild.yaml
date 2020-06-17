@@ -22,7 +22,7 @@ steps:
   args: ['-c', 'source /pytorch/xla/docker/common.sh && run_deployment_tests']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/tpu-pytorch/xla']
-  timeout: 1200s
+  timeout: 1800s
 - name: 'gcr.io/tpu-pytorch/xla:${_IMAGE_NAME}'
   entrypoint: 'bash'
   args: ['-c', 'source /pytorch/xla/docker/common.sh && collect_wheels ${_RELEASE_VERSION}']
@@ -35,7 +35,7 @@ substitutions:
     _IMAGE_NAME: '${_RELEASE_VERSION}_${_PYTHON_VERSION}'
 options:
     machineType: 'N1_HIGHCPU_32'
-timeout: 15000s
+timeout: 18000s
 artifacts:
   objects:
     location: 'gs://tpu-pytorch/wheels'

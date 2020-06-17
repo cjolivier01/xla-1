@@ -53,6 +53,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_memory_format_empty_like',
         'test_memory_format_clone',
         'test_memory_format_factory_like_functions_preserve',  # assertion error
+        'test_memory_format_proparation_rules',  # assert memory format
         'test_min_max_binary_op_nan',
         'test_minmax_illegal_dtype',  # Checking runtime error
         'test_mm_xla_bfloat16',  # FIXME: AssertionError: tensor(0.0625) not less than or equal to 0.001
@@ -145,7 +146,6 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_triangular_solve',  # precision (4e-12)
         'test_scalar_check',  # runtime error
         'test_argminmax_large_axis',  # OOM, and the test is grepping "memory" in the exception message
-        'test_trapz',  # precision (1e-5), test use np.allClose
         'test_randn_xla_float32',  # xla doesn't support manual_seed, as_stride
         'test_randn_xla_float64',  # xla doesn't support manual_seed, as_stride
         'test_rand_xla_float32',  # xla doesn't support manual_seed, as_stride
@@ -157,6 +157,18 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_storage',  # Storage
         'test_deepcopy',  # Storage
         'teeet_deepcopy_scalar',  # Storage
+        'test_scatter_different_types',  # Expecting a runtime error
+        'test_bernoulli_mem_overlap',  # doesn't raise
+        'test_cat_mem_overlap',  # doesn't raise
+        'test_gather_mem_overlap',  # doesn't raise
+        'test_index_put_mem_overlap',  # doesn't raise
+        'test_index_select_mem_overlap',  # doesn't raise
+        'test_linlogspace_mem_overlap',  # doesn't raise
+        'test_masked_fill_mem_overlap',  # doesn't raise
+        'test_masked_scatter_mem_overlap',  # doesn't raise
+        'test_masked_select_mem_overlap',  # doesn't raise
+        'test_scatter_mem_overlap',  # doesn't raise
+        'test_index_mem_overlap',  # doesn't raise
     },
     'TestViewOpsXLA': {
         'test_contiguous_nonview',
@@ -258,7 +270,6 @@ DISABLED_TORCH_TESTS_TPU_ONLY = {
         'test_clamp_min_inplace_xla_float64',  # float64 limit, TPU does not have real F64
         'test_clamp_max_xla_float64',  # float64 limit, TPU does not have real F64
         'test_clamp_max_inplace_xla_float64',  # float64 limit, TPU does not have real F64
-        'test_cross_xla_uint8',  # TODO: remove after uint8 change merged
     },
     'TestTorchDeviceTypeXLA': {
         'test_cholesky_solve_batched_broadcasting',  # (TPU) 0.0039 vs 0.001
@@ -270,7 +281,6 @@ DISABLED_TORCH_TESTS_TPU_ONLY = {
         'test_topk_integral_xla_int64',  # (TPU) unimplemented HLO for X64
         'test_float_to_int_conversion_finite_xla',  # different behavior than numpy when casting float_max/min to int types
         'test_block_diag_scipy',  # failed to handle np.complex128 as input to tensor.
-        'test_logcumsumexp_xla',  # precision (1e-5), test use torch.allClose
         'test_remainder_fmod_large_dividend_xla',  # precision, remainder with 1e9 gives incorrect answer
         'test_logical_not_out_xla',  # constant with type f16 and f64 is not supported
     },
@@ -289,6 +299,7 @@ DISABLED_TORCH_TESTS_GPU_ONLY = {
     },
     'TestTensorDeviceOpsXLA': {
         'test_svd_square_xla',  # FIXME: wrong result
+        'test_svd_square_col_maj_xla',  # FIXME: flaky
     },
 }
 

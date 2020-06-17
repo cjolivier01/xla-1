@@ -69,6 +69,8 @@
 #include "torch_xla/csrc/ops/max_in_dim.h"
 #include "torch_xla/csrc/ops/max_pool_nd.h"
 #include "torch_xla/csrc/ops/max_pool_nd_backward.h"
+#include "torch_xla/csrc/ops/max_unpool_nd.h"
+#include "torch_xla/csrc/ops/max_unpool_nd_backward.h"
 #include "torch_xla/csrc/ops/mean.h"
 #include "torch_xla/csrc/ops/min_in_dim.h"
 #include "torch_xla/csrc/ops/mse_loss.h"
@@ -1611,18 +1613,19 @@ void XLATensor::max_out(XLATensor& max, XLATensor& max_values,
   max_values.SetIrValue(ir::Value(node, 1));
 }
 
-XLATensor XLATensor::max_pool_nd(const XLATensor& input,
-                                 xla::int64 spatial_dim_count,
-                                 std::vector<xla::int64> kernel_size,
-                                 std::vector<xla::int64> stride,
-                                 std::vector<xla::int64> padding,
-                                 bool ceil_mode) {
+std::tuple<XLATensor, XLATensor> XLATensor::max_pool_nd(
+    const XLATensor& input, xla::int64 spatial_dim_count,
+    std::vector<xla::int64> kernel_size, std::vector<xla::int64> stride,
+    std::vector<xla::int64> padding, bool ceil_mode) {
   kernel_size = CheckIntList(kernel_size, spatial_dim_count, "kernel_size");
   stride = CheckIntList(stride, spatial_dim_count, "stride", kernel_size);
   padding = CheckIntList(padding, spatial_dim_count, "padding");
-  return input.CreateFrom(ir::MakeNode<ir::ops::MaxPoolNd>(
+  ir::NodePtr node = ir::MakeNode<ir::ops::MaxPoolNd>(
       input.GetIrValue(), spatial_dim_count, std::move(kernel_size),
-      std::move(stride), std::move(padding), ceil_mode));
+      std::move(stride), std::move(padding), ceil_mode);
+  return std::make_tuple(
+      input.CreateFrom(ir::Value(node, 0)),
+      input.CreateFrom(ir::Value(node, 1), at::ScalarType::Long));
 }
 
 XLATensor XLATensor::max_pool_nd_backward(const XLATensor& out_backprop,
@@ -1639,6 +1642,22 @@ XLATensor XLATensor::max_pool_nd_backward(const XLATensor& out_backprop,
       out_backprop.GetIrValue(), input.GetIrValue(), spatial_dim_count,
       std::move(kernel_size), std::move(stride), std::move(padding),
       ceil_mode));
+}
+
+XLATensor XLATensor::max_unpool(const XLATensor& input,
+                                const XLATensor& indices,
+                                std::vector<xla::int64> output_size) {
+  return input.CreateFrom(ir::MakeNode<ir::ops::MaxUnpoolNd>(
+      input.GetIrValue(), indices.GetIrValue(), std::move(output_size)));
+}
+
+XLATensor XLATensor::max_unpool_backward(const XLATensor& grad_output,
+                                         const XLATensor& input,
+                                         const XLATensor& indices,
+                                         std::vector<xla::int64> output_size) {
+  return grad_output.CreateFrom(ir::MakeNode<ir::ops::MaxUnpoolNdBackward>(
+      grad_output.GetIrValue(), input.GetIrValue(), indices.GetIrValue(),
+      std::move(output_size)));
 }
 
 XLATensor XLATensor::mean(const XLATensor& input,

@@ -63,6 +63,13 @@ Device GetDeviceOrCurrent(const std::string& device_str) {
   return bridge::AtenDeviceToXlaDevice(c10::Device(device_str));
 }
 
+void PrepareToExit() {
+  xla::ComputationClient* client = xla::ComputationClient::GetIfInitialized();
+  if (client != nullptr) {
+    client->PrepareToExit();
+  }
+}
+
 std::string GetTensorsDump(
     const std::vector<at::Tensor>& tensors,
     const std::function<std::string(absl::Span<const ir::Node* const>)>&
@@ -602,6 +609,7 @@ xla::Shape GetTensorShape(const at::Tensor& tensor,
 void InitXlaModuleBindings(py::module m) {
   m.def("_initialize_aten_bindings",
         []() { AtenXlaType::InitializeAtenBindings(); });
+  m.def("_prepare_to_exit", []() { PrepareToExit(); });
   m.def("_get_git_revs", []() { return GetRevisions(); });
   m.def("_get_xla_tensor_dimension_size",
         [](const at::Tensor& tensor, int dim) {
