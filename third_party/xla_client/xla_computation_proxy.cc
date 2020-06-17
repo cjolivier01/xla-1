@@ -42,14 +42,14 @@
 #undef assert
 #undef __ASSERT_FUNCTION
 
-static void __assert_fail(const char *a, const char *b, unsigned int cc, const char *d) {
+static void my_assert_fail(const char *a, const char *b, unsigned int cc, const char *d) {
   std::cerr << "ASSERTION FAILED: " << a << " " << b << ":" << cc << " " << d << std::endl << std::flush;
   raise(SIGTRAP);
 }
 
 #define assert(expr)	\
      (static_cast <bool> (expr)	\
-      ? void (0) : __assert_fail (#expr, __FILE__, __LINE__, __extension__ __PRETTY_FUNCTION__))
+      ? void (0) : my_assert_fail(#expr, __FILE__, __LINE__, __extension__ __PRETTY_FUNCTION__))
 
 #endif
 
