@@ -68,6 +68,8 @@ private:
   class XlaClientInfo;
   class GlobalDataHandleMapper;
 
+  std::vector<DataPtr> TransferToServerInternal(absl::Span<const TensorSource> tensors);
+
 //  class XrtData : public XrtData {
 //  public:
 //    //using XlaHandle = XrtHandle;

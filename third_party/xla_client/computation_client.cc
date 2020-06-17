@@ -16,8 +16,8 @@
 #include "tensorflow/compiler/xla/xla_client/mesh_service.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/core/platform/net.h"
 #include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
+#include "tensorflow/core/platform/net.h"
 #include "tensorflow/core/util/device_name_utils.h"
 
 namespace xla {

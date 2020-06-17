@@ -16,6 +16,8 @@
 
 #include <pybind11/pybind11.h>
 
+#   define __ASSERT_FUNCTION	__extension__ __PRETTY_FUNCTION__
+
 #undef assert
 #  define assert(expr)							\
      (static_cast <bool> (expr)						\

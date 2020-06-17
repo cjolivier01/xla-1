@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-exit 0
+#exit 0
 set -ex
 
 CMD="${1:-install}"
@@ -32,13 +32,13 @@ fi
 
 if [ "$CMD" == "clean" ]; then
   pushd $THIRD_PARTY_DIR/tensorflow
-  /home/chriso/bin/bazel-2.0.0/bazel clean
+  ~/bin/bazel clean
   popd
 else
-  cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
+#  cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
 
   pushd $THIRD_PARTY_DIR/tensorflow
-  /home/chriso/bin/bazel-2.0.0/bazel build $VERBOSE --define framework_shared_object=false -c "$MODE" "${OPTS[@]}" $XLA_CUDA_CFG \
+  ~/bin/bazel build $VERBOSE --define framework_shared_object=false -c "$MODE" "${OPTS[@]}" $XLA_CUDA_CFG \
     //tensorflow/compiler/xla/xla_client:libxla_computation_client.so
 
   popd

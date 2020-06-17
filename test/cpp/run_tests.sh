@@ -1,4 +1,5 @@
 #!/bin/bash
+exit 0
 set -ex
 RUNDIR="$(cd "$(dirname "$0")" ; pwd -P)"
 BUILDDIR="$RUNDIR/build"
