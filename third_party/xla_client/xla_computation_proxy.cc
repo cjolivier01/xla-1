@@ -851,7 +851,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServer(
 std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServerInternal(
   absl::Span<const TensorSource> tensors
 ) {
-  if (true || verbose) {
+  if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << getpid() << " XlaComputationProxy::TransferToServer( ";
     size_t i = 0;
@@ -1398,9 +1398,12 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
 
     request.mutable_handle()->set_handle(computation.execution_handle());
 
-//    std::cout << "Execution handle: " << computation.execution_handle()
-//              << " " << computation.program_shape().ToString()
-//              << std::endl << std::flush;
+    if (true || verbose) {
+      ColorScope clr(Color::FG_CYAN);
+      std::cout << "Proxy Execution handle: " << computation.execution_handle()
+                << " " << computation.program_shape().ToString()
+                << std::endl << std::flush;
+    }
 
     // TODO: use NormalizeDataToDevice
 #if 1
@@ -1544,6 +1547,14 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
 
   assert(!always_use_proxy);
   std::vector<DataPtr> new_args = NormalizeDataToDevice(arguments, effective_device, false);
+
+  if (true || verbose) {
+    ColorScope clr(Color::FG_RED);
+    std::cout << "Local Execution handle: " << computation.execution_handle()
+              << " " << computation.program_shape().ToString()
+              << std::endl << std::flush;
+  }
+
   std::vector<ComputationClient::DataPtr> results =
     Super::ExecuteComputation(computation, new_args, effective_device, options);
 

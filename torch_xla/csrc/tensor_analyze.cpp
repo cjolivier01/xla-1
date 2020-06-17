@@ -32,10 +32,11 @@ namespace torch_xla {
 
 bool verbose = false;
 
-const bool IGNORE_FIRST_MARK_STEP = true;
-const bool ENABLE_DEVICE_REMAPPING = true;
-const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
-constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 15;
+//const bool IGNORE_FIRST_MARK_STEP = true;
+//const bool ENABLE_DEVICE_REMAPPING = true;
+//const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
+//constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 15;
+constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
 
 bool is_true(const char *s) {
   if (s && *s) {
@@ -546,7 +547,7 @@ std::vector<xla::ComputationClient::DataPtr> CompileWatcher::NotifyScheduleSyncT
     ++compile_info->sync_count_since_hash_change_;
   } else {
     ColorScope clr(Color::FG_CYAN);
-    std::cout << "ScheduleSyncTensorsGraph() hash change: " << compile_info->hash() << " -> " << coll->hash << ENDL;
+    std::cout << "ScheduleSyncTensorsGraph() MarkStep hash change: " << compile_info->hash() << " -> " << coll->hash << ENDL;
     compile_info->set_hash(coll->hash);
     compile_info->sync_count_since_hash_change_ = 1;
   }
@@ -572,18 +573,11 @@ void CompileWatcher::NotifyStepMarkerBegin(const std::string& device_str, const 
     compile_info->mark_step_count_since_last_reset_ = 0;
     return;
   }
-  //if (compile_info->run_count_at_last_mark_step_.load() == compile_info->sync_count_since_hash_change_.load()) {
-    // First or superfluous step marker
-    //return;
-  //}
-  ++compile_info->mark_step_count_since_last_reset_;
-  //assert(current_run_count > compile_info->run_count_at_last_mark_step_.load());
-  //compile_info->run_count_at_last_mark_step_ = current_run_count;
+  const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
   if (IsQualifyingStep(tid)) {
     ColorScope red(Color::FG_RED);
-    std::cout << "BEGIN WseRunStep()" << std::endl << std::flush;
-    //compile_info->
+    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl << std::flush;
   }
 }
 
