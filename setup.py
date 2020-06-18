@@ -275,7 +275,7 @@ if DEBUG:
 else:
   extra_compile_args += ['-DNDEBUG']
 
-extra_link_args += ['-lxla_computation_client']
+extra_link_args += ['-lxla_computation_client -latomic']
 
 setup(
     name='torch_xla',
