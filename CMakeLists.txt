@@ -49,7 +49,7 @@ include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/ba
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_protobuf/src)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/eigen_archive)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_absl/)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 include_directories(${TORCH_PATH})
 include_directories(${TORCH_PATH}/torch/csrc)

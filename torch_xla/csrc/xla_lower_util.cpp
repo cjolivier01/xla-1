@@ -19,6 +19,22 @@
 #include "torch_xla/csrc/tensor_util.h"
 
 namespace torch_xla {
+
+//static thread_local std::unique_ptr<std::list<std::string>> instruction_scope =
+//  std::make_unique<std::list<std::string>>();
+//
+//InstructionScope::InstructionScope(const std::string instruction) {
+//  instruction_scope->push_back(std::move(instruction));
+//}
+//
+//InstructionScope::~InstructionScope() {
+//  instruction_scope->pop_back();
+//}
+//
+//std::string InstructionScope::get_top_instruction() {
+//  return instruction_scope->empty() ? "" : instruction_scope->front();
+//}
+
 namespace {
 
 struct ConditionMaskData {

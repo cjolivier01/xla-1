@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <list>
 
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
@@ -8,6 +9,15 @@
 #include "torch_xla/csrc/device.h"
 
 namespace torch_xla {
+
+//struct InstructionScope {
+//  InstructionScope(const std::string instruction);
+//  ~InstructionScope();
+//
+//  static std::string get_top_instruction();
+//};
+
+#define SCOPE_INSTRUCTION InstructionScop __iscope$(__PRETTY_FUNCTION__);
 
 xla::XlaOp PadToSize(xla::XlaOp input, absl::Span<const xla::int64> size,
                      absl::optional<xla::XlaOp> pad_value = absl::nullopt);
