@@ -73,10 +73,11 @@ bool verbose = false;
  * @brief Force always using the proxy server for everyting
  *        (i.e. delegate everything to the grpc_service_main app)
  */
-bool using_grpc_service_main_cpu = true;
 bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
+bool using_grpc_service_main_cpu = false;
+bool disable_proxy = false;
 //const std::string CLONE_DATA_DEVICE = "WSE:0";
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 //constexpr int XLA_SERVICE_GRPC_PORT = 1685;
@@ -93,6 +94,14 @@ int StartLocalWseXlaService(int port) {
   return 0;
 }
 #endif
+
+bool IsEnabled() {
+  if (disable_proxy) {
+    return false;
+  }
+  static bool enabled = xla::sys_util::GetEnvBool("XLA_PROXY_ENABLED", false);
+  return enabled;
+}
 
 std::vector<std::string> split(const std::string& str, const char delim) {
   std::vector<std::string> strings;
@@ -142,6 +151,7 @@ const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64 id) {
 }
 
 std::string get_proxy_device(const xla::HloModuleProto& module) {
+  if (!IsEnabled()) return "";
   //save_msg(module, "my_hlo_module.json");
   const int64 entry_computation_id = module.entry_computation_id();
   if (entry_computation_id) {
@@ -212,6 +222,7 @@ public:
   }
 
   static bool is_proxyable_device(const std::string device) {
+    if (disable_proxy) return false;
     return strncmp(device.c_str(), PROXYABLE_DEVICE_PREFIX.c_str(), PROXYABLE_DEVICE_PREFIX.size()) == 0;
   }
 };
@@ -599,12 +610,10 @@ xla::DeviceHandle XlaComputationProxy::GetDeviceHandle(const std::string& device
   return info->device_handles_[ordinal];
 }
 
-//bool XlaComputationProxy::IsProxyDevice(const std::string& device) const {
-//  std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
-//  return xla_client_map_.find(device) != xla_client_map_.end();
-//}
-
 bool XlaComputationProxy::ShouldCloneDataForDevice(const std::string& device) const {
+  if (!IsEnabled()) {
+    return false;
+  }
   assert(!device.empty());
   return clone_all_data && !ProxyName::is_proxy_device_name(device) && ProxyName::is_proxyable_device(device);
 }
@@ -635,10 +644,6 @@ void XlaComputationProxy::ReleaseXrtData(const std::string& device, int64 handle
     // is it a wse device?
     assert(!device.empty());
     assert(!always_use_proxy);
-//  if((device.empty() && always_use_proxy) || UseProxyForDevice(device)) {
-//    ReleaseXrtData(device, handle);
-//  } else {
-    //if (clone_all_data && device != CLONE_DATA_DEVICE && UseProxyForDevice(CLONE_DATA_DEVICE)) {
     if (ShouldCloneDataForDevice(device)) {
       // when the return DataPtr object goes out of scope,
       // it should cause ReleaseXrtData to be called eventually
@@ -801,7 +806,6 @@ ComputationClient::DataPtr XlaComputationProxy::TransferLiteralToServer(
     );
   } else {
     assert(false); // why?
-    //assert(!IsWseDevice(device));
     assert(!device.empty());
     return std::make_shared<XrtData>(
       this,
@@ -1007,7 +1011,6 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
   //       call Super with it (no proxy) on compile failure
   //
   //HERE();
-  //std::string compilation_device;
   auto results = split_types<std::vector<ComputationClient::ComputationPtr>>(
     instances,
     [this /*, &compilation_device*/](const CompileInstance& instance) -> bool {

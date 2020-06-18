@@ -133,6 +133,7 @@ private:
     bool release_from_source,
     bool add_mapping_entry
   );
+
   /**
    * @brief Is device capable of proxy?
    * @param device
