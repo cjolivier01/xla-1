@@ -1,6 +1,7 @@
 #!/bin/bash
 set -exo pipefail
 CDIR="$(cd "$(dirname "$0")" ; pwd -P)"
+echo CDIR=$CDIR
 LOGFILE=/tmp/pytorch_py_test.log
 MAX_GRAPH_SIZE=500
 GRAPH_CHECK_FREQUENCY=100

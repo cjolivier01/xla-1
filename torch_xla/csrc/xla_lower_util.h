@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <list>
 
 #include "absl/types/optional.h"
 #include "absl/types/span.h"

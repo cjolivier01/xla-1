@@ -55,18 +55,7 @@ AtenXlaDeviceMapper* AtenXlaDeviceMapper::Get() {
 }
 
 XLATensorImpl* GetXlaTensorImpl(const at::Tensor& tensor) {
-  XLATensorImpl* xla_tensor_impl = dynamic_cast<XLATensorImpl*>(tensor.unsafeGetTensorImpl());
-#ifdef XLA_STORE_AT_TENSOR
-  if (xla_tensor_impl) {
-    const at::Tensor at_tensor = xla_tensor_impl->get_at_tensor();
-    if (at_tensor.defined()) {
-      assert(at_tensor.is_same(tensor));
-    } else {
-      xla_tensor_impl->set_at_tensor(at_tensor);
-    }
-  }
-#endif  // XLA_STORE_AT_TENSOR
-  return xla_tensor_impl;
+  return dynamic_cast<XLATensorImpl*>(tensor.unsafeGetTensorImpl());
 }
 
 }  // namespace

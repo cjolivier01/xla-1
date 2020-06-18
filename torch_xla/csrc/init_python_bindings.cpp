@@ -236,9 +236,6 @@ void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
   auto opt_device = GetOptionalDevice(device_str);
   const Device* device = opt_device ? &opt_device.value() : nullptr;
-//  if (opt_device) {
-//    std::cout << "OPTIONAL DEVICE: " << device->ToString() << std::endl << std::flush;
-//  }
   CompileWatcher::NotifyStepMarkerBegin(device_str, devices);
   try {
     XLATensor::SyncLiveTensorsGraph(device, devices, wait);
@@ -269,7 +266,6 @@ void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
 }
 
 void SetDeviceAddress(const std::string& device, const std::string& proxy_address) {
-  //std::vector<std::string> devices = xla::ComputationClient::Get()->GetAllDevices();
   CompileWatcher::SetDeviceProxyAddress(device, proxy_address);
 }
 
@@ -980,14 +976,6 @@ void InitXlaModuleBindings(py::module m) {
   m.def("_xla_op_shape", [](op_builder::OpPtr op) {
     const xla::Shape& shape = XlaHelpers::ShapeOfXlaOp(op->op);
     return op_builder::ShapeToPyShape(shape);
-  });
-  m.def("_set_device_override", [](std::string device) {
-    assert(false);  // not called yet, may not use
-//    CompileWatcher::SetDeviceMapping(
-//      GetDefaultDevice()->ToString(),
-//      CompileWatcher::GetDevice().ToString()
-//    );
-    // will GetCurrentDevice()/SetCurrentDevice() work?
   });
   m.def("_xla_op_builder", [](op_builder::OpPtr op) { return op->builder; });
   m.def("_xla_op_create",

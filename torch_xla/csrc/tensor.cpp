@@ -1200,6 +1200,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
   }
   XLA_VALUE_METRIC("TensorsGraphSize", po_data->post_order.size());
   TF_VLOG(5) << "TensorsGraphSize=" << po_data->post_order.size();
+
   return ScheduleSyncTensorsGraph(
       tensors, coll, std::move(po_data->parameters_data),
       coll->device.ToString(), std::move(cached_computation));
@@ -1532,9 +1533,9 @@ XLATensor::CompilationResult XLATensor::Compile(
     BuildInputOutputAliases(tensors, coll.indices, &lowering_ctx);
   }
 
-  std::stringstream ss;
-  ss << coll.hash;
-  print_all_tensors(ss.str(), tensors);
+//  std::stringstream ss;
+//  ss << coll.hash;
+//  print_all_tensors(ss.str(), tensors);
 
   // Might add a proxy device to the Hlo
   CompileWatcher::PreProcessHlo(lowering_ctx.builder(), coll);
@@ -1607,7 +1608,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
   auto cached_computation = std::make_shared<CachedComputation>(
       std::move(compile_result.computation));
-
   GetComputationCache()->Add(coll.hash, cached_computation);
 
   return ScheduleSyncTensorsGraph(

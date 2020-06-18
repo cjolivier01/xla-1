@@ -8,8 +8,6 @@
 
 namespace torch_xla {
 
-//#define XLA_STORE_AT_TENSOR  // @cjolivier01
-
 // Tensor implementation class used to be fed to the at::Tensor.
 // Its scope is just to handle an XLATensor.
 class XLATensorImpl : public c10::TensorImpl {
@@ -44,11 +42,6 @@ class XLATensorImpl : public c10::TensorImpl {
 
   static void AtenInitialize();
 
-#ifdef XLA_STORE_AT_TENSOR
-  void set_at_tensor(const at::Tensor& at_tensor) { at_tensor_ = at_tensor; }
-  const at::Tensor& get_at_tensor() { return at_tensor_; }
-#endif
-
  private:
   void SetupSizeProperties();
 
@@ -56,9 +49,6 @@ class XLATensorImpl : public c10::TensorImpl {
 
   XLATensor tensor_;
   size_t generation_ = 0;
-#ifdef XLA_STORE_AT_TENSOR
-  at::Tensor at_tensor_;
-#endif
 };
 
 }  // namespace torch_xla
