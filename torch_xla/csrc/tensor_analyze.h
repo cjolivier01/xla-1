@@ -3,11 +3,13 @@
 #include <sys/syscall.h>
 
 #include <stack>
+#include <map>
 
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
 
 namespace torch_xla {
+
 enum EPythonState {
   EPS_INVALID = 0,
   EPS_IN_TRAIN_LOOP = 1,
@@ -117,6 +119,8 @@ class CompileWatcher {
                             const XLATensor::SyncTensorCollection& coll);
 
   static bool IsSpecialLowering();
+
+  static std::map<std::string, std::string> GetStats(bool reset_stats);
 
  private:
   static void NotifyStepMarkerBegin(const std::string& device_str,

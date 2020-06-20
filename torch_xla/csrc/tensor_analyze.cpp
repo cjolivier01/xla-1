@@ -392,9 +392,7 @@ std::shared_ptr<CompileInfo> GetCompileInfo(pid_t tid) {
   return std::move(sp);
 }
 
-namespace {
 std::shared_ptr<ExecutableCache> ex_cache = std::make_shared<ExecutableCache>();
-}
 
 size_t get_number_of_required_runs_since_reset() {
   static bool trusted_model =
@@ -407,6 +405,36 @@ size_t get_number_of_required_runs_since_reset() {
   return rtc;
 }
 
+
+#define ADDMAP(dest, var, field) dest[#field] = std::to_string(var->field)
+struct TensorAnalyzeStats {
+  std::atomic<std::size_t> total_step_marker_count{0};
+  std::atomic<std::size_t> total_step_marker_compiles{0};
+  std::atomic<std::size_t> total_master_thread_compiles{0};
+  std::atomic<std::size_t> total_master_thread_executes{0};
+  std::atomic<std::size_t> total_non_fabric_compiles{0};
+  std::atomic<std::size_t> total_non_fabric_executes{0};
+  std::atomic<std::size_t> total_qualifying_steps{0};
+};
+
+// These stats are for external use only. Do not use them programatically.
+std::shared_ptr<TensorAnalyzeStats> get_stats(bool reset=false) {
+  static std::shared_ptr<TensorAnalyzeStats> current_user_stats{nullptr};
+  std::shared_ptr<TensorAnalyzeStats> stats = current_user_stats;
+  if (reset || !stats) {
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lk(mtx);
+    // check current_user_stats again after we get the lock
+    if (!current_user_stats || reset) {
+      current_user_stats = std::make_shared<TensorAnalyzeStats>();
+    }
+    if (!stats) {
+      stats = current_user_stats;
+    }
+  }
+  return stats;
+}
+
 std::mutex init_devices_mutex;
 
 bool __thread is_in_mark_step = false;
@@ -416,6 +444,19 @@ bool __thread is_qualifying_step = false;
 }  // namespace
 
 std::vector<std::string> CompileWatcher::wse_devices_;
+
+std::map<std::string, std::string> CompileWatcher::GetStats(bool reset_stats) {
+  std::map<std::string, std::string> results;
+  auto stats = get_stats(reset_stats);
+  ADDMAP(results, stats, total_step_marker_count);
+  ADDMAP(results, stats, total_step_marker_compiles);
+  ADDMAP(results, stats, total_master_thread_compiles);
+  ADDMAP(results, stats, total_master_thread_executes);
+  ADDMAP(results, stats, total_non_fabric_compiles);
+  ADDMAP(results, stats, total_non_fabric_executes);
+  ADDMAP(results, stats, total_qualifying_steps);
+  return std::move(results);
+}
 
 void CompileWatcher::SetAllDevices(
     const std::vector<std::string>& all_devices) {
@@ -441,10 +482,6 @@ bool CompileWatcher::PreProcessHlo(
         // Mark this for proxy
         xla::FrontendAttributes frontend_attributes;
         frontend_attributes.CopyFrom(builder->frontend_attributes());
-        // assert(coll.device.ToString() == GetDevice().ToString());  // get rid
-        // of GetDevice() as soon as this passes
-        //(*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
-        // GetDevice().ToString();
         (*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
             coll.device.ToString();
         builder->SetFrontendAttributes(frontend_attributes);
@@ -539,18 +576,30 @@ xla::hash_t CompileWatcher::PostmarkHash(
 void CompileWatcher::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
-  if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
-    ColorScope clr(std::cout, {Color::FG_BLUE}, false);
-    std::cout << "** NON-FABRIC COMPILE" << ENDL;
+  if (!HasWseDevices()) return;
+
+  if (is_in_mark_step) {
+    ++get_stats()->total_step_marker_compiles;
+  }
+
+  if (IsTrainingThread(tid)) {
+    ++get_stats()->total_master_thread_compiles;
+    if (!ex_cache->has_executable_by_adjusted_hash(hash)) {
+      ++get_stats()->total_non_fabric_compiles;
+      ColorScope clr(std::cout, {Color::FG_BLUE}, false);
+      std::cout << "** NON-FABRIC COMPILE" << ENDL;
+    }
   }
 }
 
 void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
                                    pid_t tid, bool scheduled) {
-  // Just notify when the training thread tries to run something off of the
-  // proxy
-  if (HasWseDevices()) {
-    if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
+  if (!HasWseDevices()) return;
+
+  if (IsTrainingThread(tid)) {
+    ++get_stats()->total_master_thread_executes;
+    if(!ex_cache->has_executable_by_adjusted_hash(hash)) {
+      ++get_stats()->total_non_fabric_executes;
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       std::cout << "** NON-FABRIC EXECUTION" << ENDL;
     }
@@ -597,6 +646,7 @@ void CompileWatcher::NotifyStepMarkerBegin(
     const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
+  ++get_stats()->total_step_marker_count;
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << "*************** CompileWatcher::NotifyStepMarker: device="
@@ -620,11 +670,12 @@ void CompileWatcher::NotifyStepMarkerBegin(
   const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
   is_qualifying_step = IsQualifyingStep(tid);
-//  if (is_qualifying_step) {
+  if (is_qualifying_step) {
+    ++get_stats()->total_qualifying_steps;
 //    ColorScope red(Color::FG_RED);
 //    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl
 //              << std::flush;
-//  }
+  }
 }
 
 void CompileWatcher::NotifyStepMarkerEnd() {
@@ -677,8 +728,10 @@ bool CompileWatcher::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   const bool ready = mark_step_count_since_reset - 1 == steps_required;
   if (ready) {
     assert(is_clean_step);  // validate it coincides with clean step logic
-    ColorScope clr({Color::BG_BLUE, Color::FG_YELLOW});
-    std::cout << "Run ready" << std::endl << std::flush;
+    if (verbose) {
+      ColorScope clr({Color::BG_BLUE, Color::FG_YELLOW});
+      std::cout << "Run ready" << std::endl << std::flush;
+    }
   }
   return ready;
 }
