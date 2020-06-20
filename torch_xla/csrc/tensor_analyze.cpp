@@ -406,6 +406,8 @@ struct TensorAnalyzeStats {
   std::atomic<std::size_t> total_qualifying_steps{0};
   std::atomic<std::size_t> total_fabric_compiles{0};
   std::atomic<std::size_t> total_fabric_executes{0};
+  std::atomic<std::size_t> total_clean_steps{0};
+  std::atomic<std::size_t> total_executable_deactivates{0};
 };
 
 // These stats are for external use only. Do not use them programatically.
@@ -450,6 +452,8 @@ std::map<std::string, std::string> CompileWatcher::GetStats(bool reset_stats) {
   ADDMAP(results, stats, total_qualifying_steps);
   ADDMAP(results, stats, total_fabric_compiles);
   ADDMAP(results, stats, total_fabric_executes);
+  ADDMAP(results, stats, total_clean_steps);
+  ADDMAP(results, stats, total_executable_deactivates);
          return std::move(results);
 }
 
@@ -560,6 +564,9 @@ xla::hash_t CompileWatcher::PostmarkHash(
       return coll.hash;
     } else {
       // Nothing left, so can't do this on proxy
+      if (exe->is_active()) {
+        ++get_stats()->total_executable_deactivates;
+      }
       exe->set_active(false);
       std::cout
           << "No effective allowed outputs, so reverting to standard device"
@@ -672,6 +679,9 @@ void CompileWatcher::NotifyStepMarkerBegin(
   }
   const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
+  if (is_clean_step) {
+    ++get_stats()->total_clean_steps;
+  }
   is_qualifying_step = IsQualifyingStep(tid);
   if (is_qualifying_step) {
     ++get_stats()->total_qualifying_steps;
