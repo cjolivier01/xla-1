@@ -28,7 +28,7 @@
  */
 namespace torch_xla {
 
-bool verbose = true;
+bool verbose = false;
 
 // const bool IGNORE_FIRST_MARK_STEP = true;
 // const bool ENABLE_DEVICE_REMAPPING = true;
