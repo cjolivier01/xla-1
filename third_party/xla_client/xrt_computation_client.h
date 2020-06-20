@@ -60,8 +60,8 @@ class XrtComputationClient : public ComputationClient {
             int64 handle)
         : Data(std::move(device), std::move(device_shape)),
           handle_ptr(std::make_shared<XrtHandle>(
-              handle, [self, this, handle]() {
-                self->ReleaseXrtData(this->device(), handle);
+              handle, [self, device = this->device(), handle]() {
+                self->ReleaseXrtData(device, handle);
               })) {}
 
     // memory on proxy device

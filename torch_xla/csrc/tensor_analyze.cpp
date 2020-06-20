@@ -544,9 +544,11 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
                                    pid_t tid, bool scheduled) {
   // Just notify when the training thread tries to run something off of the
   // proxy
-  if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
-    ColorScope clr(std::cout, {Color::FG_RED, Color::BG_BLUE}, false);
-    std::cout << "** NON-FABRIC EXECUTION" << ENDL;
+  if (HasWseDevices()) {
+    if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
+      ColorScope clr(std::cout, {Color::FG_RED, Color::BG_BLUE}, false);
+      std::cout << "** NON-FABRIC EXECUTION" << ENDL;
+    }
   }
 }
 
@@ -613,20 +615,20 @@ void CompileWatcher::NotifyStepMarkerBegin(
   const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
   is_qualifying_step = IsQualifyingStep(tid);
-  if (is_qualifying_step) {
-    ColorScope red(Color::FG_RED);
-    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl
-              << std::flush;
-  }
+//  if (is_qualifying_step) {
+//    ColorScope red(Color::FG_RED);
+//    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl
+//              << std::flush;
+//  }
 }
 
 void CompileWatcher::NotifyStepMarkerEnd() {
   assert(is_in_mark_step);
   const pid_t tid = gettid();
-  if (IsQualifyingStep(tid)) {
-    ColorScope red(Color::FG_RED);
-    std::cout << "END WseRunStep()" << std::endl << std::flush;
-  }
+//  if (IsQualifyingStep(tid)) {
+//    ColorScope red(Color::FG_RED);
+//    std::cout << "END WseRunStep()" << std::endl << std::flush;
+//  }
   auto compile_info = GetCompileInfo(tid);
   compile_info->output_ids_.clear();
 

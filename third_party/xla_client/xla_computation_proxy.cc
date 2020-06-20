@@ -1408,7 +1408,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
 
     request.mutable_handle()->set_handle(computation.execution_handle());
 
-    if (true || verbose) {
+    if (verbose) {
       ColorScope clr(Color::FG_CYAN);
       std::cout << "Proxy Execution handle: " << computation.execution_handle()
                 << " " << computation.program_shape().ToString()
@@ -1558,7 +1558,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   assert(!always_use_proxy);
   std::vector<DataPtr> new_args = NormalizeDataToDevice(arguments, effective_device, false);
 
-  if (true || verbose) {
+  if (verbose) {
     ColorScope clr(Color::FG_RED);
     std::cout << "Local Execution handle: " << computation.execution_handle()
               << " " << computation.program_shape().ToString()
