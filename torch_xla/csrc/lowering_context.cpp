@@ -41,15 +41,15 @@ class HloMetadataSetter {
   static void PopulateXlaOpMetadata(LoweringContext* loctx, const Node* node) {
     xla::OpMetadata metadata;
     metadata.set_op_type(node->op().ToString());
-    if (!node->op().ToString().empty()) {
-      std::cout << "Op type: " << node->op().ToString() << std::endl << std::flush;
-    }
+//    if (!node->op().ToString().empty()) {
+//      std::cout << "Op type: " << node->op().ToString() << std::endl << std::flush;
+//    }
+    const ir::MetaData& nmeta = node->metadata();
 #if 1
     std::stringstream ss;
     if (node->IsAutograd()) {
       ss << "autograd@";
     }
-    const ir::MetaData& nmeta = node->metadata();
     ss << nmeta.scope;
     metadata.set_op_name(ss.str());
 #else

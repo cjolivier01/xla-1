@@ -78,6 +78,7 @@ bool wse_set_topology = false;
 bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
 bool disable_proxy = false;
+bool throw_on_compile_fail = true;
 //const std::string CLONE_DATA_DEVICE = "WSE:0";
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 //constexpr int XLA_SERVICE_GRPC_PORT = 1685;
@@ -1120,6 +1121,12 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
         }
         if (!handled) {
           assert(!always_use_proxy);
+          if (throw_on_compile_fail) {
+            std::stringstream ss;
+            ss << "The compile failed on the proxy device: "
+               << compilation_device;
+            throw std::runtime_error(ss.str());
+          }
           std::vector<CompileInstance> one_item;
           one_item.emplace_back(std::move(instance));
           auto results = Super::Compile(std::move(one_item));

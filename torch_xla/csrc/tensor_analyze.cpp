@@ -325,6 +325,10 @@ class ExecutableCache {
     Lock lk(mtx_);
     return executables_.count(hash) != 0;
   }
+  bool has_executable_by_adjusted_hash(const CompileWatcher::hash_t& hash) {
+    Lock lk(mtx_);
+    return adjusted_hash_map_.count(hash) != 0;
+  }
   bool is_active_executable(const CompileWatcher::hash_t& hash) {
     Lock lk(mtx_);
     auto exec = get_executable(hash);
@@ -440,7 +444,7 @@ bool CompileWatcher::PreProcessHlo(
         // assert(coll.device.ToString() == GetDevice().ToString());  // get rid
         // of GetDevice() as soon as this passes
         //(*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
-        //GetDevice().ToString();
+        // GetDevice().ToString();
         (*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
             coll.device.ToString();
         builder->SetFrontendAttributes(frontend_attributes);
@@ -534,17 +538,17 @@ xla::hash_t CompileWatcher::PostmarkHash(
 
 void CompileWatcher::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
-    hash_t hash, pid_t tid) {
-  // TODO: may need to know if it fails, and, for instance, mark it as not
-  // compilable
-  //  ExecutablePtr exec = ex_cache->get_executable_by_adjusted_hash(hash);
-  //  if (exec) {
-  //    exec->set_compiled(true);
-  //  }
-}
+    hash_t hash, pid_t tid) {}
 
 void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
-                                   pid_t tid, bool scheduled) {}
+                                   pid_t tid, bool scheduled) {
+  // Just notify when the training thread tries to run something off of the
+  // proxy
+  if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
+    ColorScope clr(std::cout, {Color::FG_RED, Color::BG_BLUE}, false);
+    std::cout << "** NON-FABRIC EXECUTION" << ENDL;
+  }
+}
 
 std::vector<xla::ComputationClient::DataPtr>
 CompileWatcher::NotifyScheduleSyncTensorsGraph(

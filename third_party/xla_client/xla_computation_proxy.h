@@ -6,8 +6,27 @@
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 
 #include <memory>
+#include <sstream>
+#include <stdexcept>
 
 namespace xla {
+
+//class stream_exception : public std::exception, public std::stringstream {
+//public:
+//  virtual const char* what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_USE_NOEXCEPT {
+//      if (str_.empty()) {
+//        str_ = std::stringstream::str();
+//      }
+//      return str_.c_str();
+//  }
+//private:
+//  mutable std::string str_;
+//};
+//
+//template<typename T>
+//inline std::ostream& operator << (stream_exception& ex, const T& o) {
+//  return ex << o;
+//}
 
 class XlaComputationProxy : public XrtComputationClient {
     typedef XrtComputationClient Super;
