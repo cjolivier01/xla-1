@@ -395,6 +395,8 @@ size_t get_number_of_required_runs_since_reset() {
 
 #define ADDMAP(dest, var, field) dest[#field] = std::to_string(var->field)
 struct TensorAnalyzeStats {
+  std::atomic<std::size_t> total_compiles{0};
+  std::atomic<std::size_t> total_executes{0};
   std::atomic<std::size_t> total_step_marker_count{0};
   std::atomic<std::size_t> total_step_marker_compiles{0};
   std::atomic<std::size_t> total_master_thread_compiles{0};
@@ -402,6 +404,8 @@ struct TensorAnalyzeStats {
   std::atomic<std::size_t> total_non_fabric_compiles{0};
   std::atomic<std::size_t> total_non_fabric_executes{0};
   std::atomic<std::size_t> total_qualifying_steps{0};
+  std::atomic<std::size_t> total_fabric_compiles{0};
+  std::atomic<std::size_t> total_fabric_executes{0};
 };
 
 // These stats are for external use only. Do not use them programatically.
@@ -435,6 +439,8 @@ std::vector<std::string> CompileWatcher::wse_devices_;
 std::map<std::string, std::string> CompileWatcher::GetStats(bool reset_stats) {
   std::map<std::string, std::string> results;
   auto stats = get_stats(reset_stats);
+  ADDMAP(results, stats, total_compiles);
+  ADDMAP(results, stats, total_executes);
   ADDMAP(results, stats, total_step_marker_count);
   ADDMAP(results, stats, total_step_marker_compiles);
   ADDMAP(results, stats, total_master_thread_compiles);
@@ -442,7 +448,9 @@ std::map<std::string, std::string> CompileWatcher::GetStats(bool reset_stats) {
   ADDMAP(results, stats, total_non_fabric_compiles);
   ADDMAP(results, stats, total_non_fabric_executes);
   ADDMAP(results, stats, total_qualifying_steps);
-  return std::move(results);
+  ADDMAP(results, stats, total_fabric_compiles);
+  ADDMAP(results, stats, total_fabric_executes);
+         return std::move(results);
 }
 
 void CompileWatcher::SetAllDevices(
@@ -564,7 +572,7 @@ void CompileWatcher::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
   if (!HasWseDevices()) return;
-
+  ++get_stats()->total_compiles;
   if (is_in_mark_step) {
     ++get_stats()->total_step_marker_compiles;
   }
@@ -575,6 +583,8 @@ void CompileWatcher::NotifyCompile(
       ++get_stats()->total_non_fabric_compiles;
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       std::cout << "** NON-FABRIC COMPILE" << ENDL;
+    } else {
+      ++get_stats()->total_fabric_compiles;
     }
   }
 }
@@ -582,13 +592,15 @@ void CompileWatcher::NotifyCompile(
 void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
                                    pid_t tid, bool scheduled) {
   if (!HasWseDevices()) return;
-
+  ++get_stats()->total_executes;
   if (IsTrainingThread(tid)) {
     ++get_stats()->total_master_thread_executes;
     if(!ex_cache->has_executable_by_adjusted_hash(hash)) {
       ++get_stats()->total_non_fabric_executes;
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       std::cout << "** NON-FABRIC EXECUTION" << ENDL;
+    } else {
+      ++get_stats()->total_fabric_executes;
     }
   }
 }
