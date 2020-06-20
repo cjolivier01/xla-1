@@ -7,6 +7,11 @@
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "torch_xla/csrc/python_util.h"
+#include "torch_xla/csrc/tensor_analyze.h"
+
+extern "C" {
+extern int is_autograd_thread();
+}
 
 namespace torch_xla {
 namespace ir {
@@ -36,10 +41,23 @@ class HloMetadataSetter {
   static void PopulateXlaOpMetadata(LoweringContext* loctx, const Node* node) {
     xla::OpMetadata metadata;
     metadata.set_op_type(node->op().ToString());
+    if (!node->op().ToString().empty()) {
+      std::cout << "Op type: " << node->op().ToString() << std::endl << std::flush;
+    }
+#if 1
+    std::stringstream ss;
+    if (node->IsAutograd()) {
+      ss << "autograd@";
+    }
     const ir::MetaData& nmeta = node->metadata();
+    ss << nmeta.scope;
+    metadata.set_op_name(ss.str());
+#else
     if (!nmeta.scope.empty()) {
       metadata.set_op_name(nmeta.scope);
+      std::cout << "Lowering: " << nmeta.scope << std::endl;
     }
+#endif
     if (!nmeta.frame_info.empty()) {
       const SourceLocation& frame = nmeta.frame_info.front();
       std::string::size_type pos = frame.file.find_last_of('/');
@@ -60,14 +78,16 @@ class HloMetadataSetter {
 }  // namespace
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
-    : builder_(name), device_(std::move(device)) {}
+    : builder_(name), device_(std::move(device)),
+      allow_custom_lowering_(CompileWatcher::IsSpecialLowering()) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,
                                  Util::EmissionMap emit_status)
     : builder_(name),
       device_(std::move(device)),
-      emit_status_(std::move(emit_status)) {
+      emit_status_(std::move(emit_status)),
+      allow_custom_lowering_(CompileWatcher::IsSpecialLowering()) {
   for (auto node : post_order) {
     LowerNode(node);
   }
@@ -75,7 +95,13 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
 
 xla::XlaOp LoweringContext::GetParameter(
     const std::shared_ptr<xla::ComputationClient::Data>& data) {
+  assert(!is_autograd_thread());
   xla::ComputationClient::Data::OpaqueHandle handle = data->GetOpaqueHandle();
+#if 1
+  if (is_autograd_thread()) {
+    std::cout << "Autograd: GetParameter()" << std::endl << std::flush;
+  }
+#endif
   auto it = parameters_map_.find(handle);
   if (it == parameters_map_.end()) {
     xla::XlaOp param =
@@ -121,6 +147,11 @@ xla::StatusOr<xla::XlaComputation> LoweringContext::Build() {
 
 xla::StatusOr<xla::XlaComputation> LoweringContext::Build(xla::XlaOp root) {
   XLA_CHECK(root_tuple_.empty());
+#if 1
+  if (is_autograd_thread()) {
+    std::cout << "Autograd: Build()" << std::endl << std::flush;
+  }
+#endif
   return builder()->Build(root);
 }
 
@@ -129,6 +160,11 @@ void LoweringContext::AssignOutputOp(const Output& output, xla::XlaOp op) {
 }
 
 xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
+  #if 1
+  if (is_autograd_thread()) {
+    std::cout << "Autograd: GetOutputOp()" << std::endl << std::flush;
+  }
+  #endif
   auto it = emitted_outputs_.find(output);
   if (it == emitted_outputs_.end()) {
     auto post_order = Util::ComputePostOrder(output.node, &emit_status_);
@@ -147,6 +183,9 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
 XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
+    if (is_autograd_thread()) {
+      std::cout << "Autograd: GetOutputOp()" << std::endl << std::flush;
+    }
     HloMetadataSetter meta_setter(this, node);
 
     result_ops = node->Lower(this);

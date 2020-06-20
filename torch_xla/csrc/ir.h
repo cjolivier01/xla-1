@@ -233,7 +233,9 @@ class Node {
   XlaOpVector ReturnOps(absl::Span<const xla::XlaOp> ops,
                         LoweringContext* loctx) const;
 
- private:
+  bool IsAutograd() const { return is_autograd_; }
+
+private:
   // Adds node's index output number as operand.
   void AddOperand(NodePtr node, size_t index = 0);
 
@@ -268,6 +270,8 @@ class Node {
   // The IR framework user can attach a user defined metadata object deriving
   // from UserMetaData.
   std::shared_ptr<UserMetaData> user_metadata_;
+  // Is this an autograd node (i.e. backward pass)?
+  const bool is_autograd_;
 };
 
 // RAII data structure to be used a stack variable to enter a new IR scope. IR
@@ -278,6 +282,8 @@ struct ScopePusher {
   ~ScopePusher();
 
   static void ResetScopes();
+  static std::size_t Depth();
+  static std::string CurrentScope();
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const Node& node) {
@@ -303,6 +309,9 @@ T* NodeCast(const Node* node, OpKind op) {
 #endif
   return const_cast<T*>(casted);
 }
+
+void PythonPushScope(std::string scope);
+void PythonPopScope();
 
 }  // namespace ir
 }  // namespace torch_xla

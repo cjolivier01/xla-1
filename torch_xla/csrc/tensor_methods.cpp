@@ -14,6 +14,7 @@
 #include "torch_xla/csrc/data_ops.h"
 #include "torch_xla/csrc/helpers.h"
 #include "torch_xla/csrc/ir_util.h"
+#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/layout_manager.h"
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/ops/adaptive_avg_pool2d.h"
@@ -1704,6 +1705,7 @@ void XLATensor::min_out(XLATensor& min, XLATensor& min_indices,
   min_indices.SetIrValue(ir::Value(node, 1));
 }
 XLATensor XLATensor::mm(const XLATensor& input, const XLATensor& weight) {
+  ir::ScopePusher scope("XLATensor::mm");
   return input.CreateFrom(
       ir::ops::Dot(input.GetIrValue(), weight.GetIrValue()));
 }

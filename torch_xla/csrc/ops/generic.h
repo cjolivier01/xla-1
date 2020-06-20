@@ -35,6 +35,17 @@ class Generic : public Node {
   xla::hash_t hash_seed_;
 };
 
+class SpecialGeneric : public Generic {
+ public:
+  SpecialGeneric(OpKind op, absl::Span<const Value> operands,
+                 const std::function<xla::Shape()>& shape_fn, LowerFn lower_fn,
+                 size_t num_outputs, xla::hash_t hash_seed = 0x5a2d296e9)
+      : Generic(std::move(op), std::move(operands), shape_fn,
+                std::move(lower_fn), num_outputs, hash_seed) {}
+
+  XlaOpVector Lower(LoweringContext* loctx) const override;
+};
+
 }  // namespace ops
 }  // namespace ir
 }  // namespace torch_xla

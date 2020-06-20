@@ -849,3 +849,17 @@ def in_py_debug():
     yield
   finally:
     torch_xla._XLAC._xla_pop_python_state()
+
+@contextlib.contextmanager
+def push_ir_scope(scope_text, enabled=True):
+  """
+  Yields:
+      None.
+  """
+  if enabled:
+    torch_xla._XLAC._xla_push_ir_scope(scope_text)
+  try:
+    yield
+  finally:
+    if enabled:
+      torch_xla._XLAC._xla_pop_ir_scope()

@@ -6,6 +6,7 @@
 #include "torch_xla/csrc/softmax_builder.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
+#include "torch_xla/csrc/lower_custom.h"
 
 namespace torch_xla {
 namespace ir {
@@ -43,8 +44,15 @@ NodePtr LogSoftmax::Clone(OpList operands) const {
 }
 
 XlaOpVector LogSoftmax::Lower(LoweringContext* loctx) const {
-  xla::XlaOp input = loctx->GetOutputOp(operand(0));
-  return ReturnOp(LowerLogSoftmax(input, dim_, dtype_), loctx);
+  if (loctx->AllowCustomLowering()) {
+    return ReturnOp(CustomLowerOp(
+        "WSE_LogSoftmaxFWD", this,
+        "wse_log_softmax_fwd", "wse_log_softmax_fwd@float16@@(NAT)",
+        {{"dim", std::to_string(dim_)}}, loctx), loctx);
+  } else {
+    xla::XlaOp input = loctx->GetOutputOp(operand(0));
+    return ReturnOp(LowerLogSoftmax(input, dim_, dtype_), loctx);
+  }
 }
 
 std::string LogSoftmax::ToString() const {

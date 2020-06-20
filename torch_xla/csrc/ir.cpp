@@ -12,6 +12,9 @@
 
 namespace torch_xla {
 namespace ir {
+
+extern "C" int is_autograd_thread();
+
 namespace {
 
 using ShapeCache =
@@ -45,6 +48,11 @@ void PopScope() {
 void ResetScopeContext() {
   XLA_CHECK_EQ(g_scope_context.scopes.size(), 0);
   g_scope_context.next_id = 1;
+}
+
+std::size_t ScopeDepth() {
+  XLA_CHECK(!g_scope_context.scopes.empty());
+  return g_scope_context.scopes.size();
 }
 
 std::string GetCurrentScope() {
@@ -141,8 +149,17 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       num_outputs_(num_outputs),
       shape_(std::move(shape)),
       node_hash_(xla::util::HashCombine(op_.hash(), hash_seed)),
-      hash_(node_hash_) {
+      hash_(node_hash_),
+      is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
+  if (!metadata_.scope.empty()) {
+    std::cout << "Scope: " << metadata_.scope << std::endl << std::flush;
+  }
+  if (!op_.ToString().empty()) {
+    if (op_.ToString() == "aten::addmm") {
+      std::cout << "OP: " << op_.ToString() << std::endl << std::flush;
+    }
+  }
   metadata_.frame_info = GetFrameInfo();
   for (auto& operand : operands) {
     AddOperand(operand.node, operand.index);
@@ -165,7 +182,8 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       num_outputs_(num_outputs),
       shape_(std::move(shape)),
       node_hash_(GetOpHash(op_, shape_, hash_seed)),
-      hash_(node_hash_) {
+      hash_(node_hash_),
+      is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
 }
@@ -276,6 +294,15 @@ ScopePusher::ScopePusher(const std::string& name) { PushScope(name); }
 ScopePusher::~ScopePusher() { PopScope(); }
 
 void ScopePusher::ResetScopes() { ResetScopeContext(); }
+
+std::size_t ScopePusher::Depth() { return ScopeDepth(); }
+
+std::string ScopePusher::CurrentScope() {
+  return GetCurrentScope();
+}
+
+void PythonPushScope(std::string scope) { return PushScope(std::move(scope)); }
+void PythonPopScope() { PopScope(); }
 
 }  // namespace ir
 }  // namespace torch_xla

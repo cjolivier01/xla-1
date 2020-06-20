@@ -1,29 +1,27 @@
-#include "torch_xla/csrc/tensor.h"
 #include "torch_xla/csrc/tensor_analyze.h"
-#include "torch_xla/csrc/aten_xla_bridge.h"
 
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
-#include "tensorflow/compiler/xla/xla_client/sys_util.h"
-#include "tensorflow/core/util/util.h"
-
-#include "absl/container/node_hash_map.h"
-
-#include <string>
-#include <stack>
-#include <mutex>
 #include <Python.h>
-
 #include <pybind11/pybind11.h>
 
-#   define __ASSERT_FUNCTION	__extension__ __PRETTY_FUNCTION__
+#include <mutex>
+#include <stack>
+#include <string>
+
+#include "absl/container/node_hash_map.h"
+#include "tensorflow/compiler/xla/xla_client/sys_util.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
+#include "tensorflow/core/util/util.h"
+#include "torch_xla/csrc/aten_xla_bridge.h"
+#include "torch_xla/csrc/tensor.h"
+
+#define __ASSERT_FUNCTION __extension__ __PRETTY_FUNCTION__
 
 #undef assert
-#  define assert(expr)							\
-     (static_cast <bool> (expr)						\
-      ? void (0)							\
-      : __assert_fail (#expr, __FILE__, __LINE__, __ASSERT_FUNCTION))
-
+#define assert(expr)       \
+  (static_cast<bool>(expr) \
+       ? void(0)           \
+       : __assert_fail(#expr, __FILE__, __LINE__, __ASSERT_FUNCTION))
 
 /**
  * Most of this can eventually move to monolith
@@ -32,13 +30,13 @@ namespace torch_xla {
 
 bool verbose = false;
 
-//const bool IGNORE_FIRST_MARK_STEP = true;
-//const bool ENABLE_DEVICE_REMAPPING = true;
-//const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
-//constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 15;
+// const bool IGNORE_FIRST_MARK_STEP = true;
+// const bool ENABLE_DEVICE_REMAPPING = true;
+// const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
+// constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 15;
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
 
-bool is_true(const char *s) {
+bool is_true(const char* s) {
   if (s && *s) {
     const char c = ::tolower(*s);
     if (c == 'y' || c == 't') {
@@ -49,8 +47,8 @@ bool is_true(const char *s) {
   return false;
 }
 
-bool get_env_bool(const char *s, const bool dflt) {
-  const char *v = getenv(s);
+bool get_env_bool(const char* s, const bool dflt) {
+  const char* v = getenv(s);
   if (v && *v) {
     return is_true(v);
   }
@@ -62,27 +60,31 @@ int XLATensor::get_rank(const XLATensor::Data* data) {
     return data->ir_value.shape().rank();
   } else if (data->xla_data) {
     return data->xla_data->shape().rank();
-  } else if(data->view) {
+  } else if (data->view) {
     return data->view->shape().rank();
   } else {
     return -1;
   }
 }
 
-void XLATensor::print_tensor(const std::string& label, const XLATensor& tensor) {
+void XLATensor::print_tensor(const std::string& label,
+                             const XLATensor& tensor) {
   print_tensor(label, tensor.data(), false, tensor.GetViewAliasId());
 }
 
-void XLATensor::print_tensor_ex(const std::string& label, const XLATensor& tensor) {
+void XLATensor::print_tensor_ex(const std::string& label,
+                                const XLATensor& tensor) {
   print_tensor_ex(label, tensor.data(), false, tensor.GetViewAliasId());
 }
 
 void XLATensor::print_tensor_ex(const std::string& label,
-    const XLATensor::Data* data, bool assert, ptrdiff_t alias_id) {
+                                const XLATensor::Data* data, bool assert,
+                                ptrdiff_t alias_id) {
   if (data->ir_value) {
     std::cout << label << " (id=" << data->unique_id << ") "
               << " IR tensor of shape: " << data->ir_value.shape().ToString()
-              << std::endl << std::flush;
+              << std::endl
+              << std::flush;
     if (assert) {
       assert(!data->xla_data);
       assert(!data->view);
@@ -90,42 +92,46 @@ void XLATensor::print_tensor_ex(const std::string& label,
   } else if (data->xla_data) {
     // coming from _xla_tensors_from_aten in at least one case
     std::cout << label << " (id=" << data->unique_id << ") "
-              << " tensor with no xla_data handle=" << data->xla_data->GetOpaqueHandle()
+              << " tensor with no xla_data handle="
+              << data->xla_data->GetOpaqueHandle()
               << " on device: " << data->xla_data->device()
-              << " of shape: "
-              << data->xla_data->shape().ToString()
-              << std::endl << std::flush;
+              << " of shape: " << data->xla_data->shape().ToString()
+              << std::endl
+              << std::flush;
     if (assert) {
       assert(!data->ir_value);
       assert(!data->view);
     }
-  } else if(data->view) {
+  } else if (data->view) {
     std::cout << label << " (id=" << data->unique_id << ") "
               << " tensor with view of shape: "
-              << data->view->shape().ToString()
-              << std::endl << std::flush;
+              << data->view->shape().ToString() << std::endl
+              << std::flush;
     if (assert) {
       assert(!data->ir_value);
       assert(!data->xla_data);
     }
   } else {
     std::cout << label << " (id=" << data->unique_id << ") "
-              << " strange tensor of unknown size"
-              << std::endl << std::flush;
+              << " strange tensor of unknown size" << std::endl
+              << std::flush;
   }
 }
 
-void XLATensor::print_tensor(const std::string& label, const XLATensor::Data* data, bool assert, ptrdiff_t alias_id) {
+void XLATensor::print_tensor(const std::string& label,
+                             const XLATensor::Data* data, bool assert,
+                             ptrdiff_t alias_id) {
   ColorScope color_scope(Color::FG_CYAN, true);
   print_tensor_ex(label, data, assert, alias_id);
 }
 
-void XLATensor::print_all_tensors(const std::string& label, const std::vector<XLATensor>& tensors) {
+void XLATensor::print_all_tensors(const std::string& label,
+                                  const std::vector<XLATensor>& tensors) {
   ColorScope cs(Color::FG_BLUE, false);
   std::cout << "------------------" << ENDL;
   std::cout << "tensors=[" << ENDL;
   for (size_t i = 0, n = tensors.size(); i < n; ++i) {
-    const XLATensor &t = tensors[i];
+    const XLATensor& t = tensors[i];
     std::ptrdiff_t alias_id = t.GetViewAliasId();
     const bool bright = !!alias_id;
     ColorScope cs(alias_id ? Color::FG_CYAN : Color::FG_BLUE, bright);
@@ -143,7 +149,7 @@ void XLATensor::print_all_tensors(const std::string& label, const std::vector<XL
 struct SPythonState {
   std::stack<EPythonState> states;
 
-  void push(EPythonState new_state, pid_t __tid=0) {
+  void push(EPythonState new_state, pid_t __tid = 0) {
     std::lock_guard<std::mutex> lk(python_state_map_mtx);
     const pid_t tid = __tid ? __tid : gettid();
     python_state_map[tid].states.push(new_state);
@@ -169,33 +175,33 @@ struct SPythonState {
     return EPS_INVALID;
   }
 
-private:
+ private:
   std::mutex python_state_map_mtx;
   std::map<pid_t, SPythonState> python_state_map;
 };
 SPythonState python_state;
 
-EPythonState GetPythonState(pid_t tid) {
-  return python_state.get(tid);
-}
+EPythonState GetPythonState(pid_t tid) { return python_state.get(tid); }
 
-static void _PushPythonState(EPythonState state, pid_t __tid=0) {
+static void _PushPythonState(EPythonState state, pid_t __tid = 0) {
   python_state.push(state, __tid);
 }
 
+void PushPythonState(EPythonState state) { _PushPythonState(state); }
 
-void PushPythonState(EPythonState state) {
-  _PushPythonState(state);
+void PopPythonState() { python_state.pop(); }
+
+MarkStepScope::MarkStepScope(const std::string& device_str,
+                             const std::vector<std::string>& devices) {
+  CompileWatcher::NotifyStepMarkerBegin(device_str, devices);
 }
 
-void PopPythonState() {
-  python_state.pop();
-}
+MarkStepScope::~MarkStepScope() { CompileWatcher::NotifyStepMarkerEnd(); }
 
 namespace {
 
-template<typename DEST_MSG, typename SRC_MSG_ARRAY>
-const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
+template <typename DEST_MSG, typename SRC_MSG_ARRAY>
+const DEST_MSG* get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
   const int64_t total_count = array.size();
   for (int64_t i = 0; i < total_count; ++i) {
     auto& obj = array[i];
@@ -207,26 +213,23 @@ const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
 }
 
 std::string get_proxy_device(const xla::HloModuleProto& module) {
-  //save_msg(module, "my_hlo_module.json");
+  // save_msg(module, "my_hlo_module.json");
   const int64_t entry_computation_id = module.entry_computation_id();
   if (entry_computation_id) {
-    auto computation = get_id<xla::HloComputationProto>(
-      module.computations(),
-      entry_computation_id
-    );
+    auto computation = get_id<xla::HloComputationProto>(module.computations(),
+                                                        entry_computation_id);
     const int64_t root_id = computation->root_id();
     if (root_id) {
       auto root_instruction = get_id<xla::HloInstructionProto>(
-        computation->instructions(),
-        root_id
-      );
-      const xla::FrontendAttributes &frontend_attributes =
-        root_instruction->frontend_attributes();
+          computation->instructions(), root_id);
+      const xla::FrontendAttributes& frontend_attributes =
+          root_instruction->frontend_attributes();
       auto iter = frontend_attributes.map().find("PROXY_DEVICE");
       if (iter != frontend_attributes.map().end()) {
         // A compile may have failed, in which case it
         // gets delegated back to the default device
-        auto cancel_iter = frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
+        auto cancel_iter =
+            frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
         if (cancel_iter != frontend_attributes.map().end()) {
           if (cancel_iter->second == iter->second) {
             return "";  // this proxying was cancelled (i.e. failed compile)
@@ -239,58 +242,68 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
   return "";
 }
 
-
 using Lock = std::lock_guard<std::recursive_mutex>;
 
 struct CompileInfo {
   std::atomic<size_t> sync_count_since_hash_change_{0};
-  //std::atomic<size_t> run_count_at_last_mark_step_{0};
+  // std::atomic<size_t> run_count_at_last_mark_step_{0};
   std::atomic<size_t> mark_step_count_since_last_reset_{0};
   std::unordered_set<size_t> output_ids_;
 
   void set_hash(CompileWatcher::hash_t hash) {
     if (hash != hash_.load()) {
-      //std::cout << "hash " << hash_.load() << " -> " << hash << std::endl << std::flush;
-      //std::cout << "Setting hash to: " << hash << std::endl << std::flush;
+      // std::cout << "hash " << hash_.load() << " -> " << hash << std::endl <<
+      // std::flush; std::cout << "Setting hash to: " << hash << std::endl <<
+      // std::flush;
       hash_ = std::move(hash);
     }
   }
-//  bool hash_equal(const CompileWatcher::hash_t& hash) const {
-//    return hash == hash_.load();
-//  }
+  //  bool hash_equal(const CompileWatcher::hash_t& hash) const {
+  //    return hash == hash_.load();
+  //  }
   CompileWatcher::hash_t hash() const { return hash_; }
-private:
+
+ private:
   std::atomic<CompileWatcher::hash_t> hash_{0};
 };
 
+/**
+ * @brief Valid proxy executable
+ */
 class Executable {
   static constexpr uint64_t HASH_MARKER = 478925426;
-public:
-  explicit Executable(xla::hash_t hash) : hash_(hash), adjusted_hash_(xla::util::MHash(hash, HASH_MARKER)) {}
+
+ public:
+  explicit Executable(xla::hash_t hash)
+      : hash_(hash), adjusted_hash_(xla::util::MHash(hash, HASH_MARKER)) {}
   bool set_active(bool active) { active_ = active; }
   bool is_active() const { return active_; }
-//  bool set_compiled(bool compiled) { compiled_ = compiled; }
-//  bool is_compiled() const { return compiled_; }
+  //  bool set_compiled(bool compiled) { compiled_ = compiled; }
+  //  bool is_compiled() const { return compiled_; }
   xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
-private:
+
+ private:
   const xla::hash_t hash_;
   const xla::hash_t adjusted_hash_;
   bool active_{false};
-//  bool compiled_{false};
+  //  bool compiled_{false};
 };
 using ExecutablePtr = std::shared_ptr<Executable>;
 
+/**
+ * @brief Class to keep track of known-good executables
+ */
 class ExecutableCache {
   ExecutablePtr add_executable(const CompileWatcher::hash_t& hash) {
     Lock lk(mtx_);
     assert(executables_.find(hash) == executables_.end());
-    auto exec = executables_.insert(
-      {hash, std::make_shared<Executable>(hash)}
-    ).first->second;
+    auto exec = executables_.insert({hash, std::make_shared<Executable>(hash)})
+                    .first->second;
     adjusted_hash_map_.insert({exec->get_adjusted_hash(), exec});
     return exec;
   }
-public:
+
+ public:
   ExecutablePtr get_executable(const CompileWatcher::hash_t& hash) {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
@@ -299,7 +312,8 @@ public:
     }
     return nullptr;
   }
-  ExecutablePtr get_executable_by_adjusted_hash(const CompileWatcher::hash_t& hash) {
+  ExecutablePtr get_executable_by_adjusted_hash(
+      const CompileWatcher::hash_t& hash) {
     Lock lk(mtx_);
     auto found = adjusted_hash_map_.find(hash);
     if (found != adjusted_hash_map_.end()) {
@@ -354,9 +368,11 @@ public:
       found->second->set_active(false);
     }
   }
-private:
+
+ private:
   mutable std::recursive_mutex mtx_;
-  absl::node_hash_map<CompileWatcher::hash_t, ExecutablePtr> executables_;  // needs to be locked?
+  absl::node_hash_map<CompileWatcher::hash_t, ExecutablePtr>
+      executables_;  // needs to be locked?
   absl::node_hash_map<CompileWatcher::hash_t, ExecutablePtr> adjusted_hash_map_;
 };
 
@@ -373,19 +389,17 @@ std::shared_ptr<CompileInfo> GetCompileInfo(pid_t tid) {
 }
 
 namespace {
-std::shared_ptr<ExecutableCache> ex_cache  = std::make_shared<ExecutableCache>();
+std::shared_ptr<ExecutableCache> ex_cache = std::make_shared<ExecutableCache>();
 }
 
 size_t get_number_of_required_runs_since_reset() {
-  static bool trusted_model = xla::sys_util::GetEnvBool("XLA_TRUSTED_MODEL", false);
+  static bool trusted_model =
+      xla::sys_util::GetEnvBool("XLA_TRUSTED_MODEL", false);
   if (trusted_model) {
     return 0;
   }
-  static size_t rtc =
-    xla::sys_util::GetEnvInt(
-      "XLA_RUNS_TILL_COMPILE",
-      DEFAULT_STEPS_TILL_COMPILE
-    );
+  static size_t rtc = xla::sys_util::GetEnvInt("XLA_RUNS_TILL_COMPILE",
+                                               DEFAULT_STEPS_TILL_COMPILE);
   return rtc;
 }
 
@@ -393,12 +407,14 @@ std::mutex init_devices_mutex;
 
 bool __thread is_in_mark_step = false;
 bool __thread is_clean_step = false;
+bool __thread is_qualifying_step = false;
 
-}  // anonymoud namespace
+}  // namespace
 
 std::vector<std::string> CompileWatcher::wse_devices_;
 
-void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) {
+void CompileWatcher::SetAllDevices(
+    const std::vector<std::string>& all_devices) {
   wse_devices_.clear();
   wse_devices_.reserve(all_devices.size());
   for (const std::string& device_str : all_devices) {
@@ -409,7 +425,8 @@ void CompileWatcher::SetAllDevices(const std::vector<std::string>& all_devices) 
   }
 }
 
-bool CompileWatcher::PreProcessHlo(xla::XlaBuilder *builder, const XLATensor::SyncTensorCollection& coll) {
+bool CompileWatcher::PreProcessHlo(
+    xla::XlaBuilder* builder, const XLATensor::SyncTensorCollection& coll) {
   if (HasWseDevices() && IsTrainingThread(coll.requesting_tid)) {
     if (verbose) {
       std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
@@ -420,9 +437,12 @@ bool CompileWatcher::PreProcessHlo(xla::XlaBuilder *builder, const XLATensor::Sy
         // Mark this for proxy
         xla::FrontendAttributes frontend_attributes;
         frontend_attributes.CopyFrom(builder->frontend_attributes());
-        //assert(coll.device.ToString() == GetDevice().ToString());  // get rid of GetDevice() as soon as this passes
-        //(*frontend_attributes.mutable_map())["PROXY_DEVICE"] = GetDevice().ToString();
-        (*frontend_attributes.mutable_map())["PROXY_DEVICE"] = coll.device.ToString();
+        // assert(coll.device.ToString() == GetDevice().ToString());  // get rid
+        // of GetDevice() as soon as this passes
+        //(*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
+        //GetDevice().ToString();
+        (*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
+            coll.device.ToString();
         builder->SetFrontendAttributes(frontend_attributes);
         return true;
       }
@@ -431,10 +451,10 @@ bool CompileWatcher::PreProcessHlo(xla::XlaBuilder *builder, const XLATensor::Sy
   return false;
 }
 
-void CompileWatcher::SetDeviceProxyAddress(
-  const std::string& device, const std::string& proxy_address) {
-  xla::ComputationClient *cc = xla::XrtComputationClient::Get();
-  auto computation_client = dynamic_cast<xla::XlaComputationProxy *>(cc);
+void CompileWatcher::SetDeviceProxyAddress(const std::string& device,
+                                           const std::string& proxy_address) {
+  xla::ComputationClient* cc = xla::XrtComputationClient::Get();
+  auto computation_client = dynamic_cast<xla::XlaComputationProxy*>(cc);
   if (computation_client) {
     computation_client->SetDeviceProxyAddress(device, proxy_address);
   } else {
@@ -458,12 +478,14 @@ bool CompileWatcher::IsTrainingThread(pid_t tid) {
   return GetPythonState(tid) == EPS_IN_TRAIN_LOOP;
 }
 
-void CompileWatcher::OnHashChange(const xla::hash_t& prev_hash, const XLATensor::SyncTensorCollection& coll) {
+void CompileWatcher::OnHashChange(const xla::hash_t& prev_hash,
+                                  const XLATensor::SyncTensorCollection& coll) {
   // This only updates something if this is one we have an executable for
   ex_cache->modify_adjusted_hash(prev_hash, coll.hash);
 }
 
-xla::hash_t CompileWatcher::PostmarkHash(std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll) {
+xla::hash_t CompileWatcher::PostmarkHash(
+    std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll) {
   const xla::hash_t original_hash = coll.hash;
   if (!is_clean_step) {
     return original_hash;
@@ -473,7 +495,7 @@ xla::hash_t CompileWatcher::PostmarkHash(std::vector<XLATensor>* tensors, XLATen
     if (!exe->is_active()) {
       exe->set_active(true);
     }
-  } else if(IsQualifyingStep(coll.requesting_tid)) {
+  } else if (IsQualifyingStep(coll.requesting_tid)) {
     // create and activate
     exe = ex_cache->activate_hash(coll.hash);
   }
@@ -489,57 +511,62 @@ xla::hash_t CompileWatcher::PostmarkHash(std::vector<XLATensor>* tensors, XLATen
       } else {
         if (verbose) {
           XLATensor::print_tensor("Removing output", tensor);
-          }
+        }
       }
     }
     if (!adjusted_indices.empty()) {
       coll.indices = std::move(adjusted_indices);
       if (verbose) {
-        std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> " << exe->get_adjusted_hash() << ENDL;
+        std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> "
+                  << exe->get_adjusted_hash() << ENDL;
       }
       coll.hash = exe->get_adjusted_hash();
       return coll.hash;
     } else {
       // Nothing left, so can't do this on proxy
       exe->set_active(false);
-      std::cout << "No effective allowed outputs, so reverting to standard device" << ENDL;
+      std::cout
+          << "No effective allowed outputs, so reverting to standard device"
+          << ENDL;
     }
   }
 }
 
 void CompileWatcher::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
-    hash_t hash,
-    pid_t tid
-) {
-  // TODO: may need to know if it fails, and, for instance, mark it as not compilable
-//  ExecutablePtr exec = ex_cache->get_executable_by_adjusted_hash(hash);
-//  if (exec) {
-//    exec->set_compiled(true);
-//  }
+    hash_t hash, pid_t tid) {
+  // TODO: may need to know if it fails, and, for instance, mark it as not
+  // compilable
+  //  ExecutablePtr exec = ex_cache->get_executable_by_adjusted_hash(hash);
+  //  if (exec) {
+  //    exec->set_compiled(true);
+  //  }
 }
 
-void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash, pid_t tid, bool scheduled) {}
+void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
+                                   pid_t tid, bool scheduled) {}
 
-std::vector<xla::ComputationClient::DataPtr> CompileWatcher::NotifyScheduleSyncTensorsGraph(
-  std::vector<xla::ComputationClient::DataPtr> tensors,
-  XLATensor::SyncTensorCollection* coll,
-  std::shared_ptr<xla::ComputationClient::Computation>& computation
-) {
+std::vector<xla::ComputationClient::DataPtr>
+CompileWatcher::NotifyScheduleSyncTensorsGraph(
+    std::vector<xla::ComputationClient::DataPtr> tensors,
+    XLATensor::SyncTensorCollection* coll,
+    std::shared_ptr<xla::ComputationClient::Computation>& computation) {
   if (!is_in_mark_step) {
     // Anything outside of mark step is a reset
-    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll->requesting_tid);
+    std::shared_ptr<CompileInfo> compile_info =
+        GetCompileInfo(coll->requesting_tid);
     compile_info->sync_count_since_hash_change_ = 0;
     compile_info->set_hash(0);
     return std::move(tensors);
   }
 
-//  std::for_each(tensors.begin(), tensors.end(), [](auto& t){
-//    std::cout << "SyncTensorsGraph tensor shape: " << t->shape() << ENDL;
-//  });
-  //XLATensor::print_all_tensors("SyncTensorsGraph tensors", tensors);
+  //  std::for_each(tensors.begin(), tensors.end(), [](auto& t){
+  //    std::cout << "SyncTensorsGraph tensor shape: " << t->shape() << ENDL;
+  //  });
+  // XLATensor::print_all_tensors("SyncTensorsGraph tensors", tensors);
 
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll->requesting_tid);
+  std::shared_ptr<CompileInfo> compile_info =
+      GetCompileInfo(coll->requesting_tid);
   if (!compile_info->hash()) {
     compile_info->set_hash(coll->hash);
     compile_info->sync_count_since_hash_change_ = 1;
@@ -547,37 +574,45 @@ std::vector<xla::ComputationClient::DataPtr> CompileWatcher::NotifyScheduleSyncT
     ++compile_info->sync_count_since_hash_change_;
   } else {
     ColorScope clr(Color::FG_CYAN);
-    std::cout << "ScheduleSyncTensorsGraph() MarkStep hash change: " << compile_info->hash() << " -> " << coll->hash << ENDL;
+    std::cout << "ScheduleSyncTensorsGraph() MarkStep hash change: "
+              << compile_info->hash() << " -> " << coll->hash << ENDL;
     compile_info->set_hash(coll->hash);
     compile_info->sync_count_since_hash_change_ = 1;
   }
   return std::move(tensors);
 }
 
-void CompileWatcher::NotifyStepMarkerBegin(const std::string& device_str, const std::vector<std::string>& devices) {
+void CompileWatcher::NotifyStepMarkerBegin(
+    const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
-    std::cout << "*************** CompileWatcher::NotifyStepMarker: device=" << device_str << std::endl << std::flush;
+    std::cout << "*************** CompileWatcher::NotifyStepMarker: device="
+              << device_str << std::endl
+              << std::flush;
   }
   const pid_t tid = gettid();
   if (!IsTrainingThread(tid)) {
     assert(GetPythonState(tid) == EPS_INVALID);
-    // The assumption is that only the training thread can call _XLAC._mark_step()
+    // The assumption is that only the training thread can call
+    // _XLAC._mark_step()
     _PushPythonState(EPS_IN_TRAIN_LOOP, tid);
   }
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  const std::size_t current_sync_count = compile_info->sync_count_since_hash_change_.load();
+  const std::size_t current_sync_count =
+      compile_info->sync_count_since_hash_change_.load();
   if (!current_sync_count) {
     compile_info->mark_step_count_since_last_reset_ = 0;
     return;
   }
   const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
-  if (IsQualifyingStep(tid)) {
+  is_qualifying_step = IsQualifyingStep(tid);
+  if (is_qualifying_step) {
     ColorScope red(Color::FG_RED);
-    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl << std::flush;
+    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl
+              << std::flush;
   }
 }
 
@@ -593,17 +628,25 @@ void CompileWatcher::NotifyStepMarkerEnd() {
 
   is_in_mark_step = false;
   is_clean_step = false;
+  is_qualifying_step = false;
 }
 
-//Device CompileWatcher::GetDevice() {
+bool CompileWatcher::IsSpecialLowering() {
+  static bool allow_special_compile =
+      xla::sys_util::GetEnvBool("XLA_ALLOW_SPECIAL_LOWERING", false);
+  return allow_special_compile && is_qualifying_step;
+}
+
+// Device CompileWatcher::GetDevice() {
 //    if (HasWseDevices()) {
 //      return Device(*wse_devices_.begin());
 //    }
 //    return Device(DeviceType::CPU, 0);
 //}
 
-bool CompileWatcher::IsQualifyingStep(pid_t tid/*, bool or_higher*/) {
-  assert(is_in_mark_step); // shouldn't we always be? then we can just call once in MarkStep
+bool CompileWatcher::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
+  assert(is_in_mark_step);  // shouldn't we always be? then we can just call
+                            // once in MarkStep
   if (!is_in_mark_step) {
     return false;
   }
@@ -611,25 +654,26 @@ bool CompileWatcher::IsQualifyingStep(pid_t tid/*, bool or_higher*/) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
-  const std::size_t mark_step_count_since_reset = compile_info->mark_step_count_since_last_reset_.load(); 
+  const std::size_t mark_step_count_since_reset =
+      compile_info->mark_step_count_since_last_reset_.load();
   if (!mark_step_count_since_reset) {
-    // The first step is superfluous since it's the top of the dataset interator loop,
-    // before any graph is built.
-    // This also takes care of disqualifying due to spurious compiles
-    // within the train loop
+    // The first step is superfluous since it's the top of the dataset interator
+    // loop, before any graph is built. This also takes care of disqualifying
+    // due to spurious compiles within the train loop
     return false;
   }
   const std::size_t steps_required = get_number_of_required_runs_since_reset();
   const bool ready = mark_step_count_since_reset - 1 == steps_required;
   if (ready) {
-    assert(is_clean_step); // validate it coincides with clean step logic
+    assert(is_clean_step);  // validate it coincides with clean step logic
     ColorScope clr({Color::BG_BLUE, Color::FG_YELLOW});
     std::cout << "Run ready" << std::endl << std::flush;
   }
   return ready;
 }
 
-void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
+void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors,
+                                bool append) {
   if (!HasWseDevices()) {
     return;
   }
@@ -641,24 +685,27 @@ void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors, b
   }
   for (const at::Tensor& tensor : output_tensors) {
     XLATensor xla_tensor = bridge::GetXlaTensor(tensor);
-    const bool added = compile_info->output_ids_.insert(
-        xla_tensor.data()->unique_id).second;
+    const bool added =
+        compile_info->output_ids_.insert(xla_tensor.data()->unique_id).second;
     assert(added);
   }
 }
 
-bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTensorCollection& coll) {
+bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor,
+                                     XLATensor::SyncTensorCollection& coll) {
   assert(is_in_mark_step);  // gets cleared at end of step
-  assert(is_clean_step); // otherwise, why are you asking?
-  std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
+  assert(is_clean_step);    // otherwise, why are you asking?
+  std::shared_ptr<CompileInfo> compile_info =
+      GetCompileInfo(coll.requesting_tid);
   if (compile_info->output_ids_.empty()) {
     return true;
   }
   return compile_info->output_ids_.find(tensor.data()->unique_id) !=
-    compile_info->output_ids_.end();
+         compile_info->output_ids_.end();
 }
 
-//void CompileWatcher::SetDeviceMapping(const std::string& from_device, const std::string& to_device) {
+// void CompileWatcher::SetDeviceMapping(const std::string& from_device, const
+// std::string& to_device) {
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  assert(!from_device.empty());
 //  assert(from_device != to_device);
@@ -669,10 +716,11 @@ bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTen
 //  }
 //}
 //
-//std::mutex CompileWatcher::device_mapping_mtx_;
-//std::unordered_map<std::string, std::pair<Device, bool>> CompileWatcher::device_mapping_;
+// std::mutex CompileWatcher::device_mapping_mtx_;
+// std::unordered_map<std::string, std::pair<Device, bool>>
+// CompileWatcher::device_mapping_;
 //
-//std::string CompileWatcher::GetDeviceMapping(const std::string& device) {
+// std::string CompileWatcher::GetDeviceMapping(const std::string& device) {
 //  assert(!device.empty());
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  auto iter = device_mapping_.find(device);
@@ -682,7 +730,8 @@ bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor, XLATensor::SyncTen
 //  return device;
 //}
 //
-//const torch_xla::Device& CompileWatcher::GetDeviceMapping(const Device& device) {
+// const torch_xla::Device& CompileWatcher::GetDeviceMapping(const Device&
+// device) {
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  auto iter = device_mapping_.find(device.ToString());
 //  if (iter != device_mapping_.end() && iter->second.second /* enabled? */) {

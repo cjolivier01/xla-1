@@ -17,6 +17,7 @@
 #include "torch_xla/csrc/helpers.h"
 #include "torch_xla/csrc/random.h"
 #include "torch_xla/csrc/tensor_util.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 
 namespace torch_xla {
 

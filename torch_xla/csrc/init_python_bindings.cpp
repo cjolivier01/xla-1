@@ -31,6 +31,7 @@
 #include "torch_xla/csrc/helpers.h"
 #include "torch_xla/csrc/ir_dump_util.h"
 #include "torch_xla/csrc/ir_util.h"
+#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/ops/token.h"
 #include "torch_xla/csrc/python_util.h"
 #include "torch_xla/csrc/tensor_impl.h"
@@ -236,14 +237,9 @@ void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
   auto opt_device = GetOptionalDevice(device_str);
   const Device* device = opt_device ? &opt_device.value() : nullptr;
-  CompileWatcher::NotifyStepMarkerBegin(device_str, devices);
-  try {
-    XLATensor::SyncLiveTensorsGraph(device, devices, wait);
-    XLATensor::MarkStep(device);
-  } catch (...) {
-    throw;
-  }
-  CompileWatcher::NotifyStepMarkerEnd();
+  MarkStepScope mark_step_scope(device_str, devices);
+  XLATensor::SyncLiveTensorsGraph(device, devices, wait);
+  XLATensor::MarkStep(device);
 }
 
 void SetRngSeed(xla::uint64 seed, const std::string& device_str) {
@@ -928,6 +924,14 @@ void InitXlaModuleBindings(py::module m) {
         []() {
     PopPythonState();
   });
+  m.def("_xla_push_ir_scope",
+        [](std::string scope) {
+          ir::PythonPushScope(std::move(scope));
+        });
+  m.def("_xla_pop_ir_scope",
+        []() {
+          ir::PythonPopScope();
+        });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");
   py::class_<Computation, ComputationPtr>(m, "XlaComputation");
