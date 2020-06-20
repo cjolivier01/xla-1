@@ -47,9 +47,10 @@ XlaOpVector LogSoftmax::Lower(LoweringContext* loctx) const {
   if (loctx->AllowCustomLowering()) {
     return ReturnOp(CustomLowerOp(
         "WSE_LogSoftmaxFWD", this,
-        "wse_log_softmax_fwd", "wse_log_softmax_fwd@float16@@(NAT)",
+        "wse_log_softmax_fwd", "wse_log_softmax_fwd_float16_NAT_",
         {{"dim", std::to_string(dim_)}}, loctx), loctx);
   } else {
+    ir::ScopePusher("WSE_LogSoftmaxFWD");
     xla::XlaOp input = loctx->GetOutputOp(operand(0));
     return ReturnOp(LowerLogSoftmax(input, dim_, dtype_), loctx);
   }
