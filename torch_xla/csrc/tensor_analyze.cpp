@@ -28,7 +28,7 @@
  */
 namespace torch_xla {
 
-bool verbose = false;
+bool verbose = true;
 
 // const bool IGNORE_FIRST_MARK_STEP = true;
 // const bool ENABLE_DEVICE_REMAPPING = true;
@@ -538,7 +538,12 @@ xla::hash_t CompileWatcher::PostmarkHash(
 
 void CompileWatcher::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
-    hash_t hash, pid_t tid) {}
+    hash_t hash, pid_t tid) {
+  if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
+    ColorScope clr(std::cout, {Color::FG_BLUE}, false);
+    std::cout << "** NON-FABRIC COMPILE" << ENDL;
+  }
+}
 
 void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
                                    pid_t tid, bool scheduled) {
@@ -546,7 +551,7 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
   // proxy
   if (HasWseDevices()) {
     if (IsTrainingThread(tid) && !ex_cache->has_executable_by_adjusted_hash(hash)) {
-      ColorScope clr(std::cout, {Color::FG_RED, Color::BG_BLUE}, false);
+      ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       std::cout << "** NON-FABRIC EXECUTION" << ENDL;
     }
   }

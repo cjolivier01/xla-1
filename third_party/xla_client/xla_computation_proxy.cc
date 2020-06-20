@@ -81,6 +81,7 @@ bool disable_proxy = false;
 bool throw_on_compile_fail = true;
 //const std::string CLONE_DATA_DEVICE = "WSE:0";
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
+constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 //constexpr int XLA_SERVICE_GRPC_PORT = 1685;
 #ifdef START_LOCAL_WSE_XLA_SERVICE
 //const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
@@ -194,7 +195,7 @@ public:
     assert(parts.size() == 2);
     const std::string& dev = parts[0];
     assert(!dev.empty());
-    return dev.at(dev.size() - 1) == 'X';
+    return dev.at(dev.size() - 1) == PROXYABLE_DEVICE_SUFFIX;
   }
 
   static std::string unproxy_device_name(const std::string &device) {
@@ -202,10 +203,10 @@ public:
     assert(parts.size() == 2);
     std::string& dev = parts[0];
     assert(!dev.empty());
-    assert(dev.at(dev.size() - 1) == 'X');
+    assert(dev.at(dev.size() - 1) == PROXYABLE_DEVICE_SUFFIX);
     dev.resize(dev.size() - 1);
     assert(!dev.empty());
-    assert(dev.at(dev.size() - 1) != 'X');
+    assert(dev.at(dev.size() - 1) != PROXYABLE_DEVICE_SUFFIX);
     std::stringstream ss;
     ss << dev << ':' << parts[1];
     return ss.str();
@@ -216,9 +217,9 @@ public:
     assert(parts.size() == 2);
     const std::string& dev = parts[0];
     assert(!dev.empty());
-    assert(dev.at(dev.size() - 1) != 'X');
+    assert(dev.at(dev.size() - 1) != PROXYABLE_DEVICE_SUFFIX);
     std::stringstream ss;
-    ss << dev << "X:" << parts[1];
+    ss << dev << PROXYABLE_DEVICE_SUFFIX << ":" << parts[1];
     return ss.str();
   }
 
