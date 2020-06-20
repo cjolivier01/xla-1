@@ -29,11 +29,8 @@
 namespace torch_xla {
 
 bool verbose = false;
+bool verbose_tensor_sync = verbose || true;
 
-// const bool IGNORE_FIRST_MARK_STEP = true;
-// const bool ENABLE_DEVICE_REMAPPING = true;
-// const bool REQUIRE_INPUTS_OUTPUTS_SET = false;
-// constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 15;
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
 
 bool is_true(const char* s) {
@@ -246,21 +243,14 @@ using Lock = std::lock_guard<std::recursive_mutex>;
 
 struct CompileInfo {
   std::atomic<size_t> sync_count_since_hash_change_{0};
-  // std::atomic<size_t> run_count_at_last_mark_step_{0};
   std::atomic<size_t> mark_step_count_since_last_reset_{0};
   std::unordered_set<size_t> output_ids_;
 
   void set_hash(CompileWatcher::hash_t hash) {
     if (hash != hash_.load()) {
-      // std::cout << "hash " << hash_.load() << " -> " << hash << std::endl <<
-      // std::flush; std::cout << "Setting hash to: " << hash << std::endl <<
-      // std::flush;
       hash_ = std::move(hash);
     }
   }
-  //  bool hash_equal(const CompileWatcher::hash_t& hash) const {
-  //    return hash == hash_.load();
-  //  }
   CompileWatcher::hash_t hash() const { return hash_; }
 
  private:
@@ -278,15 +268,12 @@ class Executable {
       : hash_(hash), adjusted_hash_(xla::util::MHash(hash, HASH_MARKER)) {}
   bool set_active(bool active) { active_ = active; }
   bool is_active() const { return active_; }
-  //  bool set_compiled(bool compiled) { compiled_ = compiled; }
-  //  bool is_compiled() const { return compiled_; }
   xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
 
  private:
   const xla::hash_t hash_;
   const xla::hash_t adjusted_hash_;
   bool active_{false};
-  //  bool compiled_{false};
 };
 using ExecutablePtr = std::shared_ptr<Executable>;
 
@@ -620,10 +607,14 @@ CompileWatcher::NotifyScheduleSyncTensorsGraph(
     return std::move(tensors);
   }
 
-  //  std::for_each(tensors.begin(), tensors.end(), [](auto& t){
-  //    std::cout << "SyncTensorsGraph tensor shape: " << t->shape() << ENDL;
-  //  });
-  // XLATensor::print_all_tensors("SyncTensorsGraph tensors", tensors);
+  if (verbose_tensor_sync) {
+    std::for_each(
+        tensors.begin(), tensors.end(), [coll](auto &t) {
+          ColorScope cs(Color::FG_CYAN);
+          std::cout << coll->hash << ": SyncTensorsGraph tensor shape: " << t->shape() << ENDL;
+        }
+    );
+  }
 
   std::shared_ptr<CompileInfo> compile_info =
       GetCompileInfo(coll->requesting_tid);
@@ -672,19 +663,12 @@ void CompileWatcher::NotifyStepMarkerBegin(
   is_qualifying_step = IsQualifyingStep(tid);
   if (is_qualifying_step) {
     ++get_stats()->total_qualifying_steps;
-//    ColorScope red(Color::FG_RED);
-//    std::cout << "BEGIN WseRunStep() at step since sync: " << step << std::endl
-//              << std::flush;
   }
 }
 
 void CompileWatcher::NotifyStepMarkerEnd() {
   assert(is_in_mark_step);
   const pid_t tid = gettid();
-//  if (IsQualifyingStep(tid)) {
-//    ColorScope red(Color::FG_RED);
-//    std::cout << "END WseRunStep()" << std::endl << std::flush;
-//  }
   auto compile_info = GetCompileInfo(tid);
   compile_info->output_ids_.clear();
 
@@ -699,20 +683,13 @@ bool CompileWatcher::IsSpecialLowering() {
   return allow_special_compile && is_qualifying_step;
 }
 
-// Device CompileWatcher::GetDevice() {
-//    if (HasWseDevices()) {
-//      return Device(*wse_devices_.begin());
-//    }
-//    return Device(DeviceType::CPU, 0);
-//}
-
 bool CompileWatcher::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   assert(is_in_mark_step);  // shouldn't we always be? then we can just call
                             // once in MarkStep
   if (!is_in_mark_step) {
     return false;
   }
-  if (!HasWseDevices() /*|| !IsTrainingThread(tid)*/) {
+  if (!HasWseDevices()) {
     return false;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
