@@ -29,40 +29,40 @@
 namespace torch_xla {
 
 bool verbose = false;
-bool verbose_tensor_sync = verbose || true;
+bool verbose_tensor_sync = verbose;
 
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
 
-bool is_true(const char* s) {
-  if (s && *s) {
-    const char c = ::tolower(*s);
-    if (c == 'y' || c == 't') {
-      return true;
-    }
-    return atoi(s) > 0;
-  }
-  return false;
-}
+//bool is_true(const char* s) {
+//  if (s && *s) {
+//    const char c = ::tolower(*s);
+//    if (c == 'y' || c == 't') {
+//      return true;
+//    }
+//    return atoi(s) > 0;
+//  }
+//  return false;
+//}
 
-bool get_env_bool(const char* s, const bool dflt) {
-  const char* v = getenv(s);
-  if (v && *v) {
-    return is_true(v);
-  }
-  return dflt;
-}
+//bool get_env_bool(const char* s, const bool dflt) {
+//  const char* v = getenv(s);
+//  if (v && *v) {
+//    return is_true(v);
+//  }
+//  return dflt;
+//}
 
-int XLATensor::get_rank(const XLATensor::Data* data) {
-  if (data->ir_value) {
-    return data->ir_value.shape().rank();
-  } else if (data->xla_data) {
-    return data->xla_data->shape().rank();
-  } else if (data->view) {
-    return data->view->shape().rank();
-  } else {
-    return -1;
-  }
-}
+//int XLATensor::get_rank(const XLATensor::Data* data) {
+//  if (data->ir_value) {
+//    return data->ir_value.shape().rank();
+//  } else if (data->xla_data) {
+//    return data->xla_data->shape().rank();
+//  } else if (data->view) {
+//    return data->view->shape().rank();
+//  } else {
+//    return -1;
+//  }
+//}
 
 void XLATensor::print_tensor(const std::string& label,
                              const XLATensor& tensor) {
