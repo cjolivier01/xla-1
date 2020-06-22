@@ -85,7 +85,8 @@ def generate_xla_aten_code(base_dir):
 
 
 def build_extra_libraries(base_dir, build_mode=None):
-  return
+  if not _check_env_flag('TORCH_XLA_BUILD_EXTRA_LIBRARIES', default='1'):
+    return
   build_libs_cmd = [os.path.join(base_dir, 'build_torch_xla_libs.sh')]
   if build_mode is not None:
     build_libs_cmd += [build_mode]
@@ -276,7 +277,7 @@ if DEBUG:
 else:
   extra_compile_args += ['-DNDEBUG']
 
-extra_link_args += ['-lxla_computation_client -latomic']
+extra_link_args += ['-lxla_computation_client', '-latomic']
 
 setup(
     name='torch_xla',
@@ -287,17 +288,17 @@ setup(
     author_email='pytorch-xla@googlegroups.com',
     # Exclude the build files.
     packages=find_packages(exclude=['build']),
-    # ext_modules=[
-    #     CppExtension(
-    #         '_XLAC',
-    #         torch_xla_sources,
-    #         include_dirs=include_dirs,
-    #         extra_compile_args=extra_compile_args,
-    #         library_dirs=library_dirs,
-    #         extra_link_args=extra_link_args + \
-    #             [make_relative_rpath('torch_xla/lib')],
-    #     ),
-    # ],
+    ext_modules=[
+        CppExtension(
+            '_XLAC',
+            torch_xla_sources,
+            include_dirs=include_dirs,
+            extra_compile_args=extra_compile_args,
+            library_dirs=library_dirs,
+            extra_link_args=extra_link_args + \
+                [make_relative_rpath('torch_xla/lib')],
+        ),
+    ],
     package_data={
         'torch_xla': [
             'lib/*.so*',
