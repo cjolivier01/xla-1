@@ -85,6 +85,7 @@ def generate_xla_aten_code(base_dir):
 
 
 def build_extra_libraries(base_dir, build_mode=None):
+  return
   build_libs_cmd = [os.path.join(base_dir, 'build_torch_xla_libs.sh')]
   if build_mode is not None:
     build_libs_cmd += [build_mode]
@@ -286,24 +287,24 @@ setup(
     author_email='pytorch-xla@googlegroups.com',
     # Exclude the build files.
     packages=find_packages(exclude=['build']),
-    ext_modules=[
-        CppExtension(
-            '_XLAC',
-            torch_xla_sources,
-            include_dirs=include_dirs,
-            extra_compile_args=extra_compile_args,
-            library_dirs=library_dirs,
-            extra_link_args=extra_link_args + \
-                [make_relative_rpath('torch_xla/lib')],
-        ),
-    ],
+    # ext_modules=[
+    #     CppExtension(
+    #         '_XLAC',
+    #         torch_xla_sources,
+    #         include_dirs=include_dirs,
+    #         extra_compile_args=extra_compile_args,
+    #         library_dirs=library_dirs,
+    #         extra_link_args=extra_link_args + \
+    #             [make_relative_rpath('torch_xla/lib')],
+    #     ),
+    # ],
     package_data={
         'torch_xla': [
             'lib/*.so*',
         ],
     },
     data_files=[
-        'test/cpp/build/test_ptxla',
+       # 'test/cpp/build/test_ptxla',
         'scripts/fixup_binary.py',
     ],
     cmdclass={
