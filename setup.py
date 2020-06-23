@@ -90,6 +90,8 @@ def create_version_files(base_dir, version, xla_git_sha, torch_git_sha):
 
 
 def generate_xla_aten_code(base_dir):
+  if NO_BUILD:
+    return
   generate_code_cmd = [os.path.join(base_dir, 'scripts', 'generate_code.sh')]
   if subprocess.call(generate_code_cmd) != 0:
     print(
@@ -99,7 +101,7 @@ def generate_xla_aten_code(base_dir):
 
 
 def build_extra_libraries(base_dir, build_mode=None):
-  if not _check_env_flag('TORCH_XLA_BUILD_EXTRA_LIBRARIES', default='1'):
+  if NO_BUILD:
     return
   build_libs_cmd = [os.path.join(base_dir, 'build_torch_xla_libs.sh')]
   if build_mode is not None:
@@ -153,6 +155,9 @@ def _compile_parallel(self,
       return
     self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
 
+  if NO_BUILD:
+    return objects
+
   list(
       multiprocessing.pool.ThreadPool(multiprocessing.cpu_count()).imap(
           compile_one, objects))
@@ -200,6 +205,8 @@ class Build(BuildExtension):
   def run(self):
     # Run the original BuildExtension first. We need this before building
     # the tests.
+    if NO_BUILD:
+      return
     BuildExtension.run(self)
     if _check_env_flag('BUILD_CPP_TESTS', default='1'):
       # Build the C++ tests.
@@ -312,10 +319,9 @@ setup(
             extra_link_args=extra_link_args + \
                 [make_relative_rpath('torch_xla/lib')],
         ),
-    ] if not NO_BUILD else None,
+    ],
     package_data={
         'torch_xla': [
-            '*.so',
             'lib/*.so*',
         ],
     },
