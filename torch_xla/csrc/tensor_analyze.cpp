@@ -530,6 +530,9 @@ xla::hash_t CompileWatcher::PostmarkHash(
   if (!is_clean_step) {
     return original_hash;
   }
+  if (coll.indices.empty() || !HasWseDevices()) {
+    return original_hash;
+  }
   ExecutablePtr exe = ex_cache->get_executable(coll.hash);
   if (exe) {
     if (!exe->is_active()) {
@@ -538,6 +541,7 @@ xla::hash_t CompileWatcher::PostmarkHash(
   } else if (IsQualifyingStep(coll.requesting_tid)) {
     // create and activate
     exe = ex_cache->activate_hash(coll.hash);
+    assert(exe);
   }
 
   if (exe && exe->is_active()) {
