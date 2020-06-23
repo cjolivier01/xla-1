@@ -20,6 +20,20 @@ import sys
 base_dir = os.path.dirname(os.path.abspath(__file__))
 third_party_path = os.path.join(base_dir, 'third_party')
 
+NO_BUILD = False
+
+
+#
+# Handle some pre-setup args
+#
+filtered_args = []
+for i, arg in enumerate(sys.argv):
+  if arg == '--no-build':
+    NO_BUILD = True
+    continue
+  filtered_args.append(arg)
+sys.argv = filtered_args
+
 
 def _get_build_mode():
   for i in range(1, len(sys.argv)):
@@ -32,10 +46,10 @@ def _check_env_flag(name, default=''):
 
 
 def get_git_head_sha(base_dir):
-  xla_git_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+  xla_git_sha = subprocess.check_output(['/usr/bin/git', 'rev-parse', 'HEAD'],
                                         cwd=base_dir).decode('ascii').strip()
   if os.path.isdir(os.path.join(base_dir, '..', '.git')):
-    torch_git_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+    torch_git_sha = subprocess.check_output(['/usr/bin/git', 'rev-parse', 'HEAD'],
                                             cwd=os.path.join(
                                                 base_dir,
                                                 '..')).decode('ascii').strip()
@@ -199,7 +213,7 @@ xla_git_sha, torch_git_sha = get_git_head_sha(base_dir)
 version = get_build_version(xla_git_sha)
 
 build_mode = _get_build_mode()
-if build_mode not in ['clean']:
+if build_mode not in ['clean'] and not NO_BUILD:
   # Generate version info (torch_xla.__version__).
   create_version_files(base_dir, version, xla_git_sha, torch_git_sha)
 
@@ -298,7 +312,7 @@ setup(
             extra_link_args=extra_link_args + \
                 [make_relative_rpath('torch_xla/lib')],
         ),
-    ],
+    ] if not NO_BUILD else None,
     package_data={
         'torch_xla': [
             'lib/*.so*',
