@@ -315,6 +315,7 @@ setup(
     ] if not NO_BUILD else None,
     package_data={
         'torch_xla': [
+            '*.so',
             'lib/*.so*',
         ],
     },
