@@ -112,7 +112,7 @@ target_link_libraries(
 
 add_custom_target(
         xlac ALL
-        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
+        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/torch_xla/_XLAC.${CPYTHON_STR}.so"
         DEPENDS ptxla
 )
 
