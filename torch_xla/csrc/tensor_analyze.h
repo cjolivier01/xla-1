@@ -113,8 +113,6 @@ class CompileWatcher {
   static void OnHashChange(const xla::hash_t& prev_hash,
                            const XLATensor::SyncTensorCollection& coll);
 
-  // static xla::hash_t OnEndHashCalc(const xla::hash_t& prev_hash, const
-  // xla::hash_t& new_hash);
   static bool PreProcessHlo(xla::XlaBuilder* builder,
                             const XLATensor::SyncTensorCollection& coll);
 
@@ -129,17 +127,10 @@ class CompileWatcher {
 
   static bool IsAllowedOutput(const XLATensor& tensor,
                               XLATensor::SyncTensorCollection& coll);
-  // static Device GetDevice();
-  //  static void SetDeviceMapping(const std::string& from_device, const
-  //  std::string& to_device); static const Device& GetDeviceMapping(const
-  //  Device& device); static std::string GetDeviceMapping(const std::string&
-  //  device);
   static bool IsTrainingThread(pid_t tid);
-  // static bool IsWseRunning(pid_t tid);
   static bool IsQualifyingStep(pid_t tid /*, bool or_higher = false*/);
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();
-  // static bool Reset(pid_t tid, bool reset_hash);
 
   //
   // Data
