@@ -291,6 +291,11 @@ class ExecutableCache {
   }
 
  public:
+
+//  ~ExecutableCache() {
+//    std::cout << "end of executable cache" << ENDL;
+//  }
+
   ExecutablePtr get_executable(const CompileWatcher::hash_t& hash) {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
