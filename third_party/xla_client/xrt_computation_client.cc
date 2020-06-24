@@ -35,7 +35,7 @@ namespace xla {
 namespace {
 
 bool verbose = false;
-bool all_devices_meshable = true;
+bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 
 thread_local std::vector<std::string> g_replication_devices;

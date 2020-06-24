@@ -90,9 +90,6 @@ def _get_devices_per_worker():
   if num_gpus is not None:
     return int(num_gpus), 'GPU'
   raise RuntimeError('Missing TPU or GPU configuration')
-  # devices_per_worker = int(os.environ.get(xenv.TPU_NUM_DEVICES, '8'))
-  # if devices_per_worker == 0:
-  #   return int(os.environ.get("XRT_NUM_DEVICES", '0'))
 
 
 def _get_multiprocessing_device():

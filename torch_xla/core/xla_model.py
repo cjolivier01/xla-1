@@ -599,7 +599,7 @@ def _restrict_output_params(optimizer, loss, restrict_output_params):
         break
 
 
-def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None, restrict_output_params=True):
+def optimizer_step(optimizer, barrier=False, optimizer_args={}, groups=None, restrict_output_params=False):
   """Run the provided optimizer step and issue the XLA device step computation.
 
   Args:
