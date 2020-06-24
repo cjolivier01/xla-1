@@ -67,6 +67,7 @@ Device GetDeviceOrCurrent(const std::string& device_str) {
 void PrepareToExit() {
   xla::ComputationClient* client = xla::ComputationClient::GetIfInitialized();
   if (client != nullptr) {
+    XLATensor::WaitDeviceOps({});
     client->PrepareToExit();
   }
 }
