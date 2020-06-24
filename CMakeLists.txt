@@ -84,11 +84,13 @@ endif()
 
 link_directories(${CMAKE_BINARY_DIR}/lib)
 
+set(XLAC_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7)
+
 set_target_properties(
         ptxla
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY
-        ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7/
+        ${XLAC_BINARY_DIR}
 )
 
 message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
@@ -111,9 +113,15 @@ target_link_libraries(
 )
 
 add_custom_target(
+        xlac_link ALL
+        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${XLAC_BINARY_DIR}/_XLAC.${CPYTHON_STR}.so"
+        DEPENDS ptxla
+)
+
+add_custom_target(
         xlac ALL
         COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
-        DEPENDS ptxla
+        DEPENDS ptxla xlac_link
 )
 
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="-Wl,--gdb-index" ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
