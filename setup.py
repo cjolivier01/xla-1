@@ -229,14 +229,12 @@ if build_mode not in ['clean']:
   # Generate the code before globbing!
   generate_xla_aten_code(base_dir)
 
-  if NO_BUILD:
-    return
+  if not NO_BUILD:
+    # Build the support libraries (ie, TF).
+    build_extra_libraries(base_dir, build_mode=build_mode)
 
-  # Build the support libraries (ie, TF).
-  build_extra_libraries(base_dir, build_mode=build_mode)
-
-  # Generate the proto C++/python files only after third_party has built.
-  generate_protos(base_dir, third_party_path)
+    # Generate the proto C++/python files only after third_party has built.
+    generate_protos(base_dir, third_party_path)
 
 # Fetch the sources to be built.
 torch_xla_sources = (
