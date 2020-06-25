@@ -8,6 +8,8 @@
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
 
+#include "tensorflow/core/util/util.h"
+
 namespace torch_xla {
 
 enum EPythonState {
@@ -25,7 +27,7 @@ EPythonState GetPythonState(pid_t tid);
 void PushPythonState(EPythonState state);
 void PopPythonState();
 
-struct MarkStepScope {
+struct MarkStepScope : public EnterLeave {
   MarkStepScope(const std::string& device_str,
                 const std::vector<std::string>& devices);
   ~MarkStepScope();

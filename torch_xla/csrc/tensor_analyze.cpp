@@ -28,7 +28,7 @@
  */
 namespace torch_xla {
 
-bool verbose = false;
+bool verbose = true;
 bool verbose_tensor_sync = true || verbose;
 
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
@@ -188,8 +188,10 @@ void PushPythonState(EPythonState state) { _PushPythonState(state); }
 
 void PopPythonState() { python_state.pop(); }
 
-MarkStepScope::MarkStepScope(const std::string& device_str,
-                             const std::vector<std::string>& devices) {
+MarkStepScope::MarkStepScope(
+    const std::string& device_str,
+    const std::vector<std::string>& devices)
+    : EnterLeave("*** MARK STEP", true, Color::BG_BLUE) {
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
@@ -559,7 +561,13 @@ xla::hash_t XLASentinel::PostmarkHash(
         adjusted_indices.push_back(coll.indices[i]);
       } else {
         if (verbose) {
-          XLATensor::print_tensor("Removing output", tensor);
+          std::stringstream ss;
+          ss << "Removing output";
+          if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
+            ss << " HANDLE = "
+               << tensor.data()->xla_data->GetOpaqueHandle();
+          }
+          XLATensor::print_tensor(ss.str(), tensor);
         }
       }
     }
@@ -626,6 +634,13 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     std::vector<xla::ComputationClient::DataPtr> tensors,
     XLATensor::SyncTensorCollection* coll,
     std::shared_ptr<xla::ComputationClient::Computation>& computation) {
+
+  //if (!HasWseDevices()) return std::move(tensors);
+
+  if (tensors.size() == 2) {
+    std::cout << "TENSOR SIZE IS 2" << ENDL;
+  }
+
   if (!is_in_mark_step) {
     // Anything outside of mark step is a reset
     std::shared_ptr<CompileInfo> compile_info =
@@ -639,7 +654,12 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     std::for_each(
         tensors.begin(), tensors.end(), [coll](auto &t) {
           ColorScope cs(Color::FG_CYAN);
-          std::cout << coll->hash << ": SyncTensorsGraph tensor shape: " << t->shape() << ENDL;
+          std::cout << coll->hash
+          << ": SyncTensorsGraph tensor shape: " << t->shape();
+          if (t->HasValue()) {
+            std::cout << ", handle = " << t->GetOpaqueHandle();
+          }
+          std::cout << ENDL;
         }
     );
   }

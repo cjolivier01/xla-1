@@ -1293,6 +1293,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       std::move(cached_computation));
 
   auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
+    HEREC(Color::FG_CYAN);
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
       XLASentinel::NotifyExecute(async->device, hash, requesting_tid, false);

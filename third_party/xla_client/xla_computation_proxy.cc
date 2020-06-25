@@ -330,6 +330,9 @@ public:
       cloned_data_map_[src] = cloned_data_ptr;
       cloned_data_map_[dest] = cloned_data_ptr;
       if (verbose) {
+        if (handle == 66) {
+          std::cout << "SIXTY-SIX!!" << ENDL;
+        }
         std::cout << "Added mapping: " << handle << " @ " << device << " -> "
                   << cloned_data_ptr->GetOpaqueHandle() << " @ "
                   << cloned_data_ptr->device()
@@ -916,6 +919,17 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
     },
     [this](std::vector<DataPtr>& wse_handles) {
       // WSE (true)
+
+      if (verbose) {
+        for (const DataPtr& d : wse_handles) {
+          ColorScope clr(Color::FG_RED);
+          std::cout << getpid() << " XlaComputationProxy::TransferFromServer() "
+                    << " handle = " << d->GetOpaqueHandle()
+                    << ", shape = " << d->shape()
+                    << ENDL;
+        }
+      }
+
       std::vector<Literal> local_results;
       local_results.reserve(wse_handles.size());
       for (DataPtr& data_ptr : wse_handles) {
@@ -1115,6 +1129,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::NormalizeDataToDevi
   const std::string& device,
   bool in_place
 ) {
+  HEREC(Color::FG_MAGENTA);
   //
   // Split by whether to move
   //
@@ -1339,12 +1354,12 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   const std::string &device,
   const ExecuteComputationOptions &options
 ) {
-  //HERE();
+  HERE();
   if (verbose) {
     auto comp = dynamic_cast<const XrtComputation *>(&computation);
     if (comp) {
-      std::cout << "XlaComputationProxy::ExecuteComputation(): HANDLE="
-                << std::hex << comp->get_handle() << std::dec
+      std::cout << "XlaComputationProxy::ExecuteComputation( XRT ): HANDLE="
+                << comp->get_handle()
                 << std::endl << std::flush;
     }
   }
@@ -1380,7 +1395,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
     }
 
     // TODO: use NormalizeDataToDevice
-#if 0
+#if 1
     std::vector<ComputationClient::DataPtr> args = NormalizeDataToDevice(
       arguments, effective_device, false
     );
@@ -1505,6 +1520,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
           element_handle.handle()
         );
         if (verbose) {
+          ColorScope clr(Color::FG_BLUE);
           std::cout << "WSE Execution result data: " << result_data->GetOpaqueHandle() << " @ " << result_data->device()
                     << ", shape = " << result_data->shape().ToString()
                     << std::endl << std::flush;
