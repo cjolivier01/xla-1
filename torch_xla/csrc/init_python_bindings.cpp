@@ -648,10 +648,6 @@ void InitXlaModuleBindings(py::module m) {
         },
         py::arg("output_tensors"),
         py::arg("append") = false);
-  m.def("_xla_get_stats",
-        [](bool reset_stats) -> std::map<std::string, std::string> {
-          return XLASentinel::GetStats(reset_stats);
-        }, py::arg("reset_stats") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;

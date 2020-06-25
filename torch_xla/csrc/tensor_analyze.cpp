@@ -11,6 +11,7 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
+#include "tensorflow/compiler/xla/xla_client/metrics.h"
 #include "tensorflow/core/util/util.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
@@ -583,6 +584,7 @@ xla::hash_t XLASentinel::PostmarkHash(
       // Nothing left, so can't do this on proxy
       if (exe->is_active()) {
         ++get_stats()->total_executable_deactivates;
+        XLA_COUNTER("SentinelExecutableDeactivate", 1);
       }
       exe->set_active(false);
       std::cout
@@ -597,18 +599,23 @@ void XLASentinel::NotifyCompile(
     hash_t hash, pid_t tid) {
   if (!HasWseDevices()) return;
   ++get_stats()->total_compiles;
+  XLA_COUNTER("SentinelNotifyCompile", 1);
   if (is_in_mark_step) {
     ++get_stats()->total_step_marker_compiles;
+    XLA_COUNTER("SentinelStepMarkerCompile", 1);
   }
 
   if (IsTrainingThread(tid)) {
     ++get_stats()->total_master_thread_compiles;
+    XLA_COUNTER("SentinelMasterThreadCompile", 1);
     if (!ex_cache->has_executable_by_adjusted_hash(hash)) {
       ++get_stats()->total_non_fabric_compiles;
+      XLA_COUNTER("SentinelNonProxyCompile", 1);
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       std::cout << "** NON-FABRIC COMPILE" << ENDL;
     } else {
       ++get_stats()->total_fabric_compiles;
+      XLA_COUNTER("SentinelProxyCompile", 1);
     }
   }
 }
@@ -617,14 +624,18 @@ void XLASentinel::NotifyExecute(const std::string& device, hash_t hash,
                                    pid_t tid, bool scheduled) {
   if (!HasWseDevices()) return;
   ++get_stats()->total_executes;
+  XLA_COUNTER("SentinelExecute", 1);
   if (IsTrainingThread(tid)) {
     ++get_stats()->total_master_thread_executes;
+    XLA_COUNTER("SentinelMasterThreadExecute", 1);
     if(!ex_cache->has_executable_by_adjusted_hash(hash)) {
       ++get_stats()->total_non_fabric_executes;
+      XLA_COUNTER("SentinelNonProxyExecute", 1);
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       std::cout << "** NON-FABRIC EXECUTION" << ENDL;
     } else {
       ++get_stats()->total_fabric_executes;
+      XLA_COUNTER("SentinelProxyExecute", 1);
     }
   }
 }
@@ -636,10 +647,6 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     std::shared_ptr<xla::ComputationClient::Computation>& computation) {
 
   //if (!HasWseDevices()) return std::move(tensors);
-
-  if (tensors.size() == 2) {
-    std::cout << "TENSOR SIZE IS 2" << ENDL;
-  }
 
   if (!is_in_mark_step) {
     // Anything outside of mark step is a reset
@@ -686,6 +693,16 @@ void XLASentinel::NotifyStepMarkerBegin(
   is_clean_step = false;
   is_in_mark_step = true;
   ++get_stats()->total_step_marker_count;
+  XLA_COUNTER("SentinelStepMarker", 1);
+
+  static bool registered_step_requirement = false;
+  if (!registered_step_requirement) {
+    XLA_VALUE_METRIC(
+        "SentinelRequiredStepsSinceReset",
+        get_number_of_required_runs_since_reset()
+    );
+  }
+
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << "*************** XLASentinel::NotifyStepMarker: device="
@@ -710,10 +727,12 @@ void XLASentinel::NotifyStepMarkerBegin(
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
   if (is_clean_step) {
     ++get_stats()->total_clean_steps;
+    XLA_COUNTER("SentinelCleanSteps", 1);
   }
   is_qualifying_step = IsQualifyingStep(tid);
   if (is_qualifying_step) {
     ++get_stats()->total_qualifying_steps;
+    XLA_COUNTER("SentinelQualifyingSteps", 1);
   }
 }
 
