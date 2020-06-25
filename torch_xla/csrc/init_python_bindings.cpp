@@ -259,11 +259,11 @@ std::string GetTensorsHloGraph(const std::vector<at::Tensor>& tensors) {
 }
 
 void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
-  CompileWatcher::SetOutputs(output_tensors, append);
+  XLASentinel::SetOutputs(output_tensors, append);
 }
 
 void SetDeviceAddress(const std::string& device, const std::string& proxy_address) {
-  CompileWatcher::SetDeviceProxyAddress(device, proxy_address);
+  XLASentinel::SetDeviceProxyAddress(device, proxy_address);
 }
 
 std::string GetLiveTensorsReport(size_t nodes_threshold,
@@ -650,7 +650,7 @@ void InitXlaModuleBindings(py::module m) {
         py::arg("append") = false);
   m.def("_xla_get_stats",
         [](bool reset_stats) -> std::map<std::string, std::string> {
-          return CompileWatcher::GetStats(reset_stats);
+          return XLASentinel::GetStats(reset_stats);
         }, py::arg("reset_stats") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {

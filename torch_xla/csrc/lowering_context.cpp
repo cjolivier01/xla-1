@@ -79,7 +79,7 @@ class HloMetadataSetter {
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
     : builder_(name), device_(std::move(device)),
-      allow_custom_lowering_(CompileWatcher::IsSpecialLowering()) {}
+      allow_custom_lowering_(XLASentinel::IsSpecialLowering()) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,
@@ -87,7 +87,7 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
     : builder_(name),
       device_(std::move(device)),
       emit_status_(std::move(emit_status)),
-      allow_custom_lowering_(CompileWatcher::IsSpecialLowering()) {
+      allow_custom_lowering_(XLASentinel::IsSpecialLowering()) {
   for (auto node : post_order) {
     LowerNode(node);
   }

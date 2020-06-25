@@ -1124,7 +1124,7 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
 #if 0
-          if (!CompileWatcher::IsAllowedOutput(tensors[i], coll)) {
+          if (!XLASentinel::IsAllowedOutput(tensors[i], coll)) {
             static int message_count = 0;
             if (!message_count++) {
                 print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor (one message only)", tensors[i]);
@@ -1295,7 +1295,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
   auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      CompileWatcher::NotifyExecute(async->device, hash, requesting_tid, false);
+      XLASentinel::NotifyExecute(async->device, hash, requesting_tid, false);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
@@ -1338,7 +1338,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
     std::vector<xla::ComputationClient::DataPtr> parameters_data,
     std::string device, ComputationCache::TypePtr cached_computation) {
   auto tensors_data = FetchTensorData(std::move(tensors), coll->config, coll->indices);
-  tensors_data = CompileWatcher::NotifyScheduleSyncTensorsGraph(tensors_data, coll, cached_computation->computation);
+  tensors_data = XLASentinel::NotifyScheduleSyncTensorsGraph(tensors_data, coll, cached_computation->computation);
   return ScheduleSyncTensorsGraph(coll, std::move(parameters_data),
                                   std::move(tensors_data),
                                   std::move(cached_computation));
@@ -1538,7 +1538,7 @@ XLATensor::CompilationResult XLATensor::Compile(
 //  print_all_tensors(ss.str(), tensors);
 
   // Might add a proxy device to the Hlo
-  CompileWatcher::PreProcessHlo(lowering_ctx.builder(), coll);
+  XLASentinel::PreProcessHlo(lowering_ctx.builder(), coll);
 
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());
@@ -1551,7 +1551,7 @@ XLATensor::CompilationResult XLATensor::Compile(
                            coll.device.ToString(), devices),
                        &shape});
 
-  CompileWatcher::NotifyCompile(instances, coll.hash, coll.requesting_tid);
+  XLASentinel::NotifyCompile(instances, coll.hash, coll.requesting_tid);
 
   TF_VLOG(3) << "Compiling IR graph hash " << xla::util::HexHash(coll.hash)
              << " on device " << coll.device << " ...";
@@ -1582,7 +1582,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
     return nullptr;
   }
 
-  const xla::hash_t pre_value = CompileWatcher::PostmarkHash(tensors, coll);
+  const xla::hash_t pre_value = XLASentinel::PostmarkHash(tensors, coll);
 
   DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
                                   &coll.indices);
@@ -1591,7 +1591,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   coll.hash = xla::util::HashCombine(
       coll.hash, xla::util::Hash(po_data.parameter_sequence));
 
-  CompileWatcher::OnHashChange(pre_value, coll);
+  XLASentinel::OnHashChange(pre_value, coll);
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);

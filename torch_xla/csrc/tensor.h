@@ -31,7 +31,7 @@ class XLATensor {
   class DeviceContextArena;
   struct Data;
   friend class THelper;
-  friend class CompileWatcher;
+  friend class XLASentinel;
  public:
   static XLATensor Create(const at::Tensor& tensor, const Device& device);
   static XLATensor Create(

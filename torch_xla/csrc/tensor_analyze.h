@@ -85,7 +85,7 @@ class THelper {
 /**
  * This is mostly an exploratory class and will go away eventually
  */
-class CompileWatcher {
+class XLASentinel {
  public:
   typedef xla::hash_t hash_t;
 

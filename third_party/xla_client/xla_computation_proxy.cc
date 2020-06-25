@@ -31,13 +31,6 @@
 #include <strstream>
 #include <csignal>
 
-//#define START_LOCAL_WSE_XLA_SERVICE
-
-#ifdef START_LOCAL_WSE_XLA_SERVICE
-#define COMPILING_FROM_PTXLA
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client_ext_intf.h"
-#endif
-
 #if 1
 #undef assert
 #undef __ASSERT_FUNCTION
@@ -67,7 +60,7 @@ namespace xla {
 
 namespace {
 
-bool verbose = false;
+bool verbose = true;
 
 /**
  * @brief Force always using the proxy server for everyting
@@ -79,23 +72,8 @@ bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
 bool disable_proxy = false;
 bool throw_on_compile_fail = true;
-//const std::string CLONE_DATA_DEVICE = "WSE:0";
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
-//constexpr int XLA_SERVICE_GRPC_PORT = 1685;
-#ifdef START_LOCAL_WSE_XLA_SERVICE
-//const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "CPU:0";
-const std::string ALWAYS_USE_PROXY_DEFAULT_DEVICE = "WSE:0";
-
-std::shared_ptr<xla::ptxla::SimpleXlaService> wse_xla_service{nullptr};
-int StartLocalWseXlaService(int port) {
-  wse_xla_service = std::make_shared<xla::ptxla::SimpleXlaService>(
-    std::make_shared<xla::ptxla::UidUtil>()
-  );
-  wse_xla_service->Start(port, false);
-  return 0;
-}
-#endif
 
 bool IsEnabled() {
   if (disable_proxy) {
@@ -323,7 +301,7 @@ public:
  * @brief GlobalDataHandleMapper handles data mapping between devices
  */
 class XlaComputationProxy::GlobalDataHandleMapper {
-  static constexpr bool verbose = false;
+  static constexpr bool verbose = true;
 public:
   typedef int64 handle_t;
 
@@ -488,14 +466,6 @@ XlaComputationProxy::XlaComputationProxy(
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
   std::cout << "CREATE XlaComputationProxy" << std::endl << std::flush;
 
-#ifdef START_LOCAL_WSE_XLA_SERVICE
-  xla::StartLocalWseXlaService(XLA_SERVICE_GRPC_PORT);
-  if (always_use_proxy) {
-    if (!IsProxyDevice(ALWAYS_USE_PROXY_DEFAULT_DEVICE)) {
-      SetDeviceProxyAddress(ALWAYS_USE_PROXY_DEFAULT_DEVICE, "localhost:1685");
-    }
-  }
-#endif
 }
 
 bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, const std::string &proxy_device) {
@@ -531,16 +501,6 @@ void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const
       std::make_pair(proxy_device_name, new_info)
     ).first;
     new_info->address_ = proxy_address;
-#ifdef START_LOCAL_WSE_XLA_SERVICE
-    std::vector<std::string> addr = split(proxy_address, ':');
-    if (addr.size() == 2 && addr[0] == "*") {
-      const int port = std::atoi(addr[1].c_str());
-      xla::StartLocalWseXlaService(port);
-      new_info->address_ = "localhost";
-      new_info->address_ += ":";
-      new_info->address_ += addr[1];
-    }
-#endif
   } else {
     // was already there
     if (iter->second->address_ != proxy_address) {
@@ -625,6 +585,9 @@ void XlaComputationProxy::ReleaseXlaProxyData(const std::string& device, int64 h
   if (client && handle) {
     if (verbose) {
       ColorScope grn(Color::FG_GREEN);
+      if (handle == 66) {
+        std::cout << "FOUND 66" << ENDL;
+      }
       std::cout << "Releasing global data handle: " << handle << std::endl << std::flush;
     }
     xla::UnregisterRequest request;
@@ -792,7 +755,7 @@ ComputationClient::DataPtr XlaComputationProxy::TransferLiteralToServer(
     throw std::runtime_error(status.error_message());
   }
 
-  if (verbose) {
+  if (false && verbose) {
     ColorScope clr(Color::FG_GREEN);
     std::cout << "TransferLiteralToServer() Sent data , received handle: " << response.data().handle()
               << ", shape=" << literal.shape().ToString()
@@ -1417,7 +1380,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
     }
 
     // TODO: use NormalizeDataToDevice
-#if 1
+#if 0
     std::vector<ComputationClient::DataPtr> args = NormalizeDataToDevice(
       arguments, effective_device, false
     );
@@ -1569,12 +1532,34 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   std::vector<ComputationClient::DataPtr> results =
     Super::ExecuteComputation(computation, new_args, effective_device, options);
 
+  if (verbose) {
+    for (const auto& d : results) {
+      ColorScope clr(Color::FG_CYAN);
+      std::cout << "LOCAL Execution result data: " << d->GetOpaqueHandle() << " @ "
+                << d->device()
+                << ", shape = " << d->shape().ToString()
+                << std::endl << std::flush;
+    }
+  }
+
+
   if (clone_all_data) {
     std::vector<ComputationClient::DataPtr> cloned_results;
     cloned_results.reserve(results.size());
     for (ComputationClient::DataPtr& data_ptr : results) {
       if (!ProxyName::is_proxy_device_name(data_ptr->device())) {
+        // is this possible?
+        //assert(false);
         data_mapper_->AddWeakMapping(data_ptr->device(), data_ptr->GetOpaqueHandle());
+      }
+    }
+    if (verbose) {
+      for (const auto& d : cloned_results) {
+        ColorScope clr(Color::FG_MAGENTA);
+        std::cout << "WEAK MAPPED FROM Execution result data: " << d->GetOpaqueHandle() << " @ "
+                  << d->device()
+                  << ", shape = " << d->shape().ToString()
+                  << std::endl << std::flush;
       }
     }
   }

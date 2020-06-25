@@ -29,7 +29,7 @@
 namespace torch_xla {
 
 bool verbose = false;
-bool verbose_tensor_sync = verbose;
+bool verbose_tensor_sync = true || verbose;
 
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
 
@@ -190,10 +190,10 @@ void PopPythonState() { python_state.pop(); }
 
 MarkStepScope::MarkStepScope(const std::string& device_str,
                              const std::vector<std::string>& devices) {
-  CompileWatcher::NotifyStepMarkerBegin(device_str, devices);
+  XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
-MarkStepScope::~MarkStepScope() { CompileWatcher::NotifyStepMarkerEnd(); }
+MarkStepScope::~MarkStepScope() { XLASentinel::NotifyStepMarkerEnd(); }
 
 namespace {
 
@@ -246,15 +246,15 @@ struct CompileInfo {
   std::atomic<size_t> mark_step_count_since_last_reset_{0};
   std::unordered_set<size_t> output_ids_;
 
-  void set_hash(CompileWatcher::hash_t hash) {
+  void set_hash(XLASentinel::hash_t hash) {
     if (hash != hash_.load()) {
       hash_ = std::move(hash);
     }
   }
-  CompileWatcher::hash_t hash() const { return hash_; }
+  XLASentinel::hash_t hash() const { return hash_; }
 
  private:
-  std::atomic<CompileWatcher::hash_t> hash_{0};
+  std::atomic<XLASentinel::hash_t> hash_{0};
 };
 
 /**
@@ -281,7 +281,7 @@ using ExecutablePtr = std::shared_ptr<Executable>;
  * @brief Class to keep track of known-good executables
  */
 class ExecutableCache {
-  ExecutablePtr add_executable(const CompileWatcher::hash_t& hash) {
+  ExecutablePtr add_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     assert(executables_.find(hash) == executables_.end());
     auto exec = executables_.insert({hash, std::make_shared<Executable>(hash)})
@@ -296,7 +296,7 @@ class ExecutableCache {
 //    std::cout << "end of executable cache" << ENDL;
 //  }
 
-  ExecutablePtr get_executable(const CompileWatcher::hash_t& hash) {
+  ExecutablePtr get_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
     if (found != executables_.end()) {
@@ -305,7 +305,7 @@ class ExecutableCache {
     return nullptr;
   }
   ExecutablePtr get_executable_by_adjusted_hash(
-      const CompileWatcher::hash_t& hash) {
+      const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     auto found = adjusted_hash_map_.find(hash);
     if (found != adjusted_hash_map_.end()) {
@@ -313,15 +313,15 @@ class ExecutableCache {
     }
     return nullptr;
   }
-  bool has_executable(const CompileWatcher::hash_t& hash) {
+  bool has_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     return executables_.count(hash) != 0;
   }
-  bool has_executable_by_adjusted_hash(const CompileWatcher::hash_t& hash) {
+  bool has_executable_by_adjusted_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     return adjusted_hash_map_.count(hash) != 0;
   }
-  bool is_active_executable(const CompileWatcher::hash_t& hash) {
+  bool is_active_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     auto exec = get_executable(hash);
     if (exec) {
@@ -329,7 +329,7 @@ class ExecutableCache {
     }
     return false;
   }
-  ExecutablePtr activate_hash(const CompileWatcher::hash_t& hash) {
+  ExecutablePtr activate_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
     if (found == executables_.end()) {
@@ -355,7 +355,7 @@ class ExecutableCache {
       adjusted_hash_map_.insert({h2, std::move(exe)});
     }
   }
-  void deactivate_hash(const CompileWatcher::hash_t& hash) {
+  void deactivate_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
     if (found != executables_.end()) {
@@ -367,9 +367,9 @@ class ExecutableCache {
 
  private:
   mutable std::recursive_mutex mtx_;
-  absl::node_hash_map<CompileWatcher::hash_t, ExecutablePtr>
+  absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr>
       executables_;  // needs to be locked?
-  absl::node_hash_map<CompileWatcher::hash_t, ExecutablePtr> adjusted_hash_map_;
+  absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr> adjusted_hash_map_;
 };
 
 std::mutex compile_info_map_mtx_;
@@ -392,7 +392,7 @@ size_t get_number_of_required_runs_since_reset() {
   if (trusted_model) {
     return 0;
   }
-  static size_t rtc = xla::sys_util::GetEnvInt("XLA_RUNS_TILL_COMPILE",
+  static size_t rtc = xla::sys_util::GetEnvInt("XLA_STEPS_TILL_COMPILE",
                                                DEFAULT_STEPS_TILL_COMPILE);
   return rtc;
 }
@@ -441,9 +441,9 @@ bool __thread is_qualifying_step = false;
 
 }  // namespace
 
-std::vector<std::string> CompileWatcher::wse_devices_;
+std::vector<std::string> XLASentinel::wse_devices_;
 
-std::map<std::string, std::string> CompileWatcher::GetStats(bool reset_stats) {
+std::map<std::string, std::string> XLASentinel::GetStats(bool reset_stats) {
   std::map<std::string, std::string> results;
   auto stats = get_stats(reset_stats);
   ADDMAP(results, stats, total_compiles);
@@ -462,7 +462,7 @@ std::map<std::string, std::string> CompileWatcher::GetStats(bool reset_stats) {
          return std::move(results);
 }
 
-void CompileWatcher::SetAllDevices(
+void XLASentinel::SetAllDevices(
     const std::vector<std::string>& all_devices) {
   wse_devices_.clear();
   wse_devices_.reserve(all_devices.size());
@@ -474,7 +474,7 @@ void CompileWatcher::SetAllDevices(
   }
 }
 
-bool CompileWatcher::PreProcessHlo(
+bool XLASentinel::PreProcessHlo(
     xla::XlaBuilder* builder, const XLATensor::SyncTensorCollection& coll) {
   if (HasWseDevices() && IsTrainingThread(coll.requesting_tid)) {
     if (verbose) {
@@ -496,7 +496,7 @@ bool CompileWatcher::PreProcessHlo(
   return false;
 }
 
-void CompileWatcher::SetDeviceProxyAddress(const std::string& device,
+void XLASentinel::SetDeviceProxyAddress(const std::string& device,
                                            const std::string& proxy_address) {
   xla::ComputationClient* cc = xla::XrtComputationClient::Get();
   auto computation_client = dynamic_cast<xla::XlaComputationProxy*>(cc);
@@ -507,7 +507,7 @@ void CompileWatcher::SetDeviceProxyAddress(const std::string& device,
   }
 }
 
-bool CompileWatcher::HasWseDevices() {
+bool XLASentinel::HasWseDevices() {
   static bool got_devices = false;
   if (!got_devices) {
     std::lock_guard<std::mutex> lk(init_devices_mutex);
@@ -519,17 +519,17 @@ bool CompileWatcher::HasWseDevices() {
   return !wse_devices_.empty();
 }
 
-bool CompileWatcher::IsTrainingThread(pid_t tid) {
+bool XLASentinel::IsTrainingThread(pid_t tid) {
   return GetPythonState(tid) == EPS_IN_TRAIN_LOOP;
 }
 
-void CompileWatcher::OnHashChange(const xla::hash_t& prev_hash,
+void XLASentinel::OnHashChange(const xla::hash_t& prev_hash,
                                   const XLATensor::SyncTensorCollection& coll) {
   // This only updates something if this is one we have an executable for
   ex_cache->modify_adjusted_hash(prev_hash, coll.hash);
 }
 
-xla::hash_t CompileWatcher::PostmarkHash(
+xla::hash_t XLASentinel::PostmarkHash(
     std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll) {
   const xla::hash_t original_hash = coll.hash;
   if (!is_clean_step) {
@@ -584,7 +584,7 @@ xla::hash_t CompileWatcher::PostmarkHash(
   }
 }
 
-void CompileWatcher::NotifyCompile(
+void XLASentinel::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
   if (!HasWseDevices()) return;
@@ -605,7 +605,7 @@ void CompileWatcher::NotifyCompile(
   }
 }
 
-void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
+void XLASentinel::NotifyExecute(const std::string& device, hash_t hash,
                                    pid_t tid, bool scheduled) {
   if (!HasWseDevices()) return;
   ++get_stats()->total_executes;
@@ -622,7 +622,7 @@ void CompileWatcher::NotifyExecute(const std::string& device, hash_t hash,
 }
 
 std::vector<xla::ComputationClient::DataPtr>
-CompileWatcher::NotifyScheduleSyncTensorsGraph(
+XLASentinel::NotifyScheduleSyncTensorsGraph(
     std::vector<xla::ComputationClient::DataPtr> tensors,
     XLATensor::SyncTensorCollection* coll,
     std::shared_ptr<xla::ComputationClient::Computation>& computation) {
@@ -661,14 +661,14 @@ CompileWatcher::NotifyScheduleSyncTensorsGraph(
   return std::move(tensors);
 }
 
-void CompileWatcher::NotifyStepMarkerBegin(
+void XLASentinel::NotifyStepMarkerBegin(
     const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
   ++get_stats()->total_step_marker_count;
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
-    std::cout << "*************** CompileWatcher::NotifyStepMarker: device="
+    std::cout << "*************** XLASentinel::NotifyStepMarker: device="
               << device_str << std::endl
               << std::flush;
   }
@@ -697,7 +697,7 @@ void CompileWatcher::NotifyStepMarkerBegin(
   }
 }
 
-void CompileWatcher::NotifyStepMarkerEnd() {
+void XLASentinel::NotifyStepMarkerEnd() {
   assert(is_in_mark_step);
   const pid_t tid = gettid();
   auto compile_info = GetCompileInfo(tid);
@@ -708,13 +708,13 @@ void CompileWatcher::NotifyStepMarkerEnd() {
   is_qualifying_step = false;
 }
 
-bool CompileWatcher::IsSpecialLowering() {
+bool XLASentinel::IsSpecialLowering() {
   static bool allow_special_compile =
       xla::sys_util::GetEnvBool("XLA_ALLOW_SPECIAL_LOWERING", false);
   return allow_special_compile && is_qualifying_step;
 }
 
-bool CompileWatcher::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
+bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   assert(is_in_mark_step);  // shouldn't we always be? then we can just call
                             // once in MarkStep
   if (!is_in_mark_step) {
@@ -744,7 +744,7 @@ bool CompileWatcher::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   return ready;
 }
 
-void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors,
+void XLASentinel::SetOutputs(const std::vector<at::Tensor>& output_tensors,
                                 bool append) {
   if (!HasWseDevices()) {
     return;
@@ -763,7 +763,7 @@ void CompileWatcher::SetOutputs(const std::vector<at::Tensor>& output_tensors,
   }
 }
 
-bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor,
+bool XLASentinel::IsAllowedOutput(const XLATensor& tensor,
                                      XLATensor::SyncTensorCollection& coll) {
   assert(is_in_mark_step);  // gets cleared at end of step
   assert(is_clean_step);    // otherwise, why are you asking?
@@ -776,7 +776,7 @@ bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor,
          compile_info->output_ids_.end();
 }
 
-// void CompileWatcher::SetDeviceMapping(const std::string& from_device, const
+// void XLASentinel::SetDeviceMapping(const std::string& from_device, const
 // std::string& to_device) {
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  assert(!from_device.empty());
@@ -788,11 +788,11 @@ bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor,
 //  }
 //}
 //
-// std::mutex CompileWatcher::device_mapping_mtx_;
+// std::mutex XLASentinel::device_mapping_mtx_;
 // std::unordered_map<std::string, std::pair<Device, bool>>
-// CompileWatcher::device_mapping_;
+// XLASentinel::device_mapping_;
 //
-// std::string CompileWatcher::GetDeviceMapping(const std::string& device) {
+// std::string XLASentinel::GetDeviceMapping(const std::string& device) {
 //  assert(!device.empty());
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  auto iter = device_mapping_.find(device);
@@ -802,7 +802,7 @@ bool CompileWatcher::IsAllowedOutput(const XLATensor& tensor,
 //  return device;
 //}
 //
-// const torch_xla::Device& CompileWatcher::GetDeviceMapping(const Device&
+// const torch_xla::Device& XLASentinel::GetDeviceMapping(const Device&
 // device) {
 //  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
 //  auto iter = device_mapping_.find(device.ToString());
