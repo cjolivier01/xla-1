@@ -222,12 +222,15 @@ xla_git_sha, torch_git_sha = get_git_head_sha(base_dir)
 version = get_build_version(xla_git_sha)
 
 build_mode = _get_build_mode()
-if build_mode not in ['clean'] and not NO_BUILD:
+if build_mode not in ['clean']:
   # Generate version info (torch_xla.__version__).
   create_version_files(base_dir, version, xla_git_sha, torch_git_sha)
 
   # Generate the code before globbing!
   generate_xla_aten_code(base_dir)
+
+  if NO_BUILD:
+    return
 
   # Build the support libraries (ie, TF).
   build_extra_libraries(base_dir, build_mode=build_mode)
