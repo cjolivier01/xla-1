@@ -76,7 +76,7 @@ class ComputationClient {
 
     const std::vector<std::string>& devices() const { return devices_; }
 
-    const uint64_t execution_handle() const { return execution_handle_; }
+    uint64_t execution_handle() const { return execution_handle_; }
 
    private:
     XlaComputation computation_;

@@ -60,7 +60,7 @@ namespace xla {
 
 namespace {
 
-bool verbose = true;
+bool verbose = false;
 
 /**
  * @brief Force always using the proxy server for everyting
@@ -301,7 +301,7 @@ public:
  * @brief GlobalDataHandleMapper handles data mapping between devices
  */
 class XlaComputationProxy::GlobalDataHandleMapper {
-  static constexpr bool verbose = true;
+  static constexpr bool verbose = false;
 public:
   typedef int64 handle_t;
 
@@ -330,9 +330,6 @@ public:
       cloned_data_map_[src] = cloned_data_ptr;
       cloned_data_map_[dest] = cloned_data_ptr;
       if (verbose) {
-        if (handle == 66) {
-          std::cout << "SIXTY-SIX!!" << ENDL;
-        }
         std::cout << "Added mapping: " << handle << " @ " << device << " -> "
                   << cloned_data_ptr->GetOpaqueHandle() << " @ "
                   << cloned_data_ptr->device()
@@ -588,9 +585,6 @@ void XlaComputationProxy::ReleaseXlaProxyData(const std::string& device, int64 h
   if (client && handle) {
     if (verbose) {
       ColorScope grn(Color::FG_GREEN);
-      if (handle == 66) {
-        std::cout << "FOUND 66" << ENDL;
-      }
       std::cout << "Releasing global data handle: " << handle << std::endl << std::flush;
     }
     xla::UnregisterRequest request;
@@ -701,9 +695,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::MoveDataBetweenDevi
   bool add_mapping_entry
 ) {
   MoveScope moving_data;
-  if (verbose) {
-    HERE();
-  }
+  //HERE();
   auto results =
     split_types<std::vector<ComputationClient::DataPtr>>(
       source_data,
@@ -1129,7 +1121,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::NormalizeDataToDevi
   const std::string& device,
   bool in_place
 ) {
-  HEREC(Color::FG_MAGENTA);
+  //HEREC(Color::FG_MAGENTA);
   //
   // Split by whether to move
   //
@@ -1354,7 +1346,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   const std::string &device,
   const ExecuteComputationOptions &options
 ) {
-  HERE();
+  //HERE();
   if (verbose) {
     auto comp = dynamic_cast<const XrtComputation *>(&computation);
     if (comp) {

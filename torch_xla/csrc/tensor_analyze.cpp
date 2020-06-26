@@ -29,7 +29,7 @@
  */
 namespace torch_xla {
 
-bool verbose = true;
+bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = true || verbose;
 
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
@@ -192,7 +192,7 @@ void PopPythonState() { python_state.pop(); }
 MarkStepScope::MarkStepScope(
     const std::string& device_str,
     const std::vector<std::string>& devices)
-    : EnterLeave("*** MARK STEP", true, Color::BG_BLUE) {
+    : EnterLeave("*** MARK STEP", false, Color::FG_RESET) {
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
@@ -200,47 +200,47 @@ MarkStepScope::~MarkStepScope() { XLASentinel::NotifyStepMarkerEnd(); }
 
 namespace {
 
-template <typename DEST_MSG, typename SRC_MSG_ARRAY>
-const DEST_MSG* get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
-  const int64_t total_count = array.size();
-  for (int64_t i = 0; i < total_count; ++i) {
-    auto& obj = array[i];
-    if (obj.id() == id) {
-      return &obj;
-    }
-  }
-  return nullptr;
-}
+//template <typename DEST_MSG, typename SRC_MSG_ARRAY>
+//const DEST_MSG* get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
+//  const int64_t total_count = array.size();
+//  for (int64_t i = 0; i < total_count; ++i) {
+//    auto& obj = array[i];
+//    if (obj.id() == id) {
+//      return &obj;
+//    }
+//  }
+//  return nullptr;
+//}
 
-std::string get_proxy_device(const xla::HloModuleProto& module) {
-  // save_msg(module, "my_hlo_module.json");
-  const int64_t entry_computation_id = module.entry_computation_id();
-  if (entry_computation_id) {
-    auto computation = get_id<xla::HloComputationProto>(module.computations(),
-                                                        entry_computation_id);
-    const int64_t root_id = computation->root_id();
-    if (root_id) {
-      auto root_instruction = get_id<xla::HloInstructionProto>(
-          computation->instructions(), root_id);
-      const xla::FrontendAttributes& frontend_attributes =
-          root_instruction->frontend_attributes();
-      auto iter = frontend_attributes.map().find("PROXY_DEVICE");
-      if (iter != frontend_attributes.map().end()) {
-        // A compile may have failed, in which case it
-        // gets delegated back to the default device
-        auto cancel_iter =
-            frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
-        if (cancel_iter != frontend_attributes.map().end()) {
-          if (cancel_iter->second == iter->second) {
-            return "";  // this proxying was cancelled (i.e. failed compile)
-          }
-        }
-        return iter->second;
-      }
-    }
-  }
-  return "";
-}
+//std::string get_proxy_device(const xla::HloModuleProto& module) {
+//  // save_msg(module, "my_hlo_module.json");
+//  const int64_t entry_computation_id = module.entry_computation_id();
+//  if (entry_computation_id) {
+//    auto computation = get_id<xla::HloComputationProto>(module.computations(),
+//                                                        entry_computation_id);
+//    const int64_t root_id = computation->root_id();
+//    if (root_id) {
+//      auto root_instruction = get_id<xla::HloInstructionProto>(
+//          computation->instructions(), root_id);
+//      const xla::FrontendAttributes& frontend_attributes =
+//          root_instruction->frontend_attributes();
+//      auto iter = frontend_attributes.map().find("PROXY_DEVICE");
+//      if (iter != frontend_attributes.map().end()) {
+//        // A compile may have failed, in which case it
+//        // gets delegated back to the default device
+//        auto cancel_iter =
+//            frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
+//        if (cancel_iter != frontend_attributes.map().end()) {
+//          if (cancel_iter->second == iter->second) {
+//            return "";  // this proxying was cancelled (i.e. failed compile)
+//          }
+//        }
+//        return iter->second;
+//      }
+//    }
+//  }
+//  return "";
+//}
 
 using Lock = std::lock_guard<std::recursive_mutex>;
 
@@ -401,40 +401,40 @@ size_t get_number_of_required_runs_since_reset() {
 }
 
 
-#define ADDMAP(dest, var, field) dest[#field] = std::to_string(var->field)
-struct TensorAnalyzeStats {
-  std::atomic<std::size_t> total_compiles{0};
-  std::atomic<std::size_t> total_executes{0};
-  std::atomic<std::size_t> total_step_marker_count{0};
-  std::atomic<std::size_t> total_step_marker_compiles{0};
-  std::atomic<std::size_t> total_master_thread_compiles{0};
-  std::atomic<std::size_t> total_master_thread_executes{0};
-  std::atomic<std::size_t> total_non_fabric_compiles{0};
-  std::atomic<std::size_t> total_non_fabric_executes{0};
-  std::atomic<std::size_t> total_qualifying_steps{0};
-  std::atomic<std::size_t> total_fabric_compiles{0};
-  std::atomic<std::size_t> total_fabric_executes{0};
-  std::atomic<std::size_t> total_clean_steps{0};
-  std::atomic<std::size_t> total_executable_deactivates{0};
-};
+//#define ADDMAP(dest, var, field) dest[#field] = std::to_string(var->field)
+//struct TensorAnalyzeStats {
+//  std::atomic<std::size_t> total_compiles{0};
+//  std::atomic<std::size_t> total_executes{0};
+//  std::atomic<std::size_t> total_step_marker_count{0};
+//  std::atomic<std::size_t> total_step_marker_compiles{0};
+//  std::atomic<std::size_t> total_master_thread_compiles{0};
+//  std::atomic<std::size_t> total_master_thread_executes{0};
+//  std::atomic<std::size_t> total_non_fabric_compiles{0};
+//  std::atomic<std::size_t> total_non_fabric_executes{0};
+//  std::atomic<std::size_t> total_qualifying_steps{0};
+//  std::atomic<std::size_t> total_fabric_compiles{0};
+//  std::atomic<std::size_t> total_fabric_executes{0};
+//  std::atomic<std::size_t> total_clean_steps{0};
+//  std::atomic<std::size_t> total_executable_deactivates{0};
+//};
 
 // These stats are for external use only. Do not use them programatically.
-std::shared_ptr<TensorAnalyzeStats> get_stats(bool reset=false) {
-  static std::shared_ptr<TensorAnalyzeStats> current_user_stats{nullptr};
-  std::shared_ptr<TensorAnalyzeStats> stats = current_user_stats;
-  if (reset || !stats) {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lk(mtx);
-    // check current_user_stats again after we get the lock
-    if (!current_user_stats || reset) {
-      current_user_stats = std::make_shared<TensorAnalyzeStats>();
-    }
-    if (!stats) {
-      stats = current_user_stats;
-    }
-  }
-  return stats;
-}
+//std::shared_ptr<TensorAnalyzeStats> get_stats(bool reset=false) {
+//  static std::shared_ptr<TensorAnalyzeStats> current_user_stats{nullptr};
+//  std::shared_ptr<TensorAnalyzeStats> stats = current_user_stats;
+//  if (reset || !stats) {
+//    static std::mutex mtx;
+//    std::lock_guard<std::mutex> lk(mtx);
+//    // check current_user_stats again after we get the lock
+//    if (!current_user_stats || reset) {
+//      current_user_stats = std::make_shared<TensorAnalyzeStats>();
+//    }
+//    if (!stats) {
+//      stats = current_user_stats;
+//    }
+//  }
+//  return stats;
+//}
 
 std::mutex init_devices_mutex;
 
@@ -446,24 +446,24 @@ bool __thread is_qualifying_step = false;
 
 std::vector<std::string> XLASentinel::wse_devices_;
 
-std::map<std::string, std::string> XLASentinel::GetStats(bool reset_stats) {
-  std::map<std::string, std::string> results;
-  auto stats = get_stats(reset_stats);
-  ADDMAP(results, stats, total_compiles);
-  ADDMAP(results, stats, total_executes);
-  ADDMAP(results, stats, total_step_marker_count);
-  ADDMAP(results, stats, total_step_marker_compiles);
-  ADDMAP(results, stats, total_master_thread_compiles);
-  ADDMAP(results, stats, total_master_thread_executes);
-  ADDMAP(results, stats, total_non_fabric_compiles);
-  ADDMAP(results, stats, total_non_fabric_executes);
-  ADDMAP(results, stats, total_qualifying_steps);
-  ADDMAP(results, stats, total_fabric_compiles);
-  ADDMAP(results, stats, total_fabric_executes);
-  ADDMAP(results, stats, total_clean_steps);
-  ADDMAP(results, stats, total_executable_deactivates);
-         return std::move(results);
-}
+//std::map<std::string, std::string> XLASentinel::GetStats(bool reset_stats) {
+//  std::map<std::string, std::string> results;
+//  auto stats = get_stats(reset_stats);
+//  ADDMAP(results, stats, total_compiles);
+//  ADDMAP(results, stats, total_executes);
+//  ADDMAP(results, stats, total_step_marker_count);
+//  ADDMAP(results, stats, total_step_marker_compiles);
+//  ADDMAP(results, stats, total_master_thread_compiles);
+//  ADDMAP(results, stats, total_master_thread_executes);
+//  ADDMAP(results, stats, total_non_fabric_compiles);
+//  ADDMAP(results, stats, total_non_fabric_executes);
+//  ADDMAP(results, stats, total_qualifying_steps);
+//  ADDMAP(results, stats, total_fabric_compiles);
+//  ADDMAP(results, stats, total_fabric_executes);
+//  ADDMAP(results, stats, total_clean_steps);
+//  ADDMAP(results, stats, total_executable_deactivates);
+//         return std::move(results);
+//}
 
 void XLASentinel::SetAllDevices(
     const std::vector<std::string>& all_devices) {
@@ -546,13 +546,15 @@ xla::hash_t XLASentinel::PostmarkHash(
     if (!exe->is_active()) {
       exe->set_active(true);
     }
-  } else if (IsQualifyingStep(coll.requesting_tid)) {
+  } else if (is_qualifying_step /* ASSUMPTION: compile in mark step IsQualifyingStep(coll.requesting_tid)*/) {
+    assert(is_in_mark_step);
     // create and activate
     exe = ex_cache->activate_hash(coll.hash);
     assert(exe);
   }
 
   if (exe && exe->is_active()) {
+    XLA_COUNTER("SentinelPostMarkHash", 1);
     std::vector<size_t> adjusted_indices;
     adjusted_indices.reserve(coll.indices.size());
     for (std::size_t i = 0, n = coll.indices.size(); i < n; ++i) {
@@ -583,7 +585,7 @@ xla::hash_t XLASentinel::PostmarkHash(
     } else {
       // Nothing left, so can't do this on proxy
       if (exe->is_active()) {
-        ++get_stats()->total_executable_deactivates;
+        //++get_stats()->total_executable_deactivates;
         XLA_COUNTER("SentinelExecutableDeactivate", 1);
       }
       exe->set_active(false);
@@ -594,47 +596,80 @@ xla::hash_t XLASentinel::PostmarkHash(
   }
 }
 
+std::string to_string(const xla::Shape& shape) {
+  std::stringstream ss;
+  ss << "[";
+  for (std::size_t i = 0; i < shape.dimensions_size(); ++i) {
+    if (i) ss << ", ";
+    ss << shape.dimensions(i);
+  }
+  ss << "]";
+  return ss.str();
+}
+
+std::string to_string(const xla::ProgramShape& ps) {
+  std::stringstream ss;
+  ss << "(";
+  for (std::size_t i = 0; i < ps.parameters_size(); ++i) {
+    if (i) ss << ", ";
+    ss << to_string(ps.parameters(i));
+  }
+  ss << ") -> (";
+  const xla::Shape& result_shape = ps.result();
+  if (result_shape.element_type() != xla::PrimitiveType::TUPLE) {
+    ss << to_string(result_shape);
+  } else {
+    for (std::size_t i = 0; i < result_shape.tuple_shapes_size(); ++i) {
+      if (i) ss << ", ";
+      const xla::Shape& shape = result_shape.tuple_shapes(i);
+      ss << to_string(shape);
+    }
+  }
+  ss << ")";
+  return ss.str();
+}
+
 void XLASentinel::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
   if (!HasWseDevices()) return;
-  ++get_stats()->total_compiles;
   XLA_COUNTER("SentinelNotifyCompile", 1);
   if (is_in_mark_step) {
-    ++get_stats()->total_step_marker_compiles;
     XLA_COUNTER("SentinelStepMarkerCompile", 1);
   }
 
   if (IsTrainingThread(tid)) {
-    ++get_stats()->total_master_thread_compiles;
     XLA_COUNTER("SentinelMasterThreadCompile", 1);
     if (!ex_cache->has_executable_by_adjusted_hash(hash)) {
-      ++get_stats()->total_non_fabric_compiles;
       XLA_COUNTER("SentinelNonProxyCompile", 1);
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
-      std::cout << "** NON-FABRIC COMPILE" << ENDL;
+      assert(instances.size() == 1);  // always just one? maybe in distrib its one each.
+      std::cout << "** NON-FABRIC COMPILE: "
+                << to_string(instances[0].computation.GetProgramShape().ValueOrDie())
+                << ENDL;
     } else {
-      ++get_stats()->total_fabric_compiles;
       XLA_COUNTER("SentinelProxyCompile", 1);
     }
   }
 }
 
-void XLASentinel::NotifyExecute(const std::string& device, hash_t hash,
-                                   pid_t tid, bool scheduled) {
+void XLASentinel::NotifyExecute(
+    const xla::ComputationClient::Computation& computation,
+    const std::string& device,
+    hash_t hash,
+    pid_t tid
+) {
   if (!HasWseDevices()) return;
-  ++get_stats()->total_executes;
   XLA_COUNTER("SentinelExecute", 1);
   if (IsTrainingThread(tid)) {
-    ++get_stats()->total_master_thread_executes;
     XLA_COUNTER("SentinelMasterThreadExecute", 1);
     if(!ex_cache->has_executable_by_adjusted_hash(hash)) {
-      ++get_stats()->total_non_fabric_executes;
       XLA_COUNTER("SentinelNonProxyExecute", 1);
       ColorScope clr(std::cout, {Color::FG_BLUE}, false);
-      std::cout << "** NON-FABRIC EXECUTION" << ENDL;
+      std::cout << "** NON-FABRIC EXECUTION: "
+                << to_string(computation.program_shape())
+                << ENDL;
     } else {
-      ++get_stats()->total_fabric_executes;
       XLA_COUNTER("SentinelProxyExecute", 1);
     }
   }
@@ -692,7 +727,6 @@ void XLASentinel::NotifyStepMarkerBegin(
     const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
-  ++get_stats()->total_step_marker_count;
   XLA_COUNTER("SentinelStepMarker", 1);
 
   static bool registered_step_requirement = false;
@@ -726,12 +760,10 @@ void XLASentinel::NotifyStepMarkerBegin(
   const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
   if (is_clean_step) {
-    ++get_stats()->total_clean_steps;
     XLA_COUNTER("SentinelCleanSteps", 1);
   }
   is_qualifying_step = IsQualifyingStep(tid);
   if (is_qualifying_step) {
-    ++get_stats()->total_qualifying_steps;
     XLA_COUNTER("SentinelQualifyingSteps", 1);
   }
 }

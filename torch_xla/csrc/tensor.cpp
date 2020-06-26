@@ -1123,18 +1123,6 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
       ir::Value ir_value = tensors[i].CurrentIrValue();
       if (ir_value) {
         if (ShouldSyncIrValue(ir_value)) {
-#if 0
-          if (!XLASentinel::IsAllowedOutput(tensors[i], coll)) {
-            static int message_count = 0;
-            if (!message_count++) {
-                print_tensor_ex("CollectSyncTensors: Skipping not allowed output tensor (one message only)", tensors[i]);
-            }
-            // This will affect the hash of the normal XLA path, which may cause a recompile
-            continue;
-          } else {
-            //print_tensor("CollectSyncTensors", tensors[i]);
-          }
-#endif
           // Add only tensors which need to be synced.
           coll.hash = xla::util::HashCombine(coll.hash, ir_value.hash());
           coll.indices.push_back(i);
@@ -1293,10 +1281,12 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       std::move(cached_computation));
 
   auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
-    HEREC(Color::FG_CYAN);
+    //HEREC(Color::FG_CYAN);
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      XLASentinel::NotifyExecute(async->device, hash, requesting_tid, false);
+      XLASentinel::NotifyExecute(
+          *async->cached_computation->computation,
+          async->device, hash, requesting_tid);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
