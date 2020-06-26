@@ -30,7 +30,7 @@
 namespace torch_xla {
 
 bool verbose = VERBOSE_FILE(false);
-bool verbose_tensor_sync = true || verbose;
+bool verbose_tensor_sync = verbose;
 
 constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
 
