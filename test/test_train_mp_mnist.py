@@ -1,3 +1,14 @@
+import os
+os.environ["HAS_WSE_DEVICE"] = "0"
+os.environ["XRT_BASE_DEVICE"] = "GPU"
+os.environ["GPU_NUM_DEVICES"] = "2"
+os.environ["MULTI_DEVICE"] = "2"
+os.environ["MULTI_WORKER"] = "2"
+os.environ["XRT_SHARD_WORLD_SIZE"] = "2"
+os.environ["GPU_NUM_DEVICES"] = "1"
+
+import ptwse
+
 import args_parse
 
 FLAGS = args_parse.parse_common_options(

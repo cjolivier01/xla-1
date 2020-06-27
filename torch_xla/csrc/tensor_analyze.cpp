@@ -192,7 +192,7 @@ void PopPythonState() { python_state.pop(); }
 MarkStepScope::MarkStepScope(
     const std::string& device_str,
     const std::vector<std::string>& devices)
-    : EnterLeave("*** MARK STEP", false, Color::FG_RESET) {
+    /*: EnterLeave("*** MARK STEP", false, Color::FG_RESET)*/ {
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
