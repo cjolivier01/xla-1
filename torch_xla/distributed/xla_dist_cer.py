@@ -30,6 +30,7 @@ def concat_cmd_list(cmd_list, delimiter=' ', quote='"'):
     concat += token
   return concat
 
+
 class DistributedExecutor(object):
 
   SCRIPT_PATH_TMPL = '/tmp/{pid}/dist_training_ptxla_{worker}.sh'
@@ -41,6 +42,7 @@ class DistributedExecutor(object):
       'XRT_SHARD_WORLD_SIZE',
       'XRT_SHARD_ORDINAL',
       'XLA_EMIT_STEPLOG',
+      'TPU_NUM_DEVICES',
   ]
   DEFAULT_CONTAINER_NAME = 'pytorchtpudistrunner'
   MAX_TPU_RETRY = 50
@@ -51,8 +53,8 @@ class DistributedExecutor(object):
     logger.setLevel(logging.INFO)
     logger.propagate = False
     formatter = logging.Formatter(
-      fmt='%(asctime)-12s %(clientip)s [%(ordinal)s] %(message)s',
-      datefmt='%Y-%m-%d %H:%M:%S')
+        fmt='%(asctime)-12s %(clientip)s [%(ordinal)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
     sh = logging.StreamHandler()
     sh.setLevel(logging.INFO)
     sh.setFormatter(formatter)
@@ -62,11 +64,10 @@ class DistributedExecutor(object):
   def _initialize(self):
     """Initializes members that need to be cleanly initialized for each run."""
     self._last_heartbeats = {
-      cw.get_internal_ip(): {
-        'last_time': time.time(),
-        'count': 0,
-      }
-      for cw in self._cluster.get_client_workers()
+        cw.get_internal_ip(): {
+            'last_time': time.time(),
+            'count': 0,
+        } for cw in self._cluster.get_client_workers()
     }
     self._error_queue = multiprocessing.Queue()
     self._last_heartbeat_check_time = 0
@@ -80,39 +81,37 @@ class DistributedExecutor(object):
                env_vars=None):
     self._cluster = cluster
     self._initialize()
-    client_master_ip = ClusterResolver.get_instance_metadata(
-      'instance/network-interfaces/0/ip')
-    self._client_master = next(filter(
-      lambda cw: cw.get_internal_ip() == client_master_ip,
-      self._cluster.get_client_workers()))
     self.logger = self._get_logger()
     self.docker_container = docker_container or self.DEFAULT_CONTAINER_NAME
     self.docker_image = docker_image
-    self.docker_run_flags = list(docker_run_flags) if docker_run_flags else None
+    self.docker_run_flags = list(docker_run_flags) if docker_run_flags else []
     self.conda_env = conda_env
     self.env_vars = list(env_vars) if env_vars else []
 
     for env_var in self.env_vars:
       if re.match('\w*=\w*', env_var) is None:
         raise ValueError(
-            ('Environment variable to distribute ({}) should follow '
-             'the form: X=Y').format(env_var))
+          ('Environment variable to distribute ({}) should follow '
+           'the form: X=Y').format(env_var))
       for dist_var in self.DIST_ENV_VARS:
         if re.match('{}=.*'.format(dist_var), env_var):
           raise ValueError(
-              ('{} should not be in the training command provided as they'
-               ' will interfere with the values set for distributed'
-               ' training'.format(dist_var)))
+            ('{} should not be in the training command provided as they'
+             ' will interfere with the values set for distributed'
+             ' training'.format(dist_var)))
 
-  def _check_client_mesh_health(
-      self, uneven_health_timeout, even_health_timeout):
+  def _check_client_mesh_health(self, uneven_health_timeout,
+                                even_health_timeout):
     min_delay = max(uneven_health_timeout, even_health_timeout) + 1
     count = None
     now = time.time()
     if xu.getenv_as('XLA_DEBUG_LOG_HEARTBEATS', bool, False):
       self.logger.info(
         'Worker Heartbeats: {}'.format(self._last_heartbeats),
-         extra={'clientip': '', 'ordinal': ''})
+        extra={
+          'clientip': '',
+          'ordinal': ''
+        })
 
     for cw_hb in self._last_heartbeats.values():
       min_delay = min(min_delay, now - cw_hb['last_time'])
@@ -122,11 +121,11 @@ class DistributedExecutor(object):
         count = -1
 
     if count < 0 and min_delay > uneven_health_timeout:
-      self._error_queue.put(RuntimeError(
-        'Client mesh is unhealthy with uneven heartbeats'))
+      self._error_queue.put(
+        RuntimeError('Client mesh is unhealthy with uneven heartbeats'))
     elif count > 0 and min_delay > even_health_timeout:
-      self._error_queue.put(RuntimeError(
-        'Client mesh is unhealthy with even heartbeats'))
+      self._error_queue.put(
+        RuntimeError('Client mesh is unhealthy with even heartbeats'))
 
   def _stream_logs(self, process, client_worker):
     client_ip = client_worker.get_internal_ip()
@@ -141,66 +140,66 @@ class DistributedExecutor(object):
           hb_stream['last_time'] = time.time()
           hb_stream['count'] += 1
           continue
-        log_fn(
-            std_line,
-            extra={
-                'clientip': client_ip,
-                'ordinal': ordinal
-            })
+        log_fn(std_line, extra={'clientip': client_ip, 'ordinal': ordinal})
 
     stdout = threading.Thread(
-        target=_stream_output, daemon=True, args=(
-            process.stdout,
-            self.logger.info,
-        ))
+      target=_stream_output,
+      daemon=True,
+      args=(
+        process.stdout,
+        self.logger.info,
+      ))
     stdout.start()
     stderr = threading.Thread(
-        target=_stream_output, daemon=True, args=(
-            process.stderr,
-            self.logger.error,
-        ))
+      target=_stream_output,
+      daemon=True,
+      args=(
+        process.stderr,
+        self.logger.error,
+      ))
     stderr.start()
     stdout.join()
     stderr.join()
 
   def _build_scp_cmd(self, local_path, remote_path, client_worker):
     return [
-        'gcloud',
-        '-q',
-        'compute',
-        'scp',
-        '--internal-ip',
-        '--zone={}'.format(client_worker.get_zone()),
-        local_path,
-        '{}:{}'.format(client_worker.get_hostname(), remote_path),
+      'gcloud',
+      '-q',
+      'compute',
+      'scp',
+      '--internal-ip',
+      '--zone={}'.format(client_worker.get_zone()),
+      local_path,
+      '{}:{}'.format(client_worker.get_hostname(), remote_path),
     ]
 
   def _build_ssh_cmd(self, remote_cmd, client_worker):
     if isinstance(remote_cmd, list):
       remote_cmd = concat_cmd_list(remote_cmd)
     return [
-        'gcloud',
-        '-q',
-        'compute',
-        'ssh',
-        '--internal-ip',
-        '--zone={}'.format(client_worker.get_zone()),
-        '{}'.format(client_worker.get_hostname()),
-        '--command',
-        '\'{}\''.format(remote_cmd),
+      'gcloud',
+      '-q',
+      'compute',
+      'ssh',
+      '--internal-ip',
+      '--zone={}'.format(client_worker.get_zone()),
+      '{}'.format(client_worker.get_hostname()),
+      '--command',
+      '\'{}\''.format(remote_cmd),
     ]
 
   def _run_remote_cmd(self, cmd, client_worker, shell=True, log=True):
     cmd = concat_cmd_list(cmd, quote='') if shell else cmd
     proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell)
+      cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell)
     if log:
       self._stream_logs(proc, client_worker)
     proc.wait()
     if proc.returncode == 255:
-      self._error_queue.put(RuntimeError(
-        'Client mesh is unhealthy due to dead client worker: {}'.format(
-          client_worker)))
+      self._error_queue.put(
+        RuntimeError(
+          'Client mesh is unhealthy due to dead client worker: {}'.format(
+            client_worker)))
     return proc.returncode
 
   def _build_and_run_ssh(self, remote_cmd, client_worker, shell=True, log=True):
@@ -209,10 +208,10 @@ class DistributedExecutor(object):
 
   def _docker_run_cmd(self, cmd):
     docker_cmd = [
-        'docker',
-        'run',
-        '--name={}'.format(self.docker_container),
-        '--network=host',
+      'docker',
+      'run',
+      '--name={}'.format(self.docker_container),
+      '--network=host',
     ]
     docker_cmd.extend(self.docker_run_flags)
     for env_var in self.DIST_ENV_VARS:
@@ -228,26 +227,28 @@ class DistributedExecutor(object):
   def _env_vars_cmd(self, worker_idx):
     client_worker = self._cluster.get_client_workers()[worker_idx]
     env_vars = {
-        'XRT_LOCAL_WORKER':
-            'c_tpu_worker:{}'.format(worker_idx),
-        'XRT_MESH_SERVICE_ADDRESS':
-            '{}:{}'.format(
-              self._client_master.get_internal_ip(), self.MESH_SERVICE_PORT),
-        'XRT_SHARD_WORLD_SIZE':
-            len(self._cluster.get_client_workers()),
-        'XRT_SHARD_ORDINAL':
-            worker_idx,
-        'XLA_EMIT_STEPLOG': 1,
+      'XRT_LOCAL_WORKER':
+        'c_tpu_worker:{}'.format(worker_idx),
+      'XRT_MESH_SERVICE_ADDRESS':
+        '{}:{}'.format(self._cluster.get_client_master().get_internal_ip(),
+                       self.MESH_SERVICE_PORT),
+      'XRT_SHARD_WORLD_SIZE':
+        len(self._cluster.get_client_workers()),
+      'XRT_SHARD_ORDINAL':
+        worker_idx,
+      'XLA_EMIT_STEPLOG':
+        1,
+      'TPU_NUM_DEVICES':
+        8,
     }
     # Only for master
-    if client_worker == self._client_master:
+    if client_worker == self._cluster.get_client_master():
       xrt_server_config = [
-          'c_tpu_worker;{worker_idx};{worker_ip}:{worker_port}'.format(
-              worker_idx=idx,
-              worker_ip=service_worker.get_internal_ip(),
-              worker_port=service_worker.get_port())
-          for idx, service_worker in enumerate(
-            self._cluster.get_service_workers())
+        'c_tpu_worker;{worker_idx};{worker_ip}:{worker_port}'.format(
+          worker_idx=idx,
+          worker_ip=service_worker.get_internal_ip(),
+          worker_port=service_worker.get_port()) for idx, service_worker in
+        enumerate(self._cluster.get_service_workers())
       ]
       xrt_tpu_config = '|'.join(xrt_server_config)
       env_vars['XRT_TPU_CONFIG'] = '{}'.format(xrt_tpu_config)
@@ -284,11 +285,11 @@ class DistributedExecutor(object):
         f.write(script_body)
       subprocess.call(['chmod', '+x', script_path])
       worker_script_map[self._cluster.get_client_workers()[i]] = {
-          'local_path':
-              script_path,
-          'remote_path':
-              os.path.join('{}-remote'.format(os.path.dirname(script_path)),
-                           os.path.basename(script_path)),
+        'local_path':
+          script_path,
+        'remote_path':
+          os.path.join('{}-remote'.format(os.path.dirname(script_path)),
+                       os.path.basename(script_path)),
       }
 
     return worker_script_map
@@ -297,10 +298,10 @@ class DistributedExecutor(object):
 
     def _gcloud_scp(local_path, remote_path, client_worker):
       self._build_and_run_ssh(
-          ['mkdir', '-p', os.path.dirname(remote_path)], client_worker)
+        ['mkdir', '-p', os.path.dirname(remote_path)], client_worker)
       scp_cmd = self._build_scp_cmd(local_path, remote_path, client_worker)
       proc = subprocess.Popen(
-          scp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        scp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
       self._stream_logs(proc, client_worker)
 
     threads = []
@@ -312,11 +313,13 @@ class DistributedExecutor(object):
         _gcloud_scp(local_path, remote_path, client_worker)
         continue
       thread = threading.Thread(
-          target=_gcloud_scp, daemon=True, args=(
-              local_path,
-              remote_path,
-              client_worker,
-          ))
+        target=_gcloud_scp,
+        daemon=True,
+        args=(
+          local_path,
+          remote_path,
+          client_worker,
+        ))
       thread.start()
       threads.append(thread)
 
@@ -332,20 +335,20 @@ class DistributedExecutor(object):
       if self.docker_image:
         rm_container = ['docker', 'rm', '-f', self.docker_container]
         self._build_and_run_ssh(rm_container, client_worker, log=False)
-      rm_pgroup = ('kill -9 -$(ps xao pid,pgid,cmd | grep "bash -c \\"{}\\""'
-                   ' | grep -v grep | awk "{{print \$2}}")').format(
-                     remote_script)
+      rm_pgroup = (
+        'kill -9 -$(ps xao pid,pgid,cmd | grep "bash -c \\"{}\\""'
+        ' | grep -v grep | awk "{{print \$2}}")').format(remote_script)
       self._build_and_run_ssh(rm_pgroup, client_worker, log=False)
 
     threads = []
     for client_worker in script_map:
       thread = threading.Thread(
-          target=_cleanup_worker,
-          args=(
-              script_map[client_worker]['local_path'],
-              script_map[client_worker]['remote_path'],
-              client_worker,
-          ))
+        target=_cleanup_worker,
+        args=(
+          script_map[client_worker]['local_path'],
+          script_map[client_worker]['remote_path'],
+          client_worker,
+        ))
       thread.start()
       threads.append(thread)
 
@@ -357,34 +360,26 @@ class DistributedExecutor(object):
 
   def _start_run(self, script_map):
 
-    def _run_script(script_path, client_worker):
-      self._build_and_run_ssh([script_path], client_worker)
+    def _run_script(script_paths, client_worker):
+      script_path = script_paths['remote_path']
+      exit_code = self._build_and_run_ssh([script_path], client_worker)
+      if exit_code != 0:
+        raise RuntimeError(
+          'Remote command exitted with code: {}'.format(exit_code))
 
     def _regular_health_check():
-      uneven_health_timeout = xu.getenv_as(
-        'XLA_UNEVEN_HEARTBEAT_TIMEOUT', int, 900)
-      even_health_timeout = xu.getenv_as(
-        'XLA_EVEN_HEARTBEAT_TIMEOUT', int, 1800)
+      uneven_health_timeout = xu.getenv_as('XLA_UNEVEN_HEARTBEAT_TIMEOUT', int,
+                                           900)
+      even_health_timeout = xu.getenv_as('XLA_EVEN_HEARTBEAT_TIMEOUT', int,
+                                         1800)
       while True:
-        self._check_client_mesh_health(
-          uneven_health_timeout, even_health_timeout)
+        self._check_client_mesh_health(uneven_health_timeout,
+                                       even_health_timeout)
         time.sleep(self.HEARTBEAT_CHECK_PERIOD)
 
-    threads = []
-    for client_worker in script_map:
-      thread = threading.Thread(
-          target=_run_script,
-          daemon=True,
-          args=(
-              script_map[client_worker]['remote_path'],
-              client_worker,
-          ))
-      thread.start()
-      threads.append(thread)
-
     threading.Thread(target=_regular_health_check, daemon=True).start()
-    for thread in threads:
-      thread.join()
+    xu.parallel_work(
+      len(script_map), _run_script, script_map.values(), script_map.keys())
 
   def _run_cmd(self, script_map):
     try:
@@ -393,7 +388,10 @@ class DistributedExecutor(object):
     except KeyboardInterrupt:
       self.logger.warning(
         'Child process received Ctrl^C. Exiting...',
-        extra={'clientip': '', 'ordinal': ''})
+        extra={
+          'clientip': '',
+          'ordinal': ''
+        })
       sys.exit(128 + signal.SIGINT)
 
   def run(self, cmd):
@@ -401,11 +399,17 @@ class DistributedExecutor(object):
     while trials <= self.MAX_TPU_RETRY:
       try:
         self.logger.info(
-            'Command to distribute: {}'.format(concat_cmd_list(cmd)),
-            extra={'clientip': '', 'ordinal': ''})
+          'Command to distribute: {}'.format(concat_cmd_list(cmd)),
+          extra={
+            'clientip': '',
+            'ordinal': ''
+          })
         self.logger.info(
-            f'Cluster configuration: {self._cluster}',
-            extra={'clientip': '', 'ordinal': ''})
+          f'Cluster configuration: {self._cluster}',
+          extra={
+            'clientip': '',
+            'ordinal': ''
+          })
 
         script_map = self._prepare_scripts(cmd)
         proc = multiprocessing.Process(target=self._run_cmd, args=(script_map,))
@@ -420,7 +424,10 @@ class DistributedExecutor(object):
           if not self._error_queue.empty():
             # Potential HostError on GCE VM: kill all, wait, and restart
             self.logger.warning(
-              self._error_queue.get(), extra={'clientip': '', 'ordinal': ''})
+              self._error_queue.get(), extra={
+                'clientip': '',
+                'ordinal': ''
+              })
             break
 
           proc.join(10)
@@ -434,67 +441,71 @@ class DistributedExecutor(object):
       except KeyboardInterrupt:
         self.logger.info(
           'Cleaning up processes (takes a couple of seconds)',
-          extra={'clientip': '', 'ordinal': ''})
+          extra={
+            'clientip': '',
+            'ordinal': ''
+          })
         self._cleanup(script_map)
         sys.exit(128 + signal.SIGINT)
 
     self.logger.info(
-      'Max number of retries reached.', extra={'clientip': '', 'ordinal': ''})
+      'Max number of retries reached.', extra={
+        'clientip': '',
+        'ordinal': ''
+      })
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
-      description='PyTorch on TPU distrubuted training launcher.',
-      epilog=('Usage example: python -m'
-              ' torch_xla.distributed.xla_dist --tpu=[TPU_NAME]'
-              ' --conda-env torch-xla-nightly -- python train.py'))
+    description='PyTorch on TPU distrubuted training launcher.',
+    epilog=('Usage example: python -m'
+            ' torch_xla.distributed.xla_dist --tpu=[TPU_NAME]'
+            ' --conda-env torch-xla-nightly -- python train.py'))
 
   cluster_group = parser.add_argument_group('Cluster Setup')
   cluster_group.add_argument(
-      '--tpu',
-      type=str,
-      required=True,
-      help='Name of the Cloud TPU pod.')
+    '--tpu', type=str, required=True, help='Name of the Cloud TPU pod.')
   cluster_group.add_argument(
-      '--vm',
-      action='append',
-      type=str,
-      help=('List of single Compute VM instance names. '
-            'If not provided we assume usage of instance groups.'))
+    '--vm',
+    action='append',
+    type=str,
+    help=('List of single Compute VM instance names. '
+          'If not provided we assume usage of instance groups.'))
 
   docker_group = parser.add_argument_group('Docker Setup')
   docker_group.add_argument(
-      '--docker-container',
-      default='',
-      type=str,
-      help='Name of docker container if running in docker.')
+    '--docker-container',
+    default='',
+    type=str,
+    help='Name of docker container if running in docker.')
   docker_group.add_argument(
-      '--docker-image',
-      default='',
-      type=str,
-      help='Name of docker image if running in container.')
+    '--docker-image',
+    default='',
+    type=str,
+    help='Name of docker image if running in container.')
   docker_group.add_argument(
-      '--docker-run-flag',
-      action='append',
-      type=str,
-      help='Docker run flags to run container with (ex. --shm-size, ...).')
+    '--docker-run-flag',
+    action='append',
+    type=str,
+    help='Docker run flags to run container with (ex. --shm-size, ...).')
 
   conda_group = parser.add_argument_group('Conda Setup')
   conda_group.add_argument(
-      '--conda-env',
-      default='',
-      type=str,
-      help='Name of the conda environment if running with conda.')
+    '--conda-env',
+    default='',
+    type=str,
+    help='Name of the conda environment if running with conda.')
 
   parser.add_argument(
-      '--env',
-      action='append',
-      type=str,
-      help='List of environment variables to distribute.')
+    '--env',
+    action='append',
+    type=str,
+    help='List of environment variables to distribute.')
   parser.add_argument(
-      'positional',
-      nargs='+',
-      type=str,
-      help='The python command to launch training including model parameters.')
+    'positional',
+    nargs='+',
+    type=str,
+    help='The python command to launch training including model parameters.')
 
   FLAGS = parser.parse_args()
 
@@ -504,13 +515,13 @@ if __name__ == '__main__':
                      ' arguments are mutually exclusive.')
 
   # Resolve VM and TPU clusters.
-  cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm, cloud=False)
+  cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm)
   cluster = cluster_resolver.get_cluster()
   executor = DistributedExecutor(
-      cluster,
-      docker_container=FLAGS.docker_container,
-      docker_image=FLAGS.docker_image,
-      docker_run_flags=FLAGS.docker_run_flag,
-      conda_env=FLAGS.conda_env,
-      env_vars=FLAGS.env)
+    cluster,
+    docker_container=FLAGS.docker_container,
+    docker_image=FLAGS.docker_image,
+    docker_run_flags=FLAGS.docker_run_flag,
+    conda_env=FLAGS.conda_env,
+    env_vars=FLAGS.env)
   executor.run(FLAGS.positional)

@@ -468,7 +468,7 @@ class XrtComputationClient : public ComputationClient {
       XrtSession* session, const tensorflow::Scope& scope,
       const std::string& device) const;
 
-  std::string DeviceSummary(const std::string& device, bool verbose = false) const;
+  std::string DeviceSummary(std::string device, bool verbose = false) const;
 
   // Checks the result of a compile operation, and dumps the XLA computation
   // graphs in case of error.

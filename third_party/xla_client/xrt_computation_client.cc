@@ -35,6 +35,8 @@ namespace xla {
 namespace {
 
 bool verbose = false;
+bool verbose_mp = true;
+bool verbose_transfers = false;
 bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 
@@ -317,7 +319,7 @@ std::vector<size_t> XrtComputationClient::PartitionTransferToServer(
 std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
     absl::Span<const TensorSource> tensors) {
 
-  if (verbose) {
+  if (verbose || verbose_transfers) {
     ColorScope clr(Color::FG_BLUE);
     std::cout << getpid() << " XrtComputationClient::TransferToServer( ";
     size_t i = 0;
@@ -358,8 +360,8 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
   return results;
 }
 
-std::string XrtComputationClient::DeviceSummary(const std::string& device, bool verbose) const {
-  if (verbose) {
+std::string XrtComputationClient::DeviceSummary(std::string device, bool verbose) const {
+  if (verbose || verbose_mp) {
     std::stringstream ss;
     const auto worker_pair = GetWorkerForDevice(device);
     ss << device << "@" << TorchDeviceToXrtDevice(device)
@@ -367,7 +369,7 @@ std::string XrtComputationClient::DeviceSummary(const std::string& device, bool 
        << ", " << worker_pair.second;
     return ss.str();
   } else {
-    return device;
+    return std::move(device);
   }
 }
 
@@ -984,10 +986,26 @@ XrtSession* XrtComputationClient::GetSessionForTarget(
   return cache->GetSession(target, session_map);
 }
 
+static void report_once(const std::string msg) {
+  static std::mutex mtx;
+  static std::set<std::string> myset;
+  std::lock_guard<std::mutex> lk(mtx);
+  if (myset.insert(msg).second) {
+    std::cout << msg << std::endl << std::flush;
+  }
+}
+
 XrtSession* XrtComputationClient::GetSessionForXrtDevice(
     XrtSessionCache* cache, const std::string& xrt_device,
     XrtSessionCache::SessionMap* session_map) {
   auto worker_hostport = GetWorkerForXrtDevice(xrt_device);
+  if (verbose || verbose_mp) {
+    std::stringstream ss;
+    ss << "device: " << xrt_device << " -> "
+       << worker_hostport.first.ToString()
+       << ", " << worker_hostport.second;
+    report_once(ss.str());
+  }
   return GetSessionForTarget(cache, worker_hostport.second, session_map);
 }
 
@@ -1286,6 +1304,7 @@ tensorflow::tpu::TopologyProto XrtComputationClient::InitializeAndFetchTopology(
           .Attr("embedding_config", "")
           .Attr("tpu_embedding_config", "")
           .Attr("is_global_init", false);
+  // TODO: Remove this once the new TF build can be relied upon, on the Cloud
   // TODO: Remove this once the new TF build can be relied upon, on the Cloud
   // TPU side.
   const tensorflow::ClusterDef cluster_def = config.cluster_def();

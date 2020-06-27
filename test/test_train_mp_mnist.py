@@ -1,13 +1,37 @@
 import os
-os.environ["HAS_WSE_DEVICE"] = "0"
-os.environ["XRT_BASE_DEVICE"] = "GPU"
-os.environ["GPU_NUM_DEVICES"] = "2"
-os.environ["MULTI_DEVICE"] = "2"
-os.environ["MULTI_WORKER"] = "2"
-os.environ["XRT_SHARD_WORLD_SIZE"] = "2"
-os.environ["GPU_NUM_DEVICES"] = "1"
 
-import ptwse
+
+def configure(
+    node_count,
+    device_type,
+    local_task_index=-1,
+):
+  pass
+
+
+# os.environ["HAS_WSE_DEVICE"] = "0"
+# os.environ["XRT_BASE_DEVICE"] = "GPU"
+# os.environ["MULTI_DEVICE"] = "2"
+# os.environ["MULTI_WORKER"] = "2"
+
+#os.environ["XRT_SHARD_WORLD_SIZE"] = "2"
+
+os.environ["GPU_NUM_DEVICES"] = "2"
+#os.environ["CPU_NUM_DEVICES"] = "2"
+
+# os.environ["XRT_DEVICE_MAP"] = "|".join([
+#   "GPU:0;/job:localservice/replica:0/task:0/device:XLA_GPU:0",
+#   "GPU:1;/job:localservice/replica:0/task:1/device:XLA_GPU:1"])
+# #
+# os.environ["XRT_WORKERS"] = "|".join([
+#   "localservice:0;localhost:40935",
+#   "localservice:1;localhost:40936"])
+#
+# os.environ["XRT_LOCAL_WORKER"] = "localservice:0"
+
+#configure()
+
+#import ptwse
 
 import args_parse
 
