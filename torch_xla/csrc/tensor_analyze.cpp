@@ -192,7 +192,7 @@ void PopPythonState() { python_state.pop(); }
 MarkStepScope::MarkStepScope(
     const std::string& device_str,
     const std::vector<std::string>& devices)
-    /*: EnterLeave("*** MARK STEP", false, Color::FG_RESET)*/ {
+    : EnterLeave("*** MARK STEP", false, Color::FG_RESET) {
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
@@ -479,6 +479,7 @@ void XLASentinel::SetAllDevices(
 
 bool XLASentinel::PreProcessHlo(
     xla::XlaBuilder* builder, const XLATensor::SyncTensorCollection& coll) {
+  HEREX();
   if (HasWseDevices() && IsTrainingThread(coll.requesting_tid)) {
     if (verbose) {
       std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
@@ -632,6 +633,7 @@ std::string to_string(const xla::ProgramShape& ps) {
 void XLASentinel::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
+  HEREX();
   if (!HasWseDevices()) return;
   XLA_COUNTER("SentinelNotifyCompile", 1);
   if (is_in_mark_step) {
@@ -660,6 +662,7 @@ void XLASentinel::NotifyExecute(
     pid_t tid
 ) {
   if (!HasWseDevices()) return;
+  HEREX();
   XLA_COUNTER("SentinelExecute", 1);
   if (IsTrainingThread(tid)) {
     XLA_COUNTER("SentinelMasterThreadExecute", 1);
@@ -736,7 +739,7 @@ void XLASentinel::NotifyStepMarkerBegin(
         get_number_of_required_runs_since_reset()
     );
   }
-
+  //raise(SIGTRAP);
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << "*************** XLASentinel::NotifyStepMarker: device="
