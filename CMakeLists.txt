@@ -121,7 +121,7 @@ add_custom_target(
 add_custom_target(
         xlac ALL
         COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
-        DEPENDS ptxla xlac_link
+        DEPENDS ptxla xlac_link _C
 )
 
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="-Wl,--gdb-index" ${CMAKE_EXE_LINKER_FLAGS_DEBUG})

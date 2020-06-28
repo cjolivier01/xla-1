@@ -60,7 +60,7 @@ namespace xla {
 
 namespace {
 
-bool verbose = false;
+bool verbose = true;
 
 /**
  * @brief Force always using the proxy server for everyting

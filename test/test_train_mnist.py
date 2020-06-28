@@ -6,10 +6,7 @@ FLAGS = args_parse.parse_common_options(
     momentum=0.5,
     lr=0.01,
     target_accuracy=98.0,
-    num_epochs=18,
-)
-
-FLAGS.fake_data=True
+    num_epochs=18)
 
 import os
 from statistics import mean
@@ -28,7 +25,6 @@ import torch_xla.core.xla_model as xm
 import torch_xla.test.test_utils as test_utils
 import unittest
 
-DTYPE=torch.float32
 
 class MNIST(nn.Module):
 
@@ -59,13 +55,13 @@ def train_mnist():
     train_dataset_len = 60000  # Number of images in MNIST dataset.
     train_loader = xu.SampleGenerator(
         data=(torch.zeros(FLAGS.batch_size, 1, 28,
-                          28, dtype=DTYPE), torch.zeros(FLAGS.batch_size,
+                          28), torch.zeros(FLAGS.batch_size,
                                            dtype=torch.int64)),
         sample_count=train_dataset_len // FLAGS.batch_size //
         xm.xrt_world_size())
     test_loader = xu.SampleGenerator(
         data=(torch.zeros(FLAGS.batch_size, 1, 28,
-                          28, dtype=DTYPE), torch.zeros(FLAGS.batch_size,
+                          28), torch.zeros(FLAGS.batch_size,
                                            dtype=torch.int64)),
         sample_count=10000 // FLAGS.batch_size // xm.xrt_world_size())
   else:

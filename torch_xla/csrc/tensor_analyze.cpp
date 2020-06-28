@@ -29,10 +29,10 @@
  */
 namespace torch_xla {
 
-bool verbose = VERBOSE_FILE(false);
+bool verbose = VERBOSE_FILE(true);
 bool verbose_tensor_sync = verbose;
 
-constexpr size_t DEFAULT_STEPS_TILL_COMPILE = 1;
+constexpr size_t DEFAULT_CLEAN_STEPS_UNTILL_PROXY = 1;
 
 //bool is_true(const char* s) {
 //  if (s && *s) {
@@ -395,8 +395,8 @@ size_t get_number_of_required_runs_since_reset() {
   if (trusted_model) {
     return 0;
   }
-  static size_t rtc = xla::sys_util::GetEnvInt("XLA_STEPS_TILL_COMPILE",
-                                               DEFAULT_STEPS_TILL_COMPILE);
+  static size_t rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTILL_PROXY",
+                                               DEFAULT_CLEAN_STEPS_UNTILL_PROXY);
   return rtc;
 }
 
