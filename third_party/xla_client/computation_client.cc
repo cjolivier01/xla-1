@@ -1,4 +1,5 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
+#include "tensorflow/compiler/xla/xla_client/computation_client.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -250,7 +251,8 @@ bool ParseMeshConfig(
 bool ParseEnvDeviceCounts(XrtComputationClient::Options* options) {
   int num_tpus = sys_util::GetEnvInt(env::kEnvNumTpu, -1);
   int num_gpus = sys_util::GetEnvInt(env::kEnvNumGpu, -1);
-  if (num_tpus > 0 || num_gpus > 0) {
+  int num_wses = sys_util::GetEnvInt(env::kEnvNumWse, -1);
+  if (num_tpus > 0 || num_gpus > 0 || num_wses > 0) {
     std::map<std::string, int> device_ordinals;
     std::string host_port =
         absl::StrCat("localhost:", tensorflow::internal::PickUnusedPortOrDie());
