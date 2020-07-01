@@ -29,41 +29,10 @@
  */
 namespace torch_xla {
 
-bool verbose = VERBOSE_FILE(false);
+bool verbose = VERBOSE_FILE(true);
 bool verbose_tensor_sync = verbose;
 
 constexpr size_t DEFAULT_CLEAN_STEPS_UNTILL_PROXY = 1;
-
-//bool is_true(const char* s) {
-//  if (s && *s) {
-//    const char c = ::tolower(*s);
-//    if (c == 'y' || c == 't') {
-//      return true;
-//    }
-//    return atoi(s) > 0;
-//  }
-//  return false;
-//}
-
-//bool get_env_bool(const char* s, const bool dflt) {
-//  const char* v = getenv(s);
-//  if (v && *v) {
-//    return is_true(v);
-//  }
-//  return dflt;
-//}
-
-//int XLATensor::get_rank(const XLATensor::Data* data) {
-//  if (data->ir_value) {
-//    return data->ir_value.shape().rank();
-//  } else if (data->xla_data) {
-//    return data->xla_data->shape().rank();
-//  } else if (data->view) {
-//    return data->view->shape().rank();
-//  } else {
-//    return -1;
-//  }
-//}
 
 void XLATensor::print_tensor(const std::string& label,
                              const XLATensor& tensor) {
@@ -199,48 +168,6 @@ MarkStepScope::MarkStepScope(
 MarkStepScope::~MarkStepScope() { XLASentinel::NotifyStepMarkerEnd(); }
 
 namespace {
-
-//template <typename DEST_MSG, typename SRC_MSG_ARRAY>
-//const DEST_MSG* get_id(const SRC_MSG_ARRAY& array, const int64_t id) {
-//  const int64_t total_count = array.size();
-//  for (int64_t i = 0; i < total_count; ++i) {
-//    auto& obj = array[i];
-//    if (obj.id() == id) {
-//      return &obj;
-//    }
-//  }
-//  return nullptr;
-//}
-
-//std::string get_proxy_device(const xla::HloModuleProto& module) {
-//  // save_msg(module, "my_hlo_module.json");
-//  const int64_t entry_computation_id = module.entry_computation_id();
-//  if (entry_computation_id) {
-//    auto computation = get_id<xla::HloComputationProto>(module.computations(),
-//                                                        entry_computation_id);
-//    const int64_t root_id = computation->root_id();
-//    if (root_id) {
-//      auto root_instruction = get_id<xla::HloInstructionProto>(
-//          computation->instructions(), root_id);
-//      const xla::FrontendAttributes& frontend_attributes =
-//          root_instruction->frontend_attributes();
-//      auto iter = frontend_attributes.map().find("PROXY_DEVICE");
-//      if (iter != frontend_attributes.map().end()) {
-//        // A compile may have failed, in which case it
-//        // gets delegated back to the default device
-//        auto cancel_iter =
-//            frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
-//        if (cancel_iter != frontend_attributes.map().end()) {
-//          if (cancel_iter->second == iter->second) {
-//            return "";  // this proxying was cancelled (i.e. failed compile)
-//          }
-//        }
-//        return iter->second;
-//      }
-//    }
-//  }
-//  return "";
-//}
 
 using Lock = std::lock_guard<std::recursive_mutex>;
 
@@ -400,42 +327,6 @@ size_t get_number_of_required_runs_since_reset() {
   return rtc;
 }
 
-
-//#define ADDMAP(dest, var, field) dest[#field] = std::to_string(var->field)
-//struct TensorAnalyzeStats {
-//  std::atomic<std::size_t> total_compiles{0};
-//  std::atomic<std::size_t> total_executes{0};
-//  std::atomic<std::size_t> total_step_marker_count{0};
-//  std::atomic<std::size_t> total_step_marker_compiles{0};
-//  std::atomic<std::size_t> total_master_thread_compiles{0};
-//  std::atomic<std::size_t> total_master_thread_executes{0};
-//  std::atomic<std::size_t> total_non_fabric_compiles{0};
-//  std::atomic<std::size_t> total_non_fabric_executes{0};
-//  std::atomic<std::size_t> total_qualifying_steps{0};
-//  std::atomic<std::size_t> total_fabric_compiles{0};
-//  std::atomic<std::size_t> total_fabric_executes{0};
-//  std::atomic<std::size_t> total_clean_steps{0};
-//  std::atomic<std::size_t> total_executable_deactivates{0};
-//};
-
-// These stats are for external use only. Do not use them programatically.
-//std::shared_ptr<TensorAnalyzeStats> get_stats(bool reset=false) {
-//  static std::shared_ptr<TensorAnalyzeStats> current_user_stats{nullptr};
-//  std::shared_ptr<TensorAnalyzeStats> stats = current_user_stats;
-//  if (reset || !stats) {
-//    static std::mutex mtx;
-//    std::lock_guard<std::mutex> lk(mtx);
-//    // check current_user_stats again after we get the lock
-//    if (!current_user_stats || reset) {
-//      current_user_stats = std::make_shared<TensorAnalyzeStats>();
-//    }
-//    if (!stats) {
-//      stats = current_user_stats;
-//    }
-//  }
-//  return stats;
-//}
-
 std::mutex init_devices_mutex;
 
 bool __thread is_in_mark_step = false;
@@ -445,25 +336,6 @@ bool __thread is_qualifying_step = false;
 }  // namespace
 
 std::vector<std::string> XLASentinel::wse_devices_;
-
-//std::map<std::string, std::string> XLASentinel::GetStats(bool reset_stats) {
-//  std::map<std::string, std::string> results;
-//  auto stats = get_stats(reset_stats);
-//  ADDMAP(results, stats, total_compiles);
-//  ADDMAP(results, stats, total_executes);
-//  ADDMAP(results, stats, total_step_marker_count);
-//  ADDMAP(results, stats, total_step_marker_compiles);
-//  ADDMAP(results, stats, total_master_thread_compiles);
-//  ADDMAP(results, stats, total_master_thread_executes);
-//  ADDMAP(results, stats, total_non_fabric_compiles);
-//  ADDMAP(results, stats, total_non_fabric_executes);
-//  ADDMAP(results, stats, total_qualifying_steps);
-//  ADDMAP(results, stats, total_fabric_compiles);
-//  ADDMAP(results, stats, total_fabric_executes);
-//  ADDMAP(results, stats, total_clean_steps);
-//  ADDMAP(results, stats, total_executable_deactivates);
-//         return std::move(results);
-//}
 
 void XLASentinel::SetAllDevices(
     const std::vector<std::string>& all_devices) {
@@ -849,41 +721,5 @@ bool XLASentinel::IsAllowedOutput(const XLATensor& tensor,
   return compile_info->output_ids_.find(tensor.data()->unique_id) !=
          compile_info->output_ids_.end();
 }
-
-// void XLASentinel::SetDeviceMapping(const std::string& from_device, const
-// std::string& to_device) {
-//  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
-//  assert(!from_device.empty());
-//  assert(from_device != to_device);
-//  if (to_device.empty()) {
-//    device_mapping_.erase(from_device);
-//  } else {
-//    device_mapping_[from_device] = std::make_pair(Device(to_device), true);
-//  }
-//}
-//
-// std::mutex XLASentinel::device_mapping_mtx_;
-// std::unordered_map<std::string, std::pair<Device, bool>>
-// XLASentinel::device_mapping_;
-//
-// std::string XLASentinel::GetDeviceMapping(const std::string& device) {
-//  assert(!device.empty());
-//  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
-//  auto iter = device_mapping_.find(device);
-//  if (iter != device_mapping_.end() && iter->second.second /* enabled? */) {
-//    return iter->second.first.ToString();
-//  }
-//  return device;
-//}
-//
-// const torch_xla::Device& XLASentinel::GetDeviceMapping(const Device&
-// device) {
-//  std::lock_guard<std::mutex> lk(device_mapping_mtx_);
-//  auto iter = device_mapping_.find(device.ToString());
-//  if (iter != device_mapping_.end() && iter->second.second /* enabled? */) {
-//    return iter->second.first;
-//  }
-//  return device;
-//}
 
 }  // namespace torch_xla
