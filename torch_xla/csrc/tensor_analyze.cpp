@@ -31,8 +31,43 @@ namespace torch_xla {
 
 bool verbose = VERBOSE_FILE(true);
 bool verbose_tensor_sync = verbose;
+bool verbose_output_control = verbose || false;
 
 constexpr size_t DEFAULT_CLEAN_STEPS_UNTILL_PROXY = 1;
+
+
+std::string to_string(const xla::Shape& shape) {
+  std::stringstream ss;
+  ss << "[";
+  for (std::size_t i = 0; i < shape.dimensions_size(); ++i) {
+    if (i) ss << ", ";
+    ss << shape.dimensions(i);
+  }
+  ss << "]";
+  return ss.str();
+}
+
+std::string to_string(const xla::ProgramShape& ps) {
+  std::stringstream ss;
+  ss << "(";
+  for (std::size_t i = 0; i < ps.parameters_size(); ++i) {
+    if (i) ss << ", ";
+    ss << to_string(ps.parameters(i));
+  }
+  ss << ") -> (";
+  const xla::Shape& result_shape = ps.result();
+  if (result_shape.element_type() != xla::PrimitiveType::TUPLE) {
+    ss << to_string(result_shape);
+  } else {
+    for (std::size_t i = 0; i < result_shape.tuple_shapes_size(); ++i) {
+      if (i) ss << ", ";
+      const xla::Shape& shape = result_shape.tuple_shapes(i);
+      ss << to_string(shape);
+    }
+  }
+  ss << ")";
+  return ss.str();
+}
 
 void XLATensor::print_tensor(const std::string& label,
                              const XLATensor& tensor) {
@@ -161,7 +196,7 @@ void PopPythonState() { python_state.pop(); }
 MarkStepScope::MarkStepScope(
     const std::string& device_str,
     const std::vector<std::string>& devices)
-    : EnterLeave("*** MARK STEP", false, Color::FG_RESET) {
+    : EnterLeave("*** MARK STEP", true, Color::FG_RED) {
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
@@ -169,11 +204,13 @@ MarkStepScope::~MarkStepScope() { XLASentinel::NotifyStepMarkerEnd(); }
 
 namespace {
 
+constexpr std::size_t INVALID_COUNT = std::numeric_limits<std::size_t>::max();
+
 using Lock = std::lock_guard<std::recursive_mutex>;
 
 struct CompileInfo {
-  std::atomic<size_t> sync_count_since_hash_change_{0};
-  std::atomic<size_t> mark_step_count_since_last_reset_{0};
+  std::atomic<std::size_t> sync_count_since_hash_change_{INVALID_COUNT};
+  std::atomic<std::size_t> mark_step_count_since_last_reset_{0};
   std::unordered_set<size_t> output_ids_;
 
   void set_hash(XLASentinel::hash_t hash) {
@@ -196,13 +233,16 @@ class Executable {
  public:
   explicit Executable(xla::hash_t hash)
       : hash_(hash), adjusted_hash_(xla::util::MHash(hash, HASH_MARKER)) {}
-  bool set_active(bool active) { active_ = active; }
   bool is_active() const { return active_; }
   xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
+  bool set_active(bool active) { active_ = active; }
 
  private:
+
   const xla::hash_t hash_;
   const xla::hash_t adjusted_hash_;
+  // not actually sure if we need this
+  // active anymore since transition is automatic downstream
   bool active_{false};
 };
 using ExecutablePtr = std::shared_ptr<Executable>;
@@ -265,6 +305,7 @@ class ExecutableCache {
     if (found == executables_.end()) {
       auto exec = add_executable(hash);
       exec->set_active(true);
+      XLA_COUNTER("SentinelExecutableActivate", 1);
       return std::move(exec);
     } else {
       // Track that we're doing this in a deterministic way and not
@@ -272,6 +313,7 @@ class ExecutableCache {
       const bool is_active = found->second->is_active();
       assert(!is_active);
       found->second->set_active(true);
+      XLA_COUNTER("SentinelExecutableActivate", 1);
       return found->second;
     }
   }
@@ -289,9 +331,12 @@ class ExecutableCache {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
     if (found != executables_.end()) {
-      // should we asser that its active?  probably not
+      // should we assert that its active?  probably not
       // since deactivations acan come pretty randomly from any direction
-      found->second->set_active(false);
+      if (found->second->is_active()) {
+        found->second->set_active(false);
+        XLA_COUNTER("SentinelExecutableDeactivate", 1);
+      }
     }
   }
 
@@ -417,13 +462,19 @@ xla::hash_t XLASentinel::PostmarkHash(
   ExecutablePtr exe = ex_cache->get_executable(coll.hash);
   if (exe) {
     if (!exe->is_active()) {
-      exe->set_active(true);
+      ex_cache->activate_hash(coll.hash);
     }
-  } else if (is_qualifying_step /* ASSUMPTION: compile in mark step IsQualifyingStep(coll.requesting_tid)*/) {
-    assert(is_in_mark_step);
-    // create and activate
-    exe = ex_cache->activate_hash(coll.hash);
-    assert(exe);
+  //} else if (is_qualifying_step /* ASSUMPTION: compile in mark step IsQualifyingStep(coll.requesting_tid)*/) {
+  } else {
+//      std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll->requesting_tid);
+//      const std::size_t sync_count_since_hash_change =
+//          compile_info->sync_count_since_hash_change_.load();
+    if (IsQualifyingStep(coll.requesting_tid)) {
+      assert(is_in_mark_step);
+      // create and activate
+      exe = ex_cache->activate_hash(coll.hash);
+      assert(exe);
+    }
   }
 
   if (exe && exe->is_active()) {
@@ -435,6 +486,16 @@ xla::hash_t XLASentinel::PostmarkHash(
       const XLATensor& tensor = (*tensors)[tensor_index];
       if (IsAllowedOutput(tensor, coll)) {
         adjusted_indices.push_back(coll.indices[i]);
+        if (verbose_output_control) {
+            ColorScope clr(Color::FG_DEFAULT);
+            std::stringstream ss;
+            ss << "Allowing output";
+            if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
+                ss << " HANDLE = "
+                   << tensor.data()->xla_data->GetOpaqueHandle();
+            }
+            XLATensor::print_tensor(ss.str(), tensor);
+        }
       } else {
         if (verbose) {
           std::stringstream ss;
@@ -457,49 +518,12 @@ xla::hash_t XLASentinel::PostmarkHash(
       return coll.hash;
     } else {
       // Nothing left, so can't do this on proxy
-      if (exe->is_active()) {
-        //++get_stats()->total_executable_deactivates;
-        XLA_COUNTER("SentinelExecutableDeactivate", 1);
-      }
-      exe->set_active(false);
+      ex_cache->deactivate_hash(coll.hash);
       std::cout
           << "No effective allowed outputs, so reverting to standard device"
           << ENDL;
     }
   }
-}
-
-std::string to_string(const xla::Shape& shape) {
-  std::stringstream ss;
-  ss << "[";
-  for (std::size_t i = 0; i < shape.dimensions_size(); ++i) {
-    if (i) ss << ", ";
-    ss << shape.dimensions(i);
-  }
-  ss << "]";
-  return ss.str();
-}
-
-std::string to_string(const xla::ProgramShape& ps) {
-  std::stringstream ss;
-  ss << "(";
-  for (std::size_t i = 0; i < ps.parameters_size(); ++i) {
-    if (i) ss << ", ";
-    ss << to_string(ps.parameters(i));
-  }
-  ss << ") -> (";
-  const xla::Shape& result_shape = ps.result();
-  if (result_shape.element_type() != xla::PrimitiveType::TUPLE) {
-    ss << to_string(result_shape);
-  } else {
-    for (std::size_t i = 0; i < result_shape.tuple_shapes_size(); ++i) {
-      if (i) ss << ", ";
-      const xla::Shape& shape = result_shape.tuple_shapes(i);
-      ss << to_string(shape);
-    }
-  }
-  ss << ")";
-  return ss.str();
 }
 
 void XLASentinel::NotifyCompile(
@@ -585,15 +609,24 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
       GetCompileInfo(coll->requesting_tid);
   if (!compile_info->hash()) {
     compile_info->set_hash(coll->hash);
-    compile_info->sync_count_since_hash_change_ = 1;
+    compile_info->sync_count_since_hash_change_ = 0;
   } else if (coll->hash == compile_info->hash()) {
     ++compile_info->sync_count_since_hash_change_;
   } else {
     ColorScope clr(Color::FG_CYAN);
     std::cout << "ScheduleSyncTensorsGraph() MarkStep hash change: "
               << compile_info->hash() << " -> " << coll->hash << ENDL;
+
+    // Disable any old executables?
+    //ex_cache->deactivate_current(compile_info->hash());
+    auto current_exec = ex_cache->get_executable(coll->hash);
+    if (current_exec && current_exec->is_active()) {
+      current_exec->set_active(false);
+    }
     compile_info->set_hash(coll->hash);
-    compile_info->sync_count_since_hash_change_ = 1;
+    //compile_info->sync_count_since_hash_change_ = 1;
+    compile_info->sync_count_since_hash_change_ = 0;
+    compile_info->mark_step_count_since_last_reset_ = 0;
   }
   return std::move(tensors);
 }
@@ -611,7 +644,6 @@ void XLASentinel::NotifyStepMarkerBegin(
         get_number_of_required_runs_since_reset()
     );
   }
-  //raise(SIGTRAP);
   if (verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << "*************** XLASentinel::NotifyStepMarker: device="
@@ -628,7 +660,7 @@ void XLASentinel::NotifyStepMarkerBegin(
   std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   const std::size_t current_sync_count =
       compile_info->sync_count_since_hash_change_.load();
-  if (!current_sync_count) {
+  if (current_sync_count == INVALID_COUNT) {
     compile_info->mark_step_count_since_last_reset_ = 0;
     return;
   }
@@ -645,9 +677,10 @@ void XLASentinel::NotifyStepMarkerBegin(
 
 void XLASentinel::NotifyStepMarkerEnd() {
   assert(is_in_mark_step);
-  const pid_t tid = gettid();
-  auto compile_info = GetCompileInfo(tid);
-  compile_info->output_ids_.clear();
+
+//  const pid_t tid = gettid();
+//  auto compile_info = GetCompileInfo(tid);
+//  compile_info->output_ids_.clear();
 
   is_in_mark_step = false;
   is_clean_step = false;
@@ -710,7 +743,7 @@ void XLASentinel::SetOutputs(const std::vector<at::Tensor>& output_tensors,
 }
 
 bool XLASentinel::IsAllowedOutput(const XLATensor& tensor,
-                                     XLATensor::SyncTensorCollection& coll) {
+                                  XLATensor::SyncTensorCollection& coll) {
   assert(is_in_mark_step);  // gets cleared at end of step
   assert(is_clean_step);    // otherwise, why are you asking?
   std::shared_ptr<CompileInfo> compile_info =
