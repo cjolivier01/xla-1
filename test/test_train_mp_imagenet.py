@@ -1,8 +1,3 @@
-import os
-os.environ["HAS_WSE_DEVICE"] = "0"
-os.environ["XRT_BASE_DEVICE"] = "GPU"
-import ptwse
-
 import args_parse
 
 SUPPORTED_MODELS = [

@@ -1,9 +1,3 @@
-#
-# import os
-# os.environ["HAS_WSE_DEVICE"] = "0"
-# os.environ["XRT_BASE_DEVICE"] = "GPU"
-# import ptwse
-
 import args_parse
 
 MODEL_OPTS = {
@@ -37,7 +31,7 @@ import torch_xla.test.test_utils as test_utils
 import torchvision
 import torchvision.transforms as transforms
 import unittest
-import time
+
 
 class BasicBlock(nn.Module):
   expansion = 1
@@ -199,27 +193,12 @@ def train_cifar():
     tracker = xm.RateTracker()
 
     model.train()
-
-    last_timed_step = 0.
-    time_step_interval = 20
-    total_time = 0.
-
     for x, (data, target) in enumerate(loader):
-      top_time = time.time()
       optimizer.zero_grad()
       output = model(data)
       loss = loss_fn(output, target)
       loss.backward()
       xm.optimizer_step(optimizer)
-      bottom_time = time.time()
-      total_time += bottom_time - top_time
-      if x and x % time_step_interval == 0:
-        print(f"Time for {x - last_timed_step} steps: {total_time} seconds ("
-              f"{float(x - last_timed_step)/total_time} "
-              f"steps/sec)")
-        last_timed_step = x
-        total_time = 0.0
-
       tracker.add(FLAGS.batch_size)
       if x % FLAGS.log_steps == 0:
         test_utils.print_training_update(

@@ -162,7 +162,6 @@ cc_library(
         "//tensorflow/core/kernels:data_flow",
         "//tensorflow/core/protobuf/tpu:topology_proto_cc",
         "//tensorflow/stream_executor:stream_executor_impl",
-        #"@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:node_hash_map",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/strings",

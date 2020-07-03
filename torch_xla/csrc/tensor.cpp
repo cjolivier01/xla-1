@@ -655,7 +655,6 @@ void XLATensor::TryLimitGraphSize() {
   if (data()->ir_value && ++g_tls_data.trim_counter % kCheckFrequency == 0) {
     size_t graph_size = ir::Util::GetGraphSize({data()->ir_value.node.get()});
     if (graph_size > kMaxPendingGraphSize) {
-      std::cout << "********** TRIMMING GRAPH SIZE" << std::endl << std::flush;
       XLA_COUNTER("TrimIrGraph", 1);
       ApplyPendingGraph();
     }
@@ -1281,7 +1280,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       std::move(cached_computation));
 
   auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
-    //HEREC(Color::FG_CYAN);
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
       XLASentinel::NotifyExecute(
@@ -1524,10 +1522,6 @@ XLATensor::CompilationResult XLATensor::Compile(
     BuildInputOutputAliases(tensors, coll.indices, &lowering_ctx);
   }
 
-//  std::stringstream ss;
-//  ss << coll.hash;
-//  print_all_tensors(ss.str(), tensors);
-
   // Might add a proxy device to the Hlo
   XLASentinel::PreProcessHlo(lowering_ctx.builder(), coll);
 
@@ -1586,7 +1580,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
-
   std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
   if (async != nullptr) {
     return async;

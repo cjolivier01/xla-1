@@ -75,7 +75,6 @@ class LoweringContext {
 
   size_t GetEmittedNodeCount() const { return emit_status_.size(); }
 
-  //
   bool AllowCustomLowering() { return allow_custom_lowering_; }
 
  private:

@@ -46,10 +46,10 @@ def _check_env_flag(name, default=''):
 
 
 def get_git_head_sha(base_dir):
-  xla_git_sha = subprocess.check_output(['/usr/bin/git', 'rev-parse', 'HEAD'],
+  xla_git_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                         cwd=base_dir).decode('ascii').strip()
   if os.path.isdir(os.path.join(base_dir, '..', '.git')):
-    torch_git_sha = subprocess.check_output(['/usr/bin/git', 'rev-parse', 'HEAD'],
+    torch_git_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                             cwd=os.path.join(
                                                 base_dir,
                                                 '..')).decode('ascii').strip()
