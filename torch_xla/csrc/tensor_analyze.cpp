@@ -554,6 +554,7 @@ void XLASentinel::PostmarkHash(
   //       to a post-order again?  I think that we can.  Can make this
   //       a setting in case there's suspicion of it causing issues later.
   //
+  std::cout << "PostMarkHash(): " << coll.hash << ENDL;
 #if 0
   const xla::hash_t original_hash = coll.hash;
   {
@@ -713,37 +714,46 @@ bool XLASentinel::OnHashingComplete(
     // Note: For trusted, we don't need to analyze anything
     std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
     if (coll.hash != compile_info->hash()) {
-      ColorScope clr(Color::FG_GREEN);
-      std::cout << "NEW HASH: " << compile_info->hash() << " -> " << coll.hash << ENDL;
+      if (verbose) {
+        ColorScope clr(Color::FG_GREEN);
+        std::cout << "NEW HASH: " << compile_info->hash() << " -> " << coll.hash << ENDL;
+      }
+
       compile_info->set_hash(coll.hash);
       compile_info->mark_step_count_since_last_reset_ = 0;
-    } else {
-      ColorScope clr(Color::FG_GREEN);
-      std::cout << "SAME HASH AS LAST TIME: " << compile_info->hash() << ENDL;
-      assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
-      ++compile_info->mark_step_count_since_last_reset_;
-      if (IsQualifyingStep(coll.requesting_tid)) {
-        std::cout << "**** QUALIFYING: " << coll.hash << ENDL;
-        ex_cache->activate_hash(coll.hash);
-        if (PruneTensors(tensors, coll)) {
-          state.fabric_run_ = true;
-          assert(!state.pre_prune_hash_);
-          state.pre_prune_hash_ = coll.hash;
-          coll.hash = state.start_hash_;
-          return true;  // need to recalculate postorder with new inputs
-        }
-        // Do we need to hash this differently for *our* executable
-        // in case we didn't prune anything?
-        const hash_t proxy_hash = xla::util::HashCombine(coll.hash, PROXY_HASHING_VALUE);
-#ifndef NDEBUG
-        // This shouldn't be the adjusted hash already or something went wrong
-        assert(!ex_cache->get_executable_by_adjusted_hash(coll.hash));
-#endif
-        ex_cache->set_adjusted_hash(coll.hash, proxy_hash);
-        coll.hash = proxy_hash;
-        state.fabric_run_ = true;
-        return false;  // Nothing removed, so keep going (on fabric)
+
+      // If this isn't a zero-hash (i.e. first mark step call before loop),
+      // then see if it's trusted
+      if (!compile_info->hash() || !IsQualifyingStep(coll.requesting_tid)) {
+        return false;
       }
+    }
+
+    ColorScope clr(Color::FG_GREEN);
+    std::cout << "SAME HASH AS LAST TIME: " << compile_info->hash() << ENDL;
+    assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
+    ++compile_info->mark_step_count_since_last_reset_;
+    if (IsQualifyingStep(coll.requesting_tid)) {
+      std::cout << "**** QUALIFYING: " << coll.hash << ENDL;
+      ex_cache->activate_hash(coll.hash);
+      if (PruneTensors(tensors, coll)) {
+        state.fabric_run_ = true;
+        assert(!state.pre_prune_hash_);
+        state.pre_prune_hash_ = coll.hash;
+        coll.hash = state.start_hash_;
+        return true;  // need to recalculate postorder with new inputs
+      }
+      // Do we need to hash this differently for *our* executable
+      // in case we didn't prune anything?
+      const hash_t proxy_hash = xla::util::HashCombine(coll.hash, PROXY_HASHING_VALUE);
+#ifndef NDEBUG
+      // This shouldn't be the adjusted hash already or something went wrong
+      assert(!ex_cache->get_executable_by_adjusted_hash(coll.hash));
+#endif
+      ex_cache->set_adjusted_hash(coll.hash, proxy_hash);
+      coll.hash = proxy_hash;
+      state.fabric_run_ = true;
+      return false;  // Nothing removed, so keep going (on fabric)
     }
   } else {
     //
@@ -1029,13 +1039,16 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   const std::size_t mark_step_count_since_reset =
       compile_info->mark_step_count_since_last_reset_.load();
+  const std::size_t steps_required = get_number_of_required_runs_since_reset();
+  if (!steps_required && is_clean_step) {
+    return true;
+  }
   if (!mark_step_count_since_reset) {
-    // The first step is superfluous since it's the top of the dataset interator
+    // The first step is superfluous since it's the top of the dataset iterator
     // loop, before any graph is built. This also takes care of disqualifying
     // due to spurious compiles within the train loop
     return false;
   }
-  const std::size_t steps_required = get_number_of_required_runs_since_reset();
   bool ready;
   if (!steps_required) {
     ready = true;  // always ready

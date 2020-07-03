@@ -45,6 +45,7 @@ tf_cc_shared_object(
         "//conditions:default": [
             "-z defs",
             "-Wl,-fuse-ld=gold",
+            #"-Wl,-fuse-ld=lld",
             "-Wl,--gdb-index",
             "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
             "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
