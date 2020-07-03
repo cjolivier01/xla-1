@@ -236,7 +236,7 @@ def set_replication(device, devices):
     _TLS.device_index = devices.index(device)
   else:
     torch_xla._XLAC._xla_set_replication_devices([])
-    _TLS.device_index = devices.index(device) if devices else 0
+    _TLS.device_index = 0
   _TLS.device = device
   _TLS.all_reduce_token = None
   torch_xla._XLAC._xla_set_default_device(device)
@@ -876,3 +876,15 @@ def push_ir_scope(scope_text, enabled=True):
   finally:
     if enabled:
       torch_xla._XLAC._xla_pop_ir_scope()
+
+def get_memory_info(device):
+  """Retrieves the device memory information.
+
+  Args:
+    device (string): The device whose memory information are requested.
+
+  Returns:
+    A dictionary with `kb_free` (free memory in KB) and `kb_total` (total
+    memory in KB) keys.
+  """
+  return torch_xla._XLAC._xla_memory_info(str(device))

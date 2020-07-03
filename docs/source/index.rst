@@ -27,6 +27,7 @@ xla_model
 .. autofunction:: mesh_reduce
 .. autofunction:: set_rng_state
 .. autofunction:: get_rng_state
+.. autofunction:: get_memory_info
 
 .. automodule:: torch_xla.core.functions
 .. autofunction:: all_reduce
@@ -79,6 +80,7 @@ utils
 .. autofunction:: generic_open
 .. autofunction:: generic_read
 .. autofunction:: generic_write
+.. autofunction:: is_gcs_path
 
 .. automodule:: torch_xla.utils.cached_dataset
 .. autoclass:: CachedDataset

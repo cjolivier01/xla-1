@@ -211,6 +211,8 @@ class XrtComputationClient : public ComputationClient {
 
   std::map<std::string, Metric> GetMetrics() const override;
 
+  MemoryInfo GetMemoryInfo(const std::string& device) override;
+
   void PrepareToExit() override;
 
   static Worker ParseWorker(const std::string& worker);
@@ -264,8 +266,6 @@ class XrtComputationClient : public ComputationClient {
   XrtSession* GetSessionForDevice(XrtSessionCache* cache,
                                   const std::string& device,
                                   XrtSessionCache::SessionMap* session_map);
-
-  std::string GetEffectiveDevice(const std::string& device) const;
 
   const std::string& TorchDeviceToXrtDevice(const std::string& device) const;
 
@@ -469,6 +469,13 @@ class XrtComputationClient : public ComputationClient {
       const std::string& device) const;
 
   std::string DeviceSummary(std::string device, bool verbose = false) const;
+
+  // Creates an XRTMemoryInfo node:
+  //
+  //  XRTMemoryInfo()
+  const XrtSession::CachedNode& GetMemoryInfoNode(
+      XrtSession* session, const tensorflow::Scope& scope,
+      const std::string& device) const;
 
   // Checks the result of a compile operation, and dumps the XLA computation
   // graphs in case of error.
