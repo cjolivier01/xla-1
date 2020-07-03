@@ -33,7 +33,7 @@ bool verbose = VERBOSE_FILE(true);
 bool verbose_tensor_sync = verbose;
 bool verbose_output_control = verbose || false;
 
-constexpr size_t DEFAULT_CLEAN_STEPS_UNTILL_PROXY = 1;
+constexpr size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
 
 std::string to_string(const xla::Shape& shape) {
@@ -91,7 +91,7 @@ void XLATensor::print_tensor_ex(const std::string& label,
       assert(!data->xla_data);
       assert(!data->view);
     }
-  } else if (data->xla_data) {
+  } else if (data->xla_data && data->xla_data->HasValue()) {
     // coming from _xla_tensors_from_aten in at least one case
     std::cout << label << " (id=" << data->unique_id << ") "
               << " tensor with no xla_data handle="
@@ -210,7 +210,7 @@ using Lock = std::lock_guard<std::recursive_mutex>;
 
 struct CompileInfo {
   std::atomic<std::size_t> sync_count_since_hash_change_{INVALID_COUNT};
-  std::atomic<std::size_t> mark_step_count_since_last_reset_{0};
+  std::atomic<std::size_t> mark_step_count_since_last_reset_{INVALID_COUNT};
   std::unordered_set<size_t> output_ids_;
 
   void set_hash(XLASentinel::hash_t hash) {
@@ -228,19 +228,21 @@ struct CompileInfo {
  * @brief Valid proxy executable
  */
 class Executable {
-  static constexpr uint64_t HASH_MARKER = 478925426;
+  //static constexpr uint64_t HASH_MARKER = 478925426;
 
  public:
   explicit Executable(xla::hash_t hash)
-      : hash_(hash), adjusted_hash_(xla::util::MHash(hash, HASH_MARKER)) {}
+      : hash_(hash)
+        //adjusted_hash_(xla::util::MHash(hash, HASH_MARKER))
+        {}
   bool is_active() const { return active_; }
-  xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
+  //xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
   bool set_active(bool active) { active_ = active; }
 
  private:
 
   const xla::hash_t hash_;
-  const xla::hash_t adjusted_hash_;
+  //const xla::hash_t adjusted_hash_;
   // not actually sure if we need this
   // active anymore since transition is automatic downstream
   bool active_{false};
@@ -256,7 +258,7 @@ class ExecutableCache {
     assert(executables_.find(hash) == executables_.end());
     auto exec = executables_.insert({hash, std::make_shared<Executable>(hash)})
                     .first->second;
-    adjusted_hash_map_.insert({exec->get_adjusted_hash(), exec});
+    //adjusted_hash_map_.insert({exec->get_adjusted_hash(), exec});
     return exec;
   }
 
@@ -311,23 +313,45 @@ class ExecutableCache {
       // Track that we're doing this in a deterministic way and not
       // overlapping logic
       const bool is_active = found->second->is_active();
-      assert(!is_active);
-      found->second->set_active(true);
-      XLA_COUNTER("SentinelExecutableActivate", 1);
+      if (!is_active) {
+        assert(!is_active);
+        found->second->set_active(true);
+        XLA_COUNTER("SentinelExecutableActivate", 1);
+      }
       return found->second;
     }
   }
-  void modify_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
+
+//  void modify_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
+//    Lock lk(mtx_);
+//    assert(h1 != h2);
+//    assert(executables_.count(h1) != 0);
+//    auto found = adjusted_hash_map_.find(h1);
+//    if (found != adjusted_hash_map_.end()) {
+//      auto exe = std::move(found->second);
+//      adjusted_hash_map_.erase(found);
+//      adjusted_hash_map_.insert({h2, std::move(exe)});
+//    }
+//  }
+
+  void set_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
     Lock lk(mtx_);
     assert(h1 != h2);
-    auto found = adjusted_hash_map_.find(h1);
-    if (found != adjusted_hash_map_.end()) {
-      auto exe = std::move(found->second);
-      adjusted_hash_map_.erase(found);
-      adjusted_hash_map_.insert({h2, std::move(exe)});
+    auto found = executables_.find(h1);
+    if (found != executables_.end()) {
+      // Should only set this once
+      auto found_adjusted = adjusted_hash_map_.find(h1);
+      if (found_adjusted != adjusted_hash_map_.end()) {
+        assert(found_adjusted->second == found->second);
+      } else {
+        adjusted_hash_map_[h2] = found->second;
+      }
+    } else {
+      assert(false);  // does this ever happen?
     }
   }
-  void deactivate_hash(const XLASentinel::hash_t& hash) {
+
+  void deactivate_hash(const XLASentinel::hash_t& hash) {  // currently we don't need to track the "active" one, so this might be pointless
     Lock lk(mtx_);
     auto found = executables_.find(hash);
     if (found != executables_.end()) {
@@ -367,8 +391,8 @@ size_t get_number_of_required_runs_since_reset() {
   if (trusted_model) {
     return 0;
   }
-  static size_t rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTILL_PROXY",
-                                               DEFAULT_CLEAN_STEPS_UNTILL_PROXY);
+  static size_t rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTIL_PROXY",
+                                               DEFAULT_CLEAN_STEPS_UNTIL_PROXY);
   return rtc;
 }
 
@@ -376,7 +400,7 @@ std::mutex init_devices_mutex;
 
 bool __thread is_in_mark_step = false;
 bool __thread is_clean_step = false;
-bool __thread is_qualifying_step = false;
+//bool __thread is_qualifying_step = false;
 
 }  // namespace
 
@@ -410,7 +434,32 @@ bool XLASentinel::PreProcessHlo(
         (*frontend_attributes.mutable_map())["PROXY_DEVICE"] =
             coll.device.ToString();
         builder->SetFrontendAttributes(frontend_attributes);
+
+        // Sanity check that if we're pruning outputs,
+        // the program shape has the same number of outputs as is expected
+#ifndef NDEBUG
+        std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
+        const std::size_t output_ids_size = compile_info->output_ids_.empty();
+        if (output_ids_size) {
+          const xla::Shape& result_shape = builder->GetProgramShape().ValueOrDie().result();
+          std::size_t output_count;
+          if (result_shape.element_type() == xla::PrimitiveType::TUPLE) {
+            output_count = result_shape.tuple_shapes_size();
+          } else {
+            output_count = 1;
+          }
+          if(output_count != output_ids_size) {
+            throw sentinel_exception()
+              << "We expected the pruned fabric program shape to have "
+              << output_ids_size << " outputs, but it actually had "
+              << output_count << " outputs.  This is probably a bug and should "
+              << " be reported to the developers.";
+          }
+        }
+#endif
         return true;
+      } else {
+        assert(false);  // just checking, will it ever not be?
       }
     }
   }
@@ -440,19 +489,76 @@ bool XLASentinel::HasWseDevices() {
   return !wse_devices_.empty();
 }
 
+bool XLASentinel::PruneTensors(std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll) {
+  if (!tensors || tensors->empty()) {
+    return false;
+  }
+  std::vector<size_t> adjusted_indices;
+  adjusted_indices.reserve(coll.indices.size());
+  for (std::size_t i = 0, n = coll.indices.size(); i < n; ++i) {
+    const std::size_t tensor_index = coll.indices[i];
+    const XLATensor& tensor = (*tensors)[tensor_index];
+    if (IsAllowedOutput(tensor, coll)) {
+      adjusted_indices.push_back(coll.indices[i]);
+      if (verbose_output_control) {
+        ColorScope clr(Color::FG_DEFAULT);
+        std::stringstream ss;
+        ss << "Allowing output";
+        if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
+          ss << " HANDLE = "
+             << tensor.data()->xla_data->GetOpaqueHandle();
+        }
+        XLATensor::print_tensor(ss.str(), tensor);
+      }
+    } else {
+      if (verbose) {
+        std::stringstream ss;
+        ss << "Removing output";
+        if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
+          ss << " HANDLE = "
+             << tensor.data()->xla_data->GetOpaqueHandle();
+        }
+        XLATensor::print_tensor(ss.str(), tensor);
+      }
+    }
+  }
+
+  if (!adjusted_indices.empty() && adjusted_indices.size() != coll.indices.size()) {
+    coll.indices = std::move(adjusted_indices);
+//    if (verbose) {
+//      std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> "
+//                << exe->get_adjusted_hash() << ENDL;
+//    }
+//    coll.hash = exe->get_adjusted_hash();
+    return true;
+  } else {
+    // Nothing left, so can't do this on proxy
+//    ex_cache->deactivate_hash(coll.hash);
+//    std::cout
+//        << "No effective allowed outputs, so reverting to standard device"
+//        << ENDL;
+    return false;
+  }
+}
+
 bool XLASentinel::IsTrainingThread(pid_t tid) {
   return GetPythonState(tid) == EPS_IN_TRAIN_LOOP;
 }
 
-void XLASentinel::OnHashChange(const xla::hash_t& prev_hash,
-                                  const XLATensor::SyncTensorCollection& coll) {
-  // This only updates something if this is one we have an executable for
-  ex_cache->modify_adjusted_hash(prev_hash, coll.hash);
-}
-
-xla::hash_t XLASentinel::PostmarkHash(
+void XLASentinel::PostmarkHash(
+    HashingState& state,
     std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll) {
+  //
+  // TODO: Upon same "sync tensors" hash run last time on fabric,
+  //       can we simply do the prune and continue without having to
+  //       to a post-order again?  I think that we can.  Can make this
+  //       a setting in case there's suspicion of it causing issues later.
+  //
+#if 0
   const xla::hash_t original_hash = coll.hash;
+  {
+    std::cout << "ENTER XLASentinel::PostmarkHash(): " << coll.hash << ENDL;
+  }
   if (!is_clean_step) {
     return original_hash;
   }
@@ -469,7 +575,8 @@ xla::hash_t XLASentinel::PostmarkHash(
 //      std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll->requesting_tid);
 //      const std::size_t sync_count_since_hash_change =
 //          compile_info->sync_count_since_hash_change_.load();
-    if (IsQualifyingStep(coll.requesting_tid)) {
+    //if (IsQualifyingStep(coll.requesting_tid)) {
+    if (is_qualifying_step) {
       assert(is_in_mark_step);
       // create and activate
       exe = ex_cache->activate_hash(coll.hash);
@@ -479,6 +586,12 @@ xla::hash_t XLASentinel::PostmarkHash(
 
   if (exe && exe->is_active()) {
     XLA_COUNTER("SentinelPostMarkHash", 1);
+
+#if 1
+    // how do we avoid running post-order twice?
+    //PruneTensors();
+#else
+
     std::vector<size_t> adjusted_indices;
     adjusted_indices.reserve(coll.indices.size());
     for (std::size_t i = 0, n = coll.indices.size(); i < n; ++i) {
@@ -508,6 +621,7 @@ xla::hash_t XLASentinel::PostmarkHash(
         }
       }
     }
+
     if (!adjusted_indices.empty()) {
       coll.indices = std::move(adjusted_indices);
       if (verbose) {
@@ -523,6 +637,144 @@ xla::hash_t XLASentinel::PostmarkHash(
           << "No effective allowed outputs, so reverting to standard device"
           << ENDL;
     }
+#endif
+  }
+#endif
+}
+
+/**
+ * @brief Analyze the hashing situation and see if we can run this on the proxy
+ * @param state
+ * @param tensors
+ * @param coll
+ * @return
+ * @note Adjusted hashing and executable's "adjusted hash" is like this:
+ *
+ *       For an un-pruned executable:
+ *        "initial coll.hash after post-order" -> rehash( "initial coll.hash after post-order" )
+ *       For a pruned executable:
+ *        "initial coll.hash after post-order" -> rehash( "coll.hash calculated after being sent back for prune" )
+ *
+ *       An advantage of this is that if we are ever asked for the graph where we donn't have to prune
+ *       anything, it should still resolve to the same executable's adjusted hash in PreProcessHlo
+ *
+ *       TODO: Optimize not doing two passes when we are in the same detected state on first-pass entry
+ *             One obvious approach is to set a flag when post-order doesn't change after a prune (which
+ *             so far has been the case), although would like to make that optional so that the harder state
+ *             can keep being tested for now until there's a way to turn it on aand off and to have tests for it
+ *             to assure it didn't break.
+ */
+bool XLASentinel::OnHashingComplete(
+    HashingState& state,
+    std::vector<XLATensor>* tensors,
+    XLATensor::SyncTensorCollection& coll
+) {
+  // This only updates something if this is one we have an executable for
+
+  static const absl::int128 PROXY_HASHING_VALUE = absl::MakeInt128(
+      0xb8bc2f8ad48c431c,
+      0x872132d8a172a6d8
+  );
+
+  const std::size_t pass = state.pass_++;
+
+  if (!is_in_mark_step /*|| !is_clean_step*/) {
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
+    //compile_info->mark_step_count_since_last_reset_ = INVALID_COUNT;
+    compile_info->mark_step_count_since_last_reset_ = 0;
+    compile_info->sync_count_since_hash_change_ = INVALID_COUNT;
+    return false;
+  }
+
+  if (!pass) {
+    // First, see if we know about this hash already and it passed as
+    // a stable-state executable.  That doesn't mean its impossible to
+    // immediately do something to cause it to be switched, but we do
+    // know this to have the ability to be stable
+    if (ex_cache->has_executable(coll.hash)) {
+
+      // just for optimizations ont eh second pass. Final state
+      // should be deterministic with or without this flag
+      state.known_executable_ = true;
+
+      auto compile_info = GetCompileInfo(coll.requesting_tid);
+      assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);  // maybe this is ok, we just switched to a known graph?
+      ++compile_info->mark_step_count_since_last_reset_;  // is there any point to increment this?
+      ex_cache->activate_hash(coll.hash);  // not sure if 'active' has a meaning anymore
+      state.fabric_run_ = true;
+      if (PruneTensors(tensors, coll)) {
+        state.pre_prune_hash_ = coll.hash;
+        coll.hash = state.start_hash_;
+        return true;  // need to recalculate postorder with new inputs
+      }
+      return false;  // Nothing removed, so keep going (on fabric)
+    }
+
+    // Note: For trusted, we don't need to analyze anything
+    std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
+    if (coll.hash != compile_info->hash()) {
+      ColorScope clr(Color::FG_GREEN);
+      std::cout << "NEW HASH: " << compile_info->hash() << " -> " << coll.hash << ENDL;
+      compile_info->set_hash(coll.hash);
+      compile_info->mark_step_count_since_last_reset_ = 0;
+    } else {
+      ColorScope clr(Color::FG_GREEN);
+      std::cout << "SAME HASH AS LAST TIME: " << compile_info->hash() << ENDL;
+      assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
+      ++compile_info->mark_step_count_since_last_reset_;
+      if (IsQualifyingStep(coll.requesting_tid)) {
+        std::cout << "**** QUALIFYING: " << coll.hash << ENDL;
+        ex_cache->activate_hash(coll.hash);
+        if (PruneTensors(tensors, coll)) {
+          state.fabric_run_ = true;
+          assert(!state.pre_prune_hash_);
+          state.pre_prune_hash_ = coll.hash;
+          coll.hash = state.start_hash_;
+          return true;  // need to recalculate postorder with new inputs
+        }
+        // Do we need to hash this differently for *our* executable
+        // in case we didn't prune anything?
+        const hash_t proxy_hash = xla::util::HashCombine(coll.hash, PROXY_HASHING_VALUE);
+#ifndef NDEBUG
+        // This shouldn't be the adjusted hash already or something went wrong
+        assert(!ex_cache->get_executable_by_adjusted_hash(coll.hash));
+#endif
+        ex_cache->set_adjusted_hash(coll.hash, proxy_hash);
+        coll.hash = proxy_hash;
+        state.fabric_run_ = true;
+        return false;  // Nothing removed, so keep going (on fabric)
+      }
+    }
+  } else {
+    //
+    // We sent them back to recalculate
+    //
+    // It's possible that with different outputs, the inputs didn't change,
+    // in which case, 'coll.hash' is the same as 'state.pre_prune_hash_'
+    //
+
+    assert(state.pre_prune_hash_);  // this should have been set, the hash before the prune
+
+    assert(state.fabric_run_);  // this should have been set the first pass,
+                                // or else we got here by accident
+
+    const hash_t proxy_hash = xla::util::HashCombine(coll.hash, PROXY_HASHING_VALUE);
+
+#ifndef NDEBUG
+    if (verbose) {
+      std::cout << "Adjusted hash for proxy from " << coll.hash
+                << " to " << proxy_hash
+                << ", which had a pre-prune hash of " << state.pre_prune_hash_
+                << ENDL;
+    }
+    // This shouldn't be the adjusted hash already or something went wrong
+    // Addendum: on second pass it should be here, right?
+    assert(!ex_cache->get_executable_by_adjusted_hash(coll.hash));
+#endif
+    //ex_cache->modify_adjusted_hash(coll.hash, proxy_hash);
+    ex_cache->set_adjusted_hash(state.pre_prune_hash_, proxy_hash);
+    coll.hash = proxy_hash;
+    return false;
   }
 }
 
@@ -576,12 +828,12 @@ void XLASentinel::NotifyExecute(
 
 std::vector<xla::ComputationClient::DataPtr>
 XLASentinel::NotifyScheduleSyncTensorsGraph(
+    std::vector<XLATensor>* xla_tensors,
     std::vector<xla::ComputationClient::DataPtr> tensors,
     XLATensor::SyncTensorCollection* coll,
     std::shared_ptr<xla::ComputationClient::Computation>& computation) {
 
   //if (!HasWseDevices()) return std::move(tensors);
-
   if (!is_in_mark_step) {
     // Anything outside of mark step is a reset
     std::shared_ptr<CompileInfo> compile_info =
@@ -589,6 +841,12 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     compile_info->sync_count_since_hash_change_ = 0;
     compile_info->set_hash(0);
     return std::move(tensors);
+  }
+
+  {
+    ColorScope cs(Color::FG_CYAN);
+    std::cout << "XLASentinel::NotifyScheduleSyncTensorsGraph(): "
+              << coll->hash << ENDL;
   }
 
   if (verbose_tensor_sync) {
@@ -605,6 +863,7 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     );
   }
 
+#if 0
   std::shared_ptr<CompileInfo> compile_info =
       GetCompileInfo(coll->requesting_tid);
   if (!compile_info->hash()) {
@@ -612,10 +871,70 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     compile_info->sync_count_since_hash_change_ = 0;
   } else if (coll->hash == compile_info->hash()) {
     ++compile_info->sync_count_since_hash_change_;
+#if 0
+    ++compile_info->mark_step_count_since_last_reset_;  // new
+
+    auto exe = ex_cache->get_executable_by_adjusted_hash(coll->hash);
+    if (/*exe && exe->is_active() &&*/
+      IsQualifyingStep(coll->requesting_tid)) {
+      //is_qualifying_step) {
+
+      // vvv SAME AS IN POST MARK HASH
+      std::vector<size_t> adjusted_indices;
+      adjusted_indices.reserve(coll->indices.size());
+
+      std::vector<xla::ComputationClient::DataPtr> new_tensors;
+      new_tensors.reserve(coll->indices.size());
+      //assert(xla_tensors->size() == coll->indices.size());   // assuming these are the same? or I have to use indexes?
+      for (std::size_t i = 0, n = coll->indices.size(); i < n; ++i) {
+        const std::size_t tensor_index = coll->indices[i];
+        const XLATensor& tensor = (*xla_tensors)[tensor_index];
+        //const XLATensor& tensor = (*xla_tensors)[i];
+        if (IsAllowedOutput(tensor, *coll)) {
+          adjusted_indices.push_back(coll->indices[i]);
+          new_tensors.push_back(tensors[i]);
+          if (verbose_output_control) {
+            ColorScope clr(Color::FG_DEFAULT);
+            std::stringstream ss;
+            ss << "Allowing output";
+            if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
+              ss << " HANDLE = "
+                 << tensor.data()->xla_data->GetOpaqueHandle();
+            }
+            XLATensor::print_tensor(ss.str(), tensor);
+          }
+        } else {
+          if (verbose) {
+            std::stringstream ss;
+            ss << "Removing output";
+            if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
+              ss << " HANDLE = "
+                 << tensor.data()->xla_data->GetOpaqueHandle();
+            }
+            XLATensor::print_tensor(ss.str(), tensor);
+          }
+        }
+      }
+
+      if (!adjusted_indices.empty()) {
+        coll->indices = std::move(adjusted_indices);
+        if (verbose) {
+          std::cout << "PostmarkHash(): coll.hash: " << coll->hash << " -> "
+                    << exe->get_adjusted_hash() << ENDL;
+        }
+        coll->hash = exe->get_adjusted_hash();
+        return std::move(new_tensors);
+      }
+      // ^^^ SAME AS IN POST MARK HASH
+    }
+#endif
+
   } else {
     ColorScope clr(Color::FG_CYAN);
     std::cout << "ScheduleSyncTensorsGraph() MarkStep hash change: "
-              << compile_info->hash() << " -> " << coll->hash << ENDL;
+              << compile_info->hash() << " -> " << coll->hash
+              << ", is_clean_step = " << is_clean_step
+              << ENDL;
 
     // Disable any old executables?
     //ex_cache->deactivate_current(compile_info->hash());
@@ -628,6 +947,7 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     compile_info->sync_count_since_hash_change_ = 0;
     compile_info->mark_step_count_since_last_reset_ = 0;
   }
+#endif
   return std::move(tensors);
 }
 
@@ -661,18 +981,22 @@ void XLASentinel::NotifyStepMarkerBegin(
   const std::size_t current_sync_count =
       compile_info->sync_count_since_hash_change_.load();
   if (current_sync_count == INVALID_COUNT) {
+    // It's the first MarkStep, so just return (at top of training loop)
     compile_info->mark_step_count_since_last_reset_ = 0;
+    compile_info->sync_count_since_hash_change_ = 0;
     return;
   }
-  const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
-  is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
+  is_clean_step = true;
+  ++compile_info->mark_step_count_since_last_reset_;
+  //const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
+  //is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
   if (is_clean_step) {
     XLA_COUNTER("SentinelCleanSteps", 1);
   }
-  is_qualifying_step = IsQualifyingStep(tid);
-  if (is_qualifying_step) {
-    XLA_COUNTER("SentinelQualifyingSteps", 1);
-  }
+//  is_qualifying_step = IsQualifyingStep(tid);
+//  if (is_qualifying_step) {
+//    XLA_COUNTER("SentinelQualifyingSteps", 1);
+//  }
 }
 
 void XLASentinel::NotifyStepMarkerEnd() {
@@ -684,13 +1008,13 @@ void XLASentinel::NotifyStepMarkerEnd() {
 
   is_in_mark_step = false;
   is_clean_step = false;
-  is_qualifying_step = false;
+  //is_qualifying_step = false;
 }
 
 bool XLASentinel::IsSpecialLowering() {
   static bool allow_special_compile =
       xla::sys_util::GetEnvBool("XLA_ALLOW_SPECIAL_LOWERING", false);
-  return allow_special_compile && is_qualifying_step;
+  return allow_special_compile /*&& is_qualifying_step*/;
 }
 
 bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
@@ -712,7 +1036,13 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
     return false;
   }
   const std::size_t steps_required = get_number_of_required_runs_since_reset();
-  const bool ready = mark_step_count_since_reset - 1 == steps_required;
+  bool ready;
+  if (!steps_required) {
+    ready = true;  // always ready
+  } else {
+    //const bool ready = mark_step_count_since_reset - 1 == steps_required;
+    ready = mark_step_count_since_reset - 1 == steps_required;
+  }
   if (ready) {
     assert(is_clean_step);  // validate it coincides with clean step logic
     if (verbose) {

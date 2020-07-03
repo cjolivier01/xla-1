@@ -543,7 +543,7 @@ std::shared_ptr<xla::ServiceInterface> XlaComputationProxy::GetXlaClient(const s
           xla::ResetDeviceRequest reset_device_request;
           xla::ResetDeviceResponse reset_device_response;
           *reset_device_request.mutable_device_handle() = device_handle;
-          Status status = iter->second->xla_client_->ResetDevice(&reset_device_request, &reset_device_response);
+          status = iter->second->xla_client_->ResetDevice(&reset_device_request, &reset_device_response);
           if (!status.ok()) {
             throw std::runtime_error(status.error_message());
           }

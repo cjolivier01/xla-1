@@ -1294,9 +1294,11 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
                  << " on device " << async->device << " done!";
 
       for (size_t i = 0; i < results.size(); ++i) {
+        assert(i < async->tensors_data.size());
         if (async->tensors_data[i] != nullptr) {
           async->tensors_data[i]->Assign(*results[i]);
         } else {
+
           async->tensors_data[i] = std::move(results[i]);
         }
       }
@@ -1326,8 +1328,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
     std::vector<XLATensor>* tensors, SyncTensorCollection* coll,
     std::vector<xla::ComputationClient::DataPtr> parameters_data,
     std::string device, ComputationCache::TypePtr cached_computation) {
-  auto tensors_data = FetchTensorData(std::move(tensors), coll->config, coll->indices);
-  tensors_data = XLASentinel::NotifyScheduleSyncTensorsGraph(tensors_data, coll, cached_computation->computation);
+  auto tensors_data = FetchTensorData(tensors, coll->config, coll->indices);
+  tensors_data = XLASentinel::NotifyScheduleSyncTensorsGraph(
+      tensors, tensors_data, coll, cached_computation->computation);
   return ScheduleSyncTensorsGraph(coll, std::move(parameters_data),
                                   std::move(tensors_data),
                                   std::move(cached_computation));
@@ -1567,16 +1570,22 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
     return nullptr;
   }
 
-  const xla::hash_t pre_value = XLASentinel::PostmarkHash(tensors, coll);
+  HashingState state(coll.hash);
 
-  DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
-                                  &coll.indices);
+  PostOrderData po_data;
+  do {
+    XLASentinel::PostmarkHash(state, tensors, coll);
 
-  PostOrderData po_data = RunPostOrder(*tensors, coll.indices);
-  coll.hash = xla::util::HashCombine(
-      coll.hash, xla::util::Hash(po_data.parameter_sequence));
+    DebugUtil::SaveTensorsGraphInfo(
+        "ScheduleSyncTensorsGraph", *tensors,
+        &coll.indices
+    );
 
-  XLASentinel::OnHashChange(pre_value, coll);
+    po_data = std::move(RunPostOrder(*tensors, coll.indices));
+    coll.hash = xla::util::HashCombine(
+        coll.hash, xla::util::Hash(po_data.parameter_sequence));
+
+  } while(XLASentinel::OnHashingComplete(state, tensors, coll));
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);

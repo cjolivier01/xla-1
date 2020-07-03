@@ -13,8 +13,21 @@
 #if __cplusplus >= 201703L  // C++17
 #include <shared_mutex>
 using rw_mutex = std::shared_mutex;
+
+class read_lock {
+public:
+  explicit read_lock(rw_mutex& mtx): mtx_(&mtx)  {
+    mtx_->lock_shared();
+  }
+  ~read_lock() { mtx_->unlock_shared(); }
+private:
+  rw_mutex* mtx_;
+};
+using write_lock = std::lock_guard<rw_mutex>;
 #else
 using rw_mutex = std::recursive_mutex;
+using read_lock = std::lock_guard<rw_mutex>;
+using write_lock = std::lock_guard<rw_mutex>;
 #endif
 
 namespace torch_xla {
@@ -38,6 +51,68 @@ struct MarkStepScope : public EnterLeave {
   MarkStepScope(const std::string& device_str,
                 const std::vector<std::string>& devices);
   ~MarkStepScope();
+};
+
+class MsgException : public std::exception
+{
+public:
+  MsgException() :
+      std::exception() {}
+  MsgException( const char* msg ) :
+      std::exception(),
+      m_msg( msg ) {}
+  MsgException( const std::string& msg ) :
+      std::exception(),
+      m_msg( msg ) {}
+  MsgException( const MsgException& obj ) :
+      std::exception( obj ),
+      m_msg( obj.m_msg ) {}
+  MsgException( MsgException &&rval ) :
+      std::exception( std::move( rval ) ),
+      m_msg( std::move( rval.m_msg ) ) {}
+  MsgException &operator=( const MsgException& rhs ) {
+    std::exception::operator=( rhs );
+    m_msg = rhs.m_msg;
+    return *this;
+  }
+  ~MsgException() noexcept {}
+
+  static std::ostream& next( std::ostream& os ) {
+    os.put('\n');
+    return os;
+  }
+  virtual const char* what() const noexcept override {
+    return m_msg.c_str();
+  }
+
+  template<typename T>
+  MsgException& operator<<( const T &v ) {
+    // TODO: is there a more elegant way to do this?
+    std::ostringstream oss;
+    oss << v;
+    m_msg.append( oss.str() );
+    return *this;
+  }
+
+protected:
+private:
+  std::string m_msg;
+};
+
+using sentinel_exception = MsgException;
+
+struct HashingState {
+  explicit HashingState(const xla::hash_t& start_hash)
+  : start_hash_(start_hash),
+    //non_proxy_hash_{0},
+    pass_(0) {};
+  //~HashingState() = default;
+  const xla::hash_t start_hash_;
+  xla::hash_t pre_prune_hash_{0};
+  //xla::hash_t non_proxy_hash_;
+  std::size_t pass_;
+  bool fabric_run_ = false;
+  bool known_executable_ = false;  // optimization when we know this executable already exists
 };
 
 template <typename CB>
@@ -183,15 +258,16 @@ class XLASentinel {
       const std::string& device, hash_t hash, pid_t tid);
   static std::vector<xla::ComputationClient::DataPtr>
   NotifyScheduleSyncTensorsGraph(
+      std::vector<XLATensor>* tensors,
       std::vector<xla::ComputationClient::DataPtr> tensors_data,
       XLATensor::SyncTensorCollection* coll,
       std::shared_ptr<xla::ComputationClient::Computation>& computation);
 
   // Interception and external mapping
-  static xla::hash_t PostmarkHash(std::vector<XLATensor>* tensors,
-                                  XLATensor::SyncTensorCollection& coll);
-  static void OnHashChange(const xla::hash_t& prev_hash,
-                           const XLATensor::SyncTensorCollection& coll);
+  static void PostmarkHash(HashingState& state,
+      std::vector<XLATensor>* tensors,
+      XLATensor::SyncTensorCollection& coll);
+  static bool OnHashingComplete(HashingState& state, std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll);
 
   static bool PreProcessHlo(xla::XlaBuilder* builder,
                             const XLATensor::SyncTensorCollection& coll);
@@ -211,6 +287,7 @@ class XLASentinel {
   static bool IsQualifyingStep(pid_t tid /*, bool or_higher = false*/);
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();
+  static bool PruneTensors(std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll);
 
   //
   // Data
