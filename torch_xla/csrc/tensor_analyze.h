@@ -10,6 +10,13 @@
 
 #include "tensorflow/core/util/util.h"
 
+#if __cplusplus >= 201703L  // C++17
+#include <shared_mutex>
+using rw_mutex = std::shared_mutex;
+#else
+using rw_mutex = std::recursive_mutex;
+#endif
+
 namespace torch_xla {
 
 enum EPythonState {
