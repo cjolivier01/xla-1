@@ -47,10 +47,11 @@ EPythonState GetPythonState(pid_t tid);
 void PushPythonState(EPythonState state);
 void PopPythonState();
 
-struct MarkStepScope : public EnterLeave {
+struct MarkStepScope {
   MarkStepScope(const std::string& device_str,
                 const std::vector<std::string>& devices);
   ~MarkStepScope();
+  std::unique_ptr<EnterLeave> el_;
 };
 
 class MsgException : public std::exception

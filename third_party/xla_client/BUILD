@@ -117,7 +117,7 @@ cc_library(
         "xrt_session.h",
         "xrt_session_cache.h",
     ],
-    copts = [ "-ggdb3", "-O0" ],
+    # copts = [ "-ggdb3", "-O0" ],
     deps = [
         ":mesh_service_proto_cc",
         "//tensorflow:grpc",

@@ -29,7 +29,7 @@
  */
 namespace torch_xla {
 
-bool verbose = VERBOSE_FILE(true);
+bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = verbose;
 bool verbose_output_control = verbose || false;
 
@@ -195,8 +195,10 @@ void PopPythonState() { python_state.pop(); }
 
 MarkStepScope::MarkStepScope(
     const std::string& device_str,
-    const std::vector<std::string>& devices)
-    : EnterLeave("*** MARK STEP", true, Color::FG_RED) {
+    const std::vector<std::string>& devices) {
+  if (verbose) {
+    el_ = std::make_unique<EnterLeave>("*** MARK STEP", verbose, Color::FG_RED);
+  }
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
 }
 
@@ -420,7 +422,7 @@ void XLASentinel::SetAllDevices(
 
 bool XLASentinel::PreProcessHlo(
     xla::XlaBuilder* builder, const XLATensor::SyncTensorCollection& coll) {
-  HEREX();
+  //HEREX();
   if (HasWseDevices() && IsTrainingThread(coll.requesting_tid)) {
     if (verbose) {
       std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
@@ -554,7 +556,9 @@ void XLASentinel::PostmarkHash(
   //       to a post-order again?  I think that we can.  Can make this
   //       a setting in case there's suspicion of it causing issues later.
   //
-  std::cout << "PostMarkHash(): " << coll.hash << ENDL;
+  if (verbose) {
+    std::cout << "PostMarkHash(): " << coll.hash << ENDL;
+  }
 #if 0
   const xla::hash_t original_hash = coll.hash;
   {
@@ -714,7 +718,7 @@ bool XLASentinel::OnHashingComplete(
     // Note: For trusted, we don't need to analyze anything
     std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
     if (coll.hash != compile_info->hash()) {
-      if (verbose) {
+      if (true || verbose) {
         ColorScope clr(Color::FG_GREEN);
         std::cout << "NEW HASH: " << compile_info->hash() << " -> " << coll.hash << ENDL;
       }
@@ -791,7 +795,7 @@ bool XLASentinel::OnHashingComplete(
 void XLASentinel::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
-  HEREX();
+  //HEREX();
   if (!HasWseDevices()) return;
   XLA_COUNTER("SentinelNotifyCompile", 1);
   if (is_in_mark_step) {
@@ -820,7 +824,9 @@ void XLASentinel::NotifyExecute(
     pid_t tid
 ) {
   if (!HasWseDevices()) return;
-  HEREX();
+  if (verbose) {
+    HEREX();
+  }
   XLA_COUNTER("SentinelExecute", 1);
   if (IsTrainingThread(tid)) {
     XLA_COUNTER("SentinelMasterThreadExecute", 1);
@@ -853,7 +859,7 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     return std::move(tensors);
   }
 
-  {
+  if (verbose) {
     ColorScope cs(Color::FG_CYAN);
     std::cout << "XLASentinel::NotifyScheduleSyncTensorsGraph(): "
               << coll->hash << ENDL;
