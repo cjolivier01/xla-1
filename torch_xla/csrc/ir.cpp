@@ -152,14 +152,6 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
-//  if (!metadata_.scope.empty()) {
-//    std::cout << "Scope: " << metadata_.scope << std::endl << std::flush;
-//  }
-//  if (!op_.ToString().empty()) {
-//    if (op_.ToString() == "aten::addmm") {
-//      std::cout << "OP: " << op_.ToString() << std::endl << std::flush;
-//    }
-//  }
   metadata_.frame_info = GetFrameInfo();
   for (auto& operand : operands) {
     AddOperand(operand.node, operand.index);

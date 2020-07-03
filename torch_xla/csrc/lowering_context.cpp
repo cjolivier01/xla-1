@@ -41,9 +41,6 @@ class HloMetadataSetter {
   static void PopulateXlaOpMetadata(LoweringContext* loctx, const Node* node) {
     xla::OpMetadata metadata;
     metadata.set_op_type(node->op().ToString());
-//    if (!node->op().ToString().empty()) {
-//      std::cout << "Op type: " << node->op().ToString() << std::endl << std::flush;
-//    }
     const ir::MetaData& nmeta = node->metadata();
 #if 1
     std::stringstream ss;
@@ -55,7 +52,6 @@ class HloMetadataSetter {
 #else
     if (!nmeta.scope.empty()) {
       metadata.set_op_name(nmeta.scope);
-      std::cout << "Lowering: " << nmeta.scope << std::endl;
     }
 #endif
     if (!nmeta.frame_info.empty()) {
@@ -95,13 +91,7 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
 
 xla::XlaOp LoweringContext::GetParameter(
     const std::shared_ptr<xla::ComputationClient::Data>& data) {
-  assert(!is_autograd_thread());
   xla::ComputationClient::Data::OpaqueHandle handle = data->GetOpaqueHandle();
-#if 1
-  if (is_autograd_thread()) {
-    std::cout << "Autograd: GetParameter()" << std::endl << std::flush;
-  }
-#endif
   auto it = parameters_map_.find(handle);
   if (it == parameters_map_.end()) {
     xla::XlaOp param =
@@ -147,11 +137,6 @@ xla::StatusOr<xla::XlaComputation> LoweringContext::Build() {
 
 xla::StatusOr<xla::XlaComputation> LoweringContext::Build(xla::XlaOp root) {
   XLA_CHECK(root_tuple_.empty());
-#if 1
-  if (is_autograd_thread()) {
-    std::cout << "Autograd: Build()" << std::endl << std::flush;
-  }
-#endif
   return builder()->Build(root);
 }
 
@@ -160,11 +145,6 @@ void LoweringContext::AssignOutputOp(const Output& output, xla::XlaOp op) {
 }
 
 xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
-  #if 1
-  if (is_autograd_thread()) {
-    std::cout << "Autograd: GetOutputOp()" << std::endl << std::flush;
-  }
-  #endif
   auto it = emitted_outputs_.find(output);
   if (it == emitted_outputs_.end()) {
     auto post_order = Util::ComputePostOrder(output.node, &emit_status_);
@@ -183,9 +163,6 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
 XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
-    if (is_autograd_thread()) {
-      std::cout << "Autograd: GetOutputOp()" << std::endl << std::flush;
-    }
     HloMetadataSetter meta_setter(this, node);
 
     result_ops = node->Lower(this);
