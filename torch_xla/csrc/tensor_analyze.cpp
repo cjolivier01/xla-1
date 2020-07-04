@@ -12,7 +12,6 @@
 #include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/metrics.h"
-#include "tensorflow/core/util/util.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
 
@@ -35,6 +34,40 @@ bool verbose_output_control = verbose || false;
 
 constexpr size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
+#ifdef WSE_DEBUG_LOGGING
+__thread int EnterLeave::depth_ = 0;
+const std::string EnterLeave::library_ = "ptxla";
+const Color::Code EnterLeave::library_color_ = Color::FG_BLUE;
+std::mutex EnterLeave::mtx_;
+#endif
+
+const char *prev_char(const char *original, const char *start, char c) {
+  while(start > original && *start != c) {
+    --start;
+  }
+  return start;
+}
+
+std::string short_fn_name(const std::string &fn_name) {
+  std::string result = fn_name;
+  //std::cout << "fn_name=" << fn_name << ENDL;
+  const char *start = fn_name.c_str();
+  const char *s = strchr(start, '(');
+  if (s && *s && s > start) {
+    //std::cout << "s: " << s << ENDL;
+    if (const char *s0 = prev_char(start, s - 1, ' ')) {
+      //std::cout << "s0: " << s0 << ENDL;
+      if (*s0 == ' ') {
+        ++s0;
+      }
+      const size_t sz = s - s0 + 1;
+      //std::cout << "sz: " << sz << std::endl << std::flush;
+      result = std::string(s0, sz);
+      result.append(")");
+    }
+  }
+  return result;
+}
 
 std::string to_string(const xla::Shape& shape) {
   std::stringstream ss;
@@ -91,15 +124,19 @@ void XLATensor::print_tensor_ex(const std::string& label,
       assert(!data->xla_data);
       assert(!data->view);
     }
-  } else if (data->xla_data && data->xla_data->HasValue()) {
+  } else if (data->xla_data) {
     // coming from _xla_tensors_from_aten in at least one case
-    std::cout << label << " (id=" << data->unique_id << ") "
-              << " tensor with no xla_data handle="
-              << data->xla_data->GetOpaqueHandle()
-              << " on device: " << data->xla_data->device()
-              << " of shape: " << data->xla_data->shape().ToString()
-              << std::endl
-              << std::flush;
+    std::stringstream ss;
+    ss << label << " (id=" << data->unique_id << ") "
+              << " tensor, xla_data handle=";
+    if (data->xla_data->HasValue()) {
+      ss << data->xla_data->GetOpaqueHandle();
+    } else {
+      ss << "null";
+    }
+    ss << " on device: " << data->xla_data->device()
+       << " of shape: " << data->xla_data->shape().ToString();
+    std::cout << ss.str() << std::endl << std::flush;
     if (assert) {
       assert(!data->ir_value);
       assert(!data->view);
@@ -865,16 +902,20 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
               << coll->hash << ENDL;
   }
 
+  assert(tensors.size() == coll->indices.size());
   if (verbose_tensor_sync) {
+    std::size_t index = 0;
     std::for_each(
-        tensors.begin(), tensors.end(), [coll](auto &t) {
+        tensors.begin(), tensors.end(), [coll, &index, xla_tensors](auto &t) {
           ColorScope cs(Color::FG_CYAN);
-          std::cout << coll->hash
+          std::cout << (index + 1) << " " << coll->hash
           << ": SyncTensorsGraph tensor shape: " << t->shape();
           if (t->HasValue()) {
             std::cout << ", handle = " << t->GetOpaqueHandle();
           }
-          std::cout << ENDL;
+          std::cout << " ";
+          XLATensor::print_tensor("", (*xla_tensors)[coll->indices[index++]]);
+          //std::cout << ENDL;
         }
     );
   }
@@ -1093,6 +1134,7 @@ void XLASentinel::SetOutputs(const std::vector<at::Tensor>& output_tensors,
 
 bool XLASentinel::IsAllowedOutput(const XLATensor& tensor,
                                   XLATensor::SyncTensorCollection& coll) {
+  assert(HasWseDevices());  // why?
   assert(is_in_mark_step);  // gets cleared at end of step
   assert(is_clean_step);    // otherwise, why are you asking?
   std::shared_ptr<CompileInfo> compile_info =

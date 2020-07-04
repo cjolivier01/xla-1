@@ -12,6 +12,7 @@ import os
 from statistics import mean
 import shutil
 import time
+import ptwse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,40 +31,78 @@ class MNIST(nn.Module):
 
   def __init__(self):
     super(MNIST, self).__init__()
-    self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-    self.bn1 = nn.BatchNorm2d(10)
-    self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-    self.bn2 = nn.BatchNorm2d(20)
-    self.fc1 = nn.Linear(320, 50)
-    self.fc2 = nn.Linear(50, 10)
+    # self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+    # self.bn1 = nn.BatchNorm2d(10)
+    # self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+    # self.bn2 = nn.BatchNorm2d(20)
+    # self.fc1 = nn.Linear(320, 50)
+    # self.fc2 = nn.Linear(50, 10)
+
+    self.fc1 = nn.Linear(784, 10)
 
   def forward(self, x):
-    x = F.relu(F.max_pool2d(self.conv1(x), 2))
-    x = self.bn1(x)
-    x = F.relu(F.max_pool2d(self.conv2(x), 2))
-    x = self.bn2(x)
+    # x = F.relu(F.max_pool2d(self.conv1(x), 2))
+    # x = self.bn1(x)
+    # x = F.relu(F.max_pool2d(self.conv2(x), 2))
+    # x = self.bn2(x)
+    # x = torch.flatten(x, 1)
+    # x = F.relu(self.fc1(x))
+    # x = self.fc2(x)
+    # return F.log_softmax(x, dim=1)
+
     x = torch.flatten(x, 1)
     x = F.relu(self.fc1(x))
-    x = self.fc2(x)
     return F.log_softmax(x, dim=1)
 
 
 def train_mnist():
   torch.manual_seed(1)
 
+  DTYPE=torch.float32
+
   if FLAGS.fake_data:
     train_dataset_len = 60000  # Number of images in MNIST dataset.
-    train_loader = xu.SampleGenerator(
-        data=(torch.zeros(FLAGS.batch_size, 1, 28,
-                          28), torch.zeros(FLAGS.batch_size,
-                                           dtype=torch.int64)),
-        sample_count=train_dataset_len // FLAGS.batch_size //
-        xm.xrt_world_size())
-    test_loader = xu.SampleGenerator(
-        data=(torch.zeros(FLAGS.batch_size, 1, 28,
-                          28), torch.zeros(FLAGS.batch_size,
-                                           dtype=torch.int64)),
-        sample_count=10000 // FLAGS.batch_size // xm.xrt_world_size())
+
+    boolean = False
+
+    if boolean:
+      train_loader = xu.SampleGenerator(
+        data=(
+          torch.zeros(
+            FLAGS.batch_size, 28, 28,
+            dtype=DTYPE,
+          ),
+          torch.zeros(
+            FLAGS.batch_size,
+            dtype=torch.int32
+          )
+        ),
+        sample_count=train_dataset_len // FLAGS.batch_size // xm.xrt_world_size()
+      )
+      test_loader = xu.SampleGenerator(
+        data=(torch.zeros(
+          FLAGS.batch_size, 28, 28,
+          dtype=DTYPE,
+        ),
+              torch.zeros(
+                FLAGS.batch_size,
+                dtype=torch.int32
+              )
+        ),
+        sample_count=10000 // FLAGS.batch_size // xm.xrt_world_size()
+      )
+    else:
+      train_loader = xu.SampleGenerator(
+          data=(torch.zeros(FLAGS.batch_size, 1, 28,
+                            28), torch.zeros(FLAGS.batch_size,
+                                             dtype=torch.int64)),
+          sample_count=train_dataset_len // FLAGS.batch_size //
+          xm.xrt_world_size())
+      test_loader = xu.SampleGenerator(
+          data=(torch.zeros(FLAGS.batch_size, 1, 28,
+                            28), torch.zeros(FLAGS.batch_size,
+                                             dtype=torch.int64)),
+          sample_count=10000 // FLAGS.batch_size // xm.xrt_world_size())
   else:
     train_dataset = datasets.MNIST(
         FLAGS.datadir,

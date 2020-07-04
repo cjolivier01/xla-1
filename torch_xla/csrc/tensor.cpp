@@ -22,7 +22,6 @@
 #include "tensorflow/compiler/xla/xla_client/unique.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
 #include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/util/util.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch_xla/csrc/debug_util.h"
 #include "torch_xla/csrc/helpers.h"

@@ -36,7 +36,7 @@ namespace {
 
 bool verbose = false;
 bool verbose_mp = true;
-bool verbose_transfers = false;
+bool verbose_transfers = true;
 bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 
@@ -322,13 +322,13 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
 
   if (verbose || verbose_transfers) {
     ColorScope clr(Color::FG_BLUE);
-    std::cout << getpid() << " XrtComputationClient::TransferToServer( ";
+    std::cout << /*getpid() <<*/ " XrtComputationClient::TransferToServer( ";
     size_t i = 0;
     for (const TensorSource& t : tensors) {
       if (i++) {
         std::cout << ", ";
       }
-      std::cout << t.shape << "@" << DeviceSummary(t.device);
+      std::cout << t.shape /*<< "@" << DeviceSummary(t.device)*/;
     }
     std::cout << ")" << std::endl << std::flush;
   }
@@ -451,7 +451,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
 
   if (verbose) {
       ColorScope clr(Color::FG_MAGENTA);
-      std::cout << getpid() << " XrtComputationClient::TransferFromServer( ";
+      std::cout /*<< getpid()*/ << " XrtComputationClient::TransferFromServer( ";
       size_t i = 0;
       for (const DataPtr& dp : handles) {
           if (i++) {

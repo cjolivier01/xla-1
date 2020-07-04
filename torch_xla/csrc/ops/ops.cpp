@@ -1,7 +1,6 @@
 #include "torch_xla/csrc/ops/ops.h"
 
 #include <cmath>
-#include <tensorflow/core/util/util.h>
 
 #include "tensorflow/compiler/xla/client/lib/logdet.h"
 #include "tensorflow/compiler/xla/client/lib/math.h"
