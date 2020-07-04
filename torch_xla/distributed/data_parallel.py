@@ -45,13 +45,14 @@ class DataParallel(object):
       will be run on PyTorch CPU device.
   """
 
-  def __init__(self, network, device_ids=None):
+  def __init__(self, network, device_ids=None, **kwargs):
     if device_ids is None:
       device_ids = xm.get_xla_supported_devices()
     self._device_ids = [str(x) for x in device_ids]
     self._native_run = False
     self._models = []
     self._contexts = []
+    self._kwargs = kwargs
     module = network if isinstance(network, torch.nn.Module) else network()
     for device in device_ids:
       device_module = deepcopy(module).to(device=torch.device(device))
@@ -138,7 +139,8 @@ class DataParallel(object):
         loader,
         self._device_ids,
         batchdim=batchdim,
-        fixed_batch_size=fixed_batch_size)
+        fixed_batch_size=fixed_batch_size,
+        **self._kwargs)
     threads = []
     results = []
     for module, device, context in zip(self._models, self._device_ids,
