@@ -20,7 +20,6 @@
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
-#include "tensorflow/compiler/xla/xla_client/env_vars.h"
 #include "tensorflow/compiler/xla/xla_client/unique.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
@@ -36,7 +35,7 @@ namespace {
 
 bool verbose = false;
 bool verbose_mp = true;
-bool verbose_transfers = true;
+bool verbose_transfers = false;
 bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 
