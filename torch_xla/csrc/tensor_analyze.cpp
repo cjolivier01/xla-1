@@ -771,7 +771,9 @@ bool XLASentinel::OnHashingComplete(
     }
 
     ColorScope clr(Color::FG_GREEN);
-    std::cout << "SAME HASH AS LAST TIME: " << compile_info->hash() << ENDL;
+    std::cout << "SAME HASH AS LAST TIME OR TRUSTED HASH: "
+              << compile_info->hash()
+              << ENDL;
     assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
     ++compile_info->mark_step_count_since_last_reset_;
     if (IsQualifyingStep(coll.requesting_tid)) {
