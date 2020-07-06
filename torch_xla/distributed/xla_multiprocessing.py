@@ -89,6 +89,9 @@ def _get_devices_per_worker():
   num_gpus = os.environ.get(xenv.GPU_NUM_DEVICES, None)
   if num_gpus is not None:
     return int(num_gpus), 'GPU'
+  num_wses = os.environ.get(xenv.WSE_NUM_DEVICES, None)
+  if num_wses is not None:
+    return int(num_wses), 'WSE'
   raise RuntimeError('Missing TPU or GPU configuration')
 
 
