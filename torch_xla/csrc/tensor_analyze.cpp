@@ -31,6 +31,7 @@ namespace torch_xla {
 bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = verbose;
 bool verbose_output_control = verbose || false;
+bool verbose_mp = true;
 
 constexpr size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
@@ -46,6 +47,14 @@ const char *prev_char(const char *original, const char *start, char c) {
     --start;
   }
   return start;
+}
+
+std::string mp() {
+  std::stringstream ss;
+  if (verbose_mp) {
+    ss << "[pid=" << getpid() << "] ";
+  }
+  return ss.str();
 }
 
 std::string short_fn_name(const std::string &fn_name) {
@@ -757,7 +766,9 @@ bool XLASentinel::OnHashingComplete(
     if (coll.hash != compile_info->hash()) {
       if (true || verbose) {
         ColorScope clr(Color::FG_GREEN);
-        std::cout << "NEW HASH: " << compile_info->hash() << " -> " << coll.hash << ENDL;
+        std::cout << mp() << "NEW HASH: " << compile_info->hash()
+                  << " -> " << coll.hash
+                  << ENDL;
       }
 
       compile_info->set_hash(coll.hash);
@@ -771,13 +782,14 @@ bool XLASentinel::OnHashingComplete(
     }
 
     ColorScope clr(Color::FG_GREEN);
-    std::cout << "SAME HASH AS LAST TIME OR TRUSTED HASH: "
+    std::cout << mp()
+              << "SAME HASH AS LAST TIME OR TRUSTED HASH: "
               << compile_info->hash()
               << ENDL;
     assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
     ++compile_info->mark_step_count_since_last_reset_;
     if (IsQualifyingStep(coll.requesting_tid)) {
-      std::cout << "**** QUALIFYING: " << coll.hash << ENDL;
+      std::cout << mp() << "**** QUALIFYING: " << coll.hash << ENDL;
       ex_cache->activate_hash(coll.hash);
       if (PruneTensors(tensors, coll)) {
         state.fabric_run_ = true;
