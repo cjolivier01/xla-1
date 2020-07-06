@@ -7,7 +7,6 @@ import os
 import re
 import threading
 import time
-import contextlib
 import torch
 import torch.nn.functional as F
 import torch_xla
@@ -805,77 +804,6 @@ def get_rng_state(device=None):
     device = torch_xla._XLAC._xla_get_default_device()
   return torch_xla._XLAC._xla_get_rng_seed(str(device) if device else '')
 
-_PY_STATE_IN_TRAIN_LOOP = 1
-_PY_STATE_IN_DATA_BATCH = 2
-_PY_STATE_IN_OPTIMIZER_STEP = 3
-_PY_STATE_IN_DEBUG = 4
-
-@contextlib.contextmanager
-def in_train_loop(set_python_state=True):
-  """
-  Yields:
-      None.
-  """
-  if set_python_state:
-    torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_TRAIN_LOOP)
-  try:
-    yield
-  finally:
-    if set_python_state:
-      torch_xla._XLAC._xla_pop_python_state()
-
-
-@contextlib.contextmanager
-def in_data_batch():
-  """
-  Yields:
-      None.
-  """
-  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_DATA_BATCH)
-  try:
-    yield
-  finally:
-    torch_xla._XLAC._xla_pop_python_state()
-
-
-@contextlib.contextmanager
-def in_optimizer_step():
-  """
-  Yields:
-      None.
-  """
-  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_OPTIMIZER_STEP)
-  try:
-    yield
-  finally:
-    torch_xla._XLAC._xla_pop_python_state()
-
-
-@contextlib.contextmanager
-def in_py_debug():
-  """
-  Yields:
-      None.
-  """
-  torch_xla._XLAC._xla_push_python_state(_PY_STATE_IN_DEBUG)
-  try:
-    yield
-  finally:
-    torch_xla._XLAC._xla_pop_python_state()
-
-@contextlib.contextmanager
-def push_ir_scope(scope_text, enabled=True):
-  """
-  Yields:
-      None.
-  """
-  if enabled:
-    torch_xla._XLAC._xla_push_ir_scope(scope_text)
-  try:
-    yield
-  finally:
-    if enabled:
-      torch_xla._XLAC._xla_pop_ir_scope()
 
 def get_memory_info(device):
   """Retrieves the device memory information.

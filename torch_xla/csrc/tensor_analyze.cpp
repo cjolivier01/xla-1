@@ -783,7 +783,7 @@ bool XLASentinel::OnHashingComplete(
 
     ColorScope clr(Color::FG_GREEN);
     std::cout << mp()
-              << "SAME HASH AS LAST TIME OR TRUSTED HASH: "
+              << "SAME HASH AS LAST TIME OR TRUSTED: "
               << compile_info->hash()
               << ENDL;
     assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
@@ -1119,6 +1119,13 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   }
   if (ready) {
     assert(is_clean_step);  // validate it coincides with clean step logic
+
+    if (GetPythonState(tid) == EPS_PROXY_DISABLED) {
+      ColorScope clr({Color::BG_MAGENTA, Color::FG_YELLOW});
+      std::cout << "Qualifying step, but proxy is disabled" << ENDL;
+      return false;
+    }
+
     if (verbose) {
       ColorScope clr({Color::BG_BLUE, Color::FG_YELLOW});
       std::cout << "Run ready" << std::endl << std::flush;
