@@ -9,6 +9,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <sys/syscall.h>
+
 namespace xla {
 
 
@@ -213,7 +215,7 @@ public:
     return s;
   }
   inline EnterLeave(const std::string& label, bool both=true, const Color use_color = Color::BG_INVALID)
-      : label_(label), thread_id_(gettid() /*syscall(SYS_gettid)*/), both_(both),
+      : label_(label), thread_id_(syscall(SYS_gettid)), both_(both),
         use_color_(use_color == Color::BG_INVALID ? library_color_ : use_color) {
     std::lock_guard<std::mutex> lk(mtx_);
     for (int x = 0; x < depth_; ++x) {
