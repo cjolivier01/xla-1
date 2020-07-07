@@ -209,7 +209,7 @@ def _setup_wse_worker(index, gindex, pf_cfg):
   # Every process is restricted to 1 WSE device, which in such process will be
   # named XLA_WSE:0.
   #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
-  # We have expanded the GPU devices in the device map already, in
+  # We have expanded the WSE devices in the device map already, in
   # _create_wse_devices(), so delete the key from the environment as it
   # otherwise triggers device generation again in computation_client.cc.
   os.environ.pop(xenv.WSE_NUM_DEVICES, None)

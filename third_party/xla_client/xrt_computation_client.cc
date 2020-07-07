@@ -33,9 +33,9 @@
 namespace xla {
 namespace {
 
-bool verbose = false;
+bool verbose = true;
 bool verbose_mp = true;
-bool verbose_transfers = false;
+bool verbose_transfers = true;
 bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 
@@ -1038,7 +1038,7 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
         for (auto coord : core_coords) {
           replica_device->add_value(coord);
         }
-      } else if (device.kind == "GPU") {
+      } else if (device.kind == "GPU" || device.kind == "WSE") {
         // For GPU use X,Y,Z=0 and CORE=GPU_ORDINAL (where GPU_ORDINAL is the
         // global ordinal value).
         replica_device->add_value(0);

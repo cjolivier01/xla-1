@@ -75,14 +75,6 @@ bool throw_on_compile_fail = true;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
-bool IsEnabled() {
-  if (disable_proxy) {
-    return false;
-  }
-  static bool enabled = xla::sys_util::GetEnvBool("XLA_PROXY_ENABLED", false);
-  return enabled;
-}
-
 std::vector<std::string> split(const std::string& str, const char delim) {
   std::vector<std::string> strings;
   std::size_t start;
@@ -94,17 +86,17 @@ std::vector<std::string> split(const std::string& str, const char delim) {
   return std::move(strings);
 }
 
-bool is_device(const std::string& found_device, const std::string& want_device) {
-  // Check for blank in order to help out
-  // when is_wse_proxy_device() returns blank
-  if (!found_device.empty()) {
-    const std::vector<std::string> parts = split(found_device, ':');
-    if (!parts.empty()) {
-      return parts[0] == want_device;
-    }
-  }
-  return false;
-}
+//bool is_device(const std::string& found_device, const std::string& want_device) {
+//  // Check for blank in order to help out
+//  // when is_wse_proxy_device() returns blank
+//  if (!found_device.empty()) {
+//    const std::vector<std::string> parts = split(found_device, ':');
+//    if (!parts.empty()) {
+//      return parts[0] == want_device;
+//    }
+//  }
+//  return false;
+//}
 
 //bool is_wse_device(const std::string& found_device) {
 //  return is_device(found_device, "WSE");
@@ -131,7 +123,7 @@ const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64 id) {
 }
 
 std::string get_proxy_device(const xla::HloModuleProto& module) {
-  if (!IsEnabled()) return "";
+  if (!XlaComputationProxy::IsEnabled()) return "";
   //save_msg(module, "my_hlo_module.json");
   const int64 entry_computation_id = module.entry_computation_id();
   if (entry_computation_id) {
@@ -169,6 +161,7 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
 class ProxyName {
 public:
   static bool is_proxy_device_name(const std::string &device) {
+    if(!XlaComputationProxy::IsEnabled()) return false;
     std::vector<std::string> parts = split(device, ':');
     assert(parts.size() == 2);
     const std::string& dev = parts[0];
@@ -177,6 +170,7 @@ public:
   }
 
   static std::string unproxy_device_name(const std::string &device) {
+    assert(XlaComputationProxy::IsEnabled());
     std::vector<std::string> parts = split(device, ':');
     assert(parts.size() == 2);
     std::string& dev = parts[0];
@@ -191,6 +185,7 @@ public:
   }
 
   static std::string proxy_device_name(const std::string &device) {
+    assert(XlaComputationProxy::IsEnabled());
     std::vector<std::string> parts = split(device, ':');
     assert(parts.size() == 2);
     const std::string& dev = parts[0];
@@ -202,7 +197,7 @@ public:
   }
 
   static bool is_proxyable_device(const std::string device) {
-    if (disable_proxy) return false;
+    if (!XlaComputationProxy::IsEnabled()) return false;
     return strncmp(device.c_str(), PROXYABLE_DEVICE_PREFIX.c_str(), PROXYABLE_DEVICE_PREFIX.size()) == 0;
   }
 };
@@ -468,6 +463,14 @@ XlaComputationProxy::XlaComputationProxy(
 
 }
 
+bool XlaComputationProxy::IsEnabled() {
+  if (disable_proxy) {
+    return false;
+  }
+  static bool enabled = xla::sys_util::GetEnvBool("XLA_PROXY_ENABLED", true);
+  return enabled;
+}
+
 bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, const std::string &proxy_device) {
   assert(!source_device.empty());
   std::lock_guard<std::mutex> lk(proxy_mapping_mtx_);
@@ -514,6 +517,8 @@ void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const
 
 std::shared_ptr<xla::ServiceInterface> XlaComputationProxy::GetXlaClient(const std::string& device, bool create) {
   assert(ProxyName::is_proxy_device_name(device));
+  assert(IsEnabled());
+  assert(IsEnabled());
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   auto iter = xla_client_map_.find(device);
   if (iter == xla_client_map_.end()) {
@@ -868,7 +873,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServerInt
           Super::TransferToServer(local_tensor_sources);
 #if 1
         // TODO: use NormalizeDataToDevice, possible just as needed
-        if (clone_all_data) {
+        if (clone_all_data && IsEnabled()) {
           // Temporary until re-enable device-switching in torch_xla/csrc/tensor.cpp
           // and write the "move data" code
           std::vector<TensorSource> clone_ts;

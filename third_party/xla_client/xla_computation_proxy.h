@@ -83,6 +83,8 @@ public:
     return dynamic_cast<XlaComputationProxy *>(Super::Get());
   }
 
+  static bool IsEnabled();
+
 private:
   class XlaClientInfo;
   class GlobalDataHandleMapper;

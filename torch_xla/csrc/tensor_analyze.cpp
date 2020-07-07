@@ -1120,6 +1120,10 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   if (ready) {
     assert(is_clean_step);  // validate it coincides with clean step logic
 
+    if (!xla::XlaComputationProxy::IsEnabled()) {
+      return false;
+    }
+
     if (GetPythonState(tid) == EPS_PROXY_DISABLED) {
       ColorScope clr({Color::BG_MAGENTA, Color::FG_YELLOW});
       std::cout << "Qualifying step, but proxy is disabled" << ENDL;
