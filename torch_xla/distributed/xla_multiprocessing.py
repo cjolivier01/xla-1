@@ -56,6 +56,22 @@ def _create_gpu_devices(num_gpus):
           _LOCAL_WORKER, gindex)
       devices.append('GPU:{};{}'.format(gindex, tfdevice))
   os.environ[xenv.DEVICE_MAP] = '|'.join(devices)
+  print(f'Device map: {os.environ[xenv.DEVICE_MAP]}')
+
+
+def _create_wse_devices(num_wses):
+  devices = []
+  for h in range(0, _get_world_size()):
+    for i in range(0, num_wses):
+      gindex = h * num_wses + i
+      # We use CUDA_VISIBLE_DEVICES to limit the set of CUDA devices per process
+      # to 1, and its device index is always 0. We use the task to disambiguate
+      # TF devices.
+      tfdevice = '/job:{}/replica:0/task:{}/device:XLA_WSE:0'.format(
+        _LOCAL_WORKER, gindex)
+      devices.append('WSE:{};{}'.format(gindex, tfdevice))
+  os.environ[xenv.DEVICE_MAP] = '|'.join(devices)
+  print(f'Device map: {os.environ[xenv.DEVICE_MAP]}')
 
 
 def _parse_workers_config(config):
@@ -169,6 +185,9 @@ def _pre_fork_setup(num_devices):
   if dev_kind == 'GPU':
     _setup_workers(num_devices)
     _create_gpu_devices(num_devices)
+  elif dev_kind == 'WSE':
+    _setup_workers(num_devices)
+    _create_wse_devices(num_devices)
   return PreForkConfig(dev_kind=dev_kind, num_devices=num_devices)
 
 
@@ -182,6 +201,18 @@ def _setup_gpu_worker(index, gindex, pf_cfg):
   # _create_gpu_devices(), so delete the key from the environment as it
   # otherwise triggers device generation again in computation_client.cc.
   os.environ.pop(xenv.GPU_NUM_DEVICES, None)
+
+
+def _setup_wse_worker(index, gindex, pf_cfg):
+  os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(gindex)
+  os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
+  # Every process is restricted to 1 WSE device, which in such process will be
+  # named XLA_WSE:0.
+  #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
+  # We have expanded the GPU devices in the device map already, in
+  # _create_wse_devices(), so delete the key from the environment as it
+  # otherwise triggers device generation again in computation_client.cc.
+  os.environ.pop(xenv.WSE_NUM_DEVICES, None)
 
 
 def _setup_tpu_worker(index, gindex, pf_cfg, tpu_env_config):
@@ -214,6 +245,8 @@ def _prepare_env_for_index(index, pf_cfg):
                       os.environ.get(xenv.TPU_CONFIG, None))
   elif pf_cfg.dev_kind == 'GPU':
     _setup_gpu_worker(index, gindex, pf_cfg)
+  elif pf_cfg.dev_kind == 'WSE':
+    _setup_wse_worker(index, gindex, pf_cfg)
   return gindex
 
 

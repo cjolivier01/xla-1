@@ -949,6 +949,10 @@ void InitXlaModuleBindings(py::module m) {
         []() {
           ir::PythonPopScope();
         });
+  m.def("_xla_trap",
+        []() {
+          raise(SIGTRAP);
+        });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");
   py::class_<Computation, ComputationPtr>(m, "XlaComputation");
