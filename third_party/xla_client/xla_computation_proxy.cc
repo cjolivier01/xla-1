@@ -13,7 +13,6 @@
 #include "tensorflow/compiler/xla/rpc/grpc_stub.h"
 
 #include "tensorflow/compiler/tf2xla/xla_op_registry.h"
-#include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
 #include "tensorflow/compiler/xla/primitive_util.h"
 
 #include "tensorflow/compiler/xla/service/hlo.pb.h"
@@ -30,6 +29,16 @@
 #include <vector>
 #include <strstream>
 #include <csignal>
+
+//#define TF_HAS_WSE_DEVICE
+
+#ifdef TF_HAS_WSE_DEVICE
+#include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
+using CompilerType = xla::cpu::WseCompiler;
+#else
+#include "tensorflow/compiler/xla/service/cpu/cpu_compiler.h"
+using CompilerType = xla::cpu::CpuCompiler;
+#endif
 
 #if 1
 #undef assert
@@ -56,8 +65,6 @@ using namespace tensorflow;
 
 namespace xla {
 
-//int StartLocalWseXlaService(int port);
-
 namespace {
 
 bool verbose = false;
@@ -74,6 +81,15 @@ bool disable_proxy = false;
 bool throw_on_compile_fail = true;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
+
+template <typename MSG>
+inline std::string msg_to_json(const MSG& msg) {
+    std::string json;
+    google::protobuf::util::JsonPrintOptions op;
+    op.add_whitespace = true;
+    google::protobuf::util::MessageToJsonString(msg, &json, op);
+    return std::move(json);
+}
 
 std::vector<std::string> split(const std::string& str, const char delim) {
   std::vector<std::string> strings;
@@ -100,7 +116,6 @@ const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64 id) {
 
 std::string get_proxy_device(const xla::HloModuleProto& module) {
   if (!XlaComputationProxy::IsEnabled()) return "";
-  //save_msg(module, "my_hlo_module.json");
   const int64 entry_computation_id = module.entry_computation_id();
   if (entry_computation_id) {
     const xla::HloComputationProto *computation =
@@ -1007,12 +1022,10 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
           xla::HloModule::CreateFromProto(instance.computation.proto(), config)
         );
         if (new_hlo_module.ok()) {
-          std::unique_ptr<xla::wse::WseCompiler> wse_compiler = std::make_unique<xla::wse::WseCompiler>();
+          auto compiler = std::make_unique<CompilerType>();
           StatusOr<std::unique_ptr<HloModule>> result =
-            wse_compiler->RunHloPasses(std::move(new_hlo_module.ConsumeValueOrDie()), nullptr, nullptr);
-
+            compiler->RunHloPasses(std::move(new_hlo_module.ConsumeValueOrDie()), nullptr, nullptr);
           if (result.ok()) {
-
             std::unique_ptr<xla::HloModule> hlo_module = result.ConsumeValueOrDie();
             const HloModuleProto hlo_module_proto = hlo_module->ToProto();
 
@@ -1437,6 +1450,38 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
     topology_proto.add_device_coordinates(1);
   }
   return std::move(topology_proto);
+}
+
+
+#ifdef WSE_DEBUG_LOGGING
+__thread int EnterLeave::depth_ = 0;
+const std::string EnterLeave::library_ = "ptxla";
+const Color EnterLeave::library_color_ = Color::FG_BLUE;
+std::mutex EnterLeave::mtx_;
+#endif
+
+const char *prev_char(const char *original, const char *start, char c) {
+  while(start > original && *start != c) {
+    --start;
+  }
+  return start;
+}
+
+std::string short_fn_name(const std::string &fn_name) {
+  std::string result = fn_name;
+  const char *start = fn_name.c_str();
+  const char *s = strchr(start, '(');
+  if (s && *s && s > start) {
+    if (const char *s0 = prev_char(start, s - 1, ' ')) {
+      if (*s0 == ' ') {
+        ++s0;
+      }
+      const size_t sz = s - s0 + 1;
+      result = std::string(s0, sz);
+      result.append(")");
+    }
+  }
+  return result;
 }
 
 }  // namespace xla

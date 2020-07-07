@@ -35,47 +35,12 @@ bool verbose_mp = true;
 
 constexpr size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
-#ifdef WSE_DEBUG_LOGGING
-__thread int EnterLeave::depth_ = 0;
-const std::string EnterLeave::library_ = "ptxla";
-const Color::Code EnterLeave::library_color_ = Color::FG_BLUE;
-std::mutex EnterLeave::mtx_;
-#endif
-
-const char *prev_char(const char *original, const char *start, char c) {
-  while(start > original && *start != c) {
-    --start;
-  }
-  return start;
-}
-
 std::string mp() {
   std::stringstream ss;
   if (verbose_mp) {
     ss << "[pid=" << getpid() << "] ";
   }
   return ss.str();
-}
-
-std::string short_fn_name(const std::string &fn_name) {
-  std::string result = fn_name;
-  //std::cout << "fn_name=" << fn_name << ENDL;
-  const char *start = fn_name.c_str();
-  const char *s = strchr(start, '(');
-  if (s && *s && s > start) {
-    //std::cout << "s: " << s << ENDL;
-    if (const char *s0 = prev_char(start, s - 1, ' ')) {
-      //std::cout << "s0: " << s0 << ENDL;
-      if (*s0 == ' ') {
-        ++s0;
-      }
-      const size_t sz = s - s0 + 1;
-      //std::cout << "sz: " << sz << std::endl << std::flush;
-      result = std::string(s0, sz);
-      result.append(")");
-    }
-  }
-  return result;
 }
 
 std::string to_string(const xla::Shape& shape) {
@@ -1125,13 +1090,13 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
     }
 
     if (GetPythonState(tid) == EPS_PROXY_DISABLED) {
-      ColorScope clr({Color::BG_MAGENTA, Color::FG_YELLOW});
+      ColorScope clr(std::cout, {Color::BG_MAGENTA, Color::FG_YELLOW});
       std::cout << "Qualifying step, but proxy is disabled" << ENDL;
       return false;
     }
 
     if (verbose) {
-      ColorScope clr({Color::BG_BLUE, Color::FG_YELLOW});
+      ColorScope clr(std::cout, {Color::BG_BLUE, Color::FG_YELLOW});
       std::cout << "Run ready" << std::endl << std::flush;
     }
   }

@@ -41,9 +41,9 @@ static const char* const kLocalService = "localservice";
 
 thread_local std::vector<std::string> g_replication_devices;
 
-pid_t gettid() {
-    return syscall(__NR_gettid);
-}
+// pid_t gettid() {
+//     return syscall(__NR_gettid);
+// }
 
 bool IsMeshable(std::string device) {
   const char *start = device.c_str();
@@ -51,7 +51,7 @@ bool IsMeshable(std::string device) {
   if (colon) {
     device.resize(colon - start);
   }
-  return device == "TPU" /*|| device == "WSE" || device == "XLA_WSE"*/;
+  return device == "TPU" /*|| device == "WSE"*/;
 }
 
 // A simple Tensorflow Allocator which caches Tensor allocations in order to

@@ -3,7 +3,6 @@
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "torch_xla/csrc/lowering_context.h"
-#include "torch_xla/csrc/lower_custom.h"
 #include "torch_xla/csrc/ops/infer_output_shape.h"
 #include "torch_xla/csrc/softmax_builder.h"
 
@@ -23,19 +22,12 @@ NodePtr LogSoftmaxBackward::Clone(OpList operands) const {
 }
 
 XlaOpVector LogSoftmaxBackward::Lower(LoweringContext* loctx) const {
-  if (loctx->AllowCustomLowering()) {
-    return ReturnOp(CustomLowerOp(
-        "WSE_LogSoftmaxBWD", this,
-        "wse_log_softmax_bwd", "wse_log_softmax_bwd_float16_NAT_",
-        {{"dim", std::to_string(dim_)}}, loctx), loctx);
-  } else {
-    ir::ScopePusher("WSE_LogSoftmaxBWD");
-    xla::XlaOp grad_output = loctx->GetOutputOp(operand(0));
-    xla::XlaOp output = loctx->GetOutputOp(operand(1));
-    xla::XlaOp grad_input =
-        BuildLogSoftmaxGrad(/*grad_output=*/grad_output, /*output=*/output, dim_);
-    return ReturnOp(grad_input, loctx);
-  }
+  ir::ScopePusher("WSE_LogSoftmaxBWD");
+  xla::XlaOp grad_output = loctx->GetOutputOp(operand(0));
+  xla::XlaOp output = loctx->GetOutputOp(operand(1));
+  xla::XlaOp grad_input =
+      BuildLogSoftmaxGrad(/*grad_output=*/grad_output, /*output=*/output, dim_);
+  return ReturnOp(grad_input, loctx);
 }
 
 std::string LogSoftmaxBackward::ToString() const {

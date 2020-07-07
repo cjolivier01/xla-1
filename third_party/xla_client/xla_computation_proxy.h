@@ -11,22 +11,6 @@
 
 namespace xla {
 
-//class stream_exception : public std::exception, public std::stringstream {
-//public:
-//  virtual const char* what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_USE_NOEXCEPT {
-//      if (str_.empty()) {
-//        str_ = std::stringstream::str();
-//      }
-//      return str_.c_str();
-//  }
-//private:
-//  mutable std::string str_;
-//};
-//
-//template<typename T>
-//inline std::ostream& operator << (stream_exception& ex, const T& o) {
-//  return ex << o;
-//}
 
 class XlaComputationProxy : public XrtComputationClient {
     typedef XrtComputationClient Super;
@@ -76,9 +60,6 @@ public:
     const std::string& job, int task_no, const std::string& worker_host_port,
     const tensorflow::ConfigProto& config);
 
-//  void SetDeviceMapping(const std::string& from_device, const std::string& to_device);
-//  std::string GetDeviceMapping(const std::string& device);
-
   static XlaComputationProxy *Get() {
     return dynamic_cast<XlaComputationProxy *>(Super::Get());
   }
@@ -90,49 +71,6 @@ private:
   class GlobalDataHandleMapper;
 
   std::vector<DataPtr> TransferToServerInternal(absl::Span<const TensorSource> tensors);
-
-//  class XrtData : public XrtData {
-//  public:
-//    //using XlaHandle = XrtHandle;
-//    //using XlaHandlePtr = std::shared_ptr<XlaHandle>;
-//
-//    XrtData(std::string device, std::string proxy_device, Shape device_shape)
-//    : XrtData(std::move(device), std::move(device_shape)), proxy_device_(std::move(proxy_device)) {}
-//
-//    XrtData(XrtComputationClient* self, std::string device, Shape shape, int64 handle)
-//      : XrtData(std::move(device), std::move(device_shape)) {
-//      handle_ptr = std::make_shared<XrtHandle>(
-//        handle,
-//        [self, this, handle]() {
-//          self->ReleaseXrtData(this->device(), handle);
-//        }
-//      );
-//    };
-//    XrtData(XlaComputationProxy* self, std::string device, std::string proxy_device, Shape device_shape, int64 handle)
-//      : XrtData(std::move(device), std::move(device_shape)), proxy_device_(std::move(proxy_device)) {
-//      handle_ptr = std::make_shared<XrtHandle>(
-//        handle,
-//        [self, this, handle]() {
-//          self->ReleaseXrtData(this->device(), handle);
-//        }
-//      );
-//    }
-//
-//    const std::string& get_proxy_device() const { return proxy_device_; }
-//
-////    int64 get_handle() const { return handle_ptr_->handle; }
-////    OpaqueHandle GetOpaqueHandle() override { return get_handle(); }
-//
-//    const std::string& device() const override { return proxy_device_.empty() ? XrtData::device() : proxy_device_; }
-//
-//    void Assign(const Data& data) override;
-//
-////    bool HasValue() const override { return handle_ptr_ != nullptr; }
-//
-//  private:
-//    //XlaHandlePtr handle_ptr_;
-//    std::string proxy_device_;
-//  };
 
   mutable std::recursive_mutex xla_client_map_mtx_;
   std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
@@ -181,6 +119,148 @@ private:
   void ReleaseXrtData(const std::string& device, int64 handle) override;
   void ReleaseXlaProxyData(const std::string& device, int64 handle);
 };
+
+enum class Color {
+  BG_INVALID = -1,
+  FG_RESET = 0,
+  FG_RED = 31,
+  FG_GREEN = 32,
+  FG_YELLOW = 33,
+  FG_BLUE = 34,
+  FG_MAGENTA = 35,
+  FG_CYAN = 36,
+  FG_WHITE = 37,
+  FG_DEFAULT = 39,
+  BG_RED = 41,
+  BG_GREEN = 42,
+  BG_BLUE = 44,
+  BG_MAGENTA = 45,
+  BG_CYAN = 46,
+  BG_WHITE = 47,
+  BG_DEFAULT = 49,
+};
+
+class ColorModifier {
+  const Color code;
+  const bool bright;
+public:
+  ColorModifier(Color pCode, const bool is_bright=true)
+      : code(pCode), bright(is_bright) {}
+
+  friend std::ostream &
+  operator<<(std::ostream &os, const ColorModifier &mod) {
+    return os << "\033[" << (mod.bright ? "1;" : "0;") << (int)mod.code << "m";
+  }
+};
+
+class ColorScope {
+  std::ostream& os_;
+public:
+  inline ColorScope(std::ostream& os, Color pCode, bool bright=true) : os_(os) {
+    ColorModifier mod(pCode, bright);
+    os << mod;
+  }
+  inline ColorScope(std::ostream& os, std::vector<Color> codes, bool bright=false) : os_(os) {
+    for (auto c : codes) {
+      ColorModifier mod(c, bright);
+      os << mod;
+    }
+  }
+  ColorScope(Color pCode, bool bright=true) : os_(std::cout) {
+    os_ << ColorModifier(pCode, bright) << std::flush;
+  }
+  ~ColorScope() {
+    os_ << ColorModifier(Color::FG_DEFAULT) << ColorModifier(Color::BG_DEFAULT) << std::flush;
+  }
+};
+
+template<typename T>
+inline std::string to_string(const T& obj) {
+  std::stringstream ss;
+  ss << obj;
+  return std::move(ss.str());
+}
+
+
+#define WSE_DEBUG_LOGGING
+
+#ifdef WSE_DEBUG_LOGGING
+
+class EnterLeave {
+  static __thread int depth_;
+  static const std::string library_;
+  static const Color library_color_;
+  const std::string label_;
+  const pid_t thread_id_;
+  const bool both_;
+  const Color use_color_;
+  static std::mutex mtx_;
+public:
+  static std::string concat(const char *s0, const char *s1, const char *s2) {
+    std::string s;
+    if (s0 && *s0) {
+      s = s0;
+      s += "::";
+    }
+    if (s1) {
+      s += s1;
+    }
+    if (s2 && *s2) {
+      s += " (";
+      s += s2;
+      s += ")";
+    }
+    return s;
+  }
+  inline EnterLeave(const std::string& label, bool both=true, const Color use_color = Color::BG_INVALID)
+      : label_(label), thread_id_(gettid() /*syscall(SYS_gettid)*/), both_(both),
+        use_color_(use_color == Color::BG_INVALID ? library_color_ : use_color) {
+    std::lock_guard<std::mutex> lk(mtx_);
+    for (int x = 0; x < depth_; ++x) {
+      printf("  ");
+    }
+    ColorScope color_scope(use_color_);
+    printf("%s[tid=%d (%s)]: %s\n", both_ ? "ENTER" : "HERE", thread_id_, library_.c_str(), label.c_str());
+    fflush(stdout);
+    ++depth_;
+  }
+  inline ~EnterLeave() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    --depth_;
+    if (both_) {
+      ColorScope color_scope(use_color_);
+      for (int x = 0; x < depth_; ++x) {
+        printf("  ");
+      }
+      printf("LEAVE[tid=%d (%s)]: %s\n", thread_id_, library_.c_str(), label_.c_str());
+      fflush(stdout);
+    }
+  }
+};
+#else
+
+class EnterLeave {
+public:
+  inline EnterLeave(const std::string& label, bool both=true) {}
+};
+
+#endif  // WSE_DEBUG_LOGGING
+
+#ifdef WSE_DEBUG_LOGGING
+
+std::string short_fn_name(const std::string &fn_name);
+
+#define HEREC(__color$) EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), """"), true, __color$)
+#define HERE() EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""))
+#define HEREX() EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), false)
+#define HEREXC(__color$) EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), false, __color$)
+#define HEREXCT(__color$) EnterLeave __here(EnterLeave::concat(std::to_string(this).c_str(), ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), false, __color$)
+#else
+#define HERE() ((void)0)
+#define HEREX() ((void)0)
+#endif
+
+#define ENDL std::endl << std::flush
 
 }  // namespace xla
 

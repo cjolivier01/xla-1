@@ -61,7 +61,6 @@ include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
 message(STATUS "ptxla CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS}")
-#set(CMAKE_CXX_FLAGS "-std=c++17 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fPIC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fwrapv ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-Wno-sign-compare ${CMAKE_CXX_FLAGS}")
