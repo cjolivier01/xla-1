@@ -30,11 +30,11 @@
 #include <strstream>
 #include <csignal>
 
-//#define TF_HAS_WSE_DEVICE
+#define TF_HAS_WSE_DEVICE
 
 #ifdef TF_HAS_WSE_DEVICE
 #include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
-using CompilerType = xla::cpu::WseCompiler;
+using CompilerType = xla::wse::WseCompiler;
 #else
 #include "tensorflow/compiler/xla/service/cpu/cpu_compiler.h"
 using CompilerType = xla::cpu::CpuCompiler;
@@ -77,7 +77,7 @@ bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
-bool disable_proxy = false;
+bool disable_proxy = true;
 bool throw_on_compile_fail = true;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
