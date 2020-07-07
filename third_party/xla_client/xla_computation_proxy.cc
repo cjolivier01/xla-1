@@ -70,7 +70,7 @@ bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
-bool disable_proxy = false;
+bool disable_proxy = true;
 bool throw_on_compile_fail = true;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
@@ -85,30 +85,6 @@ std::vector<std::string> split(const std::string& str, const char delim) {
   }
   return std::move(strings);
 }
-
-//bool is_device(const std::string& found_device, const std::string& want_device) {
-//  // Check for blank in order to help out
-//  // when is_wse_proxy_device() returns blank
-//  if (!found_device.empty()) {
-//    const std::vector<std::string> parts = split(found_device, ':');
-//    if (!parts.empty()) {
-//      return parts[0] == want_device;
-//    }
-//  }
-//  return false;
-//}
-
-//bool is_wse_device(const std::string& found_device) {
-//  return is_device(found_device, "WSE");
-//}
-
-//bool is_wse_device(const XrtComputationClient::TensorSource& tensor_source) {
-//  return is_wse_device(tensor_source.device);
-//}
-//
-//bool is_wse_device(const XrtComputationClient::DataPtr& data_ptr) {
-//  return is_wse_device(data_ptr->device());
-//}
 
 template<typename DEST_MSG, typename SRC_MSG_ARRAY>
 const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64 id) {
@@ -433,16 +409,6 @@ public:
   std::map<HandleAndDevice, std::set<HandleAndDevice>> handle_map_;
   std::map<HandleAndDevice, ComputationClient::DataPtr> cloned_data_map_;
 };
-
-//void XlaComputationProxy::XrtData::Assign(const ComputationClient::Data& data) {
-//  HEREX();
-//  XrtData::Assign(data);
-//  auto& proxy_data = dynamic_cast<const XrtData&>(data);
-//  assert(&proxy_data);
-//  if (&proxy_data != this) {
-//    proxy_device_ = proxy_data.proxy_device_;
-//  }
-//}
 
 ComputationClient::DataPtr XlaComputationProxy::CreateDataPlaceholder(std::string device, Shape shape) {
   //HERE();
@@ -1142,7 +1108,6 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::NormalizeDataToDevi
       //
       // Split again by move direction direction
       //
-#if 1
       auto move_results = split_types<std::vector<ComputationClient::DataPtr>>(
         local_tensors,
         [](const ComputationClient::DataPtr& data_ptr) {
@@ -1242,99 +1207,6 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::NormalizeDataToDevi
           return std::move(results);
         }
       );
-#else
-      // Need to move the tensor data
-      for (ComputationClient::DataPtr tensor : local_tensors) {
-        if (ProxyName::is_proxy_device_name(tensor->device())) {
-          // PROXY -> XRT
-          assert(device == ProxyName::unproxy_device_name(tensor->device()));
-        } else {
-          // XRT -> PROXY
-          assert(device == ProxyName::proxy_device_name(tensor->device()));
-          //assert(false);  // need to move implementation from execute() along with the mapping
-        }
-      }
-      std::vector<Literal> literals = TransferFromServer(local_tensors);
-      std::vector<TensorSource> tensor_sources;
-      tensor_sources.reserve(tensor_sources.size());
-      for (Literal& literal : literals) {
-        TensorSource td(literal.shape(), device, [&literal](const TensorSource& src, void* buff, size_t size){
-          memcpy(buff, get_data_ptr(literal), size);
-        });
-        tensor_sources.emplace_back(std::move(td));
-      }
-      std::vector<ComputationClient::DataPtr> results = TransferToServer(tensor_sources);
-      if (in_place) {
-        // modify the data pointers in-place
-        std::size_t index = 0;
-        for (ComputationClient::DataPtr transferred_tensor : results) {
-          // in-place
-          results[index] = local_tensors[index];
-          results[index]->Assign(*transferred_tensor);
-          ++index;
-        }
-      } else {
-        assert(false);  // TODO: finish me
-        std::size_t index = 0;
-        for (ComputationClient::DataPtr transferred_tensor : results) {
-          // Not sure if this is correct to do mapping here
-          const DataPtr& src_tensor = local_tensors[index];
-          if (ProxyName::is_proxy_device_name(src_tensor->device())) {
-            // PROXY -> XRT
-            assert(ProxyName::is_proxy_device_name(transferred_tensor->device()));
-            data_mapper_->AddMapping(
-              transferred_tensor->device(),
-              transferred_tensor->GetOpaqueHandle(),
-              src_tensor
-            );
-          } else {
-            //assert(false);  // TODO: finish me
-            // XRT -> PROXY
-            for (DataPtr& argument : local_tensors) {
-              if (data_mapper_->HasMapping(argument->device(), argument->GetOpaqueHandle())) {
-                DataPtr mapped_argument = data_mapper_->GetMapping(
-                  argument->device(), argument->GetOpaqueHandle());
-                if (mapped_argument) {
-                  argument = mapped_argument;
-                } else {
-                  // TODO: use split() to do in batches
-                  std::vector<DataPtr> arguments_to_move{argument};
-                  std::vector<DataPtr> moved_arguments = MoveDataBetweenDevices(
-                    arguments_to_move,
-                    device,
-                    false,
-                    true
-                  );
-                  if (verbose) {
-                    std::cout << "Moved data for argument: "
-                              << argument->GetOpaqueHandle() << " @" << argument->device()
-                              << " ==> " << moved_arguments[0]->GetOpaqueHandle() << " @"
-                              << moved_arguments[0]->device()
-                              << std::endl << std::flush;
-                  }
-                  argument = moved_arguments[0];
-                }
-              } else {
-                ColorScope red(Color::FG_RED);
-                if (verbose) {
-                  std::cout << "\t*** No mapping for argument handle:"
-                            << argument->GetOpaqueHandle() << " @" << argument->device()
-                            << std::endl << std::flush;
-                }
-                //throw std::runtime_error("Unable to map argument to new device");
-              }
-              if (verbose) {
-                std::cout << "\t-> effective argument handle: " << argument->GetOpaqueHandle()
-                          << " @" << argument->device()
-                          << " shape = " << argument->shape()
-                          << std::endl << std::flush;
-              }
-            }
-          }
-          ++index;
-        }
-      }
-#endif
       return std::move(move_results);
     }
   );
@@ -1391,65 +1263,12 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
                 << std::endl << std::flush;
     }
 
-    // TODO: use NormalizeDataToDevice
-#if 1
     std::vector<ComputationClient::DataPtr> args = NormalizeDataToDevice(
       arguments, effective_device, false
     );
     for (auto& dp : args) {
       request.add_arguments()->set_handle(dp->GetOpaqueHandle());
     }
-#else
-    for (DataPtr argument : arguments) {
-      if (verbose) {
-        std::cout << "incoming argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
-                  << " shape = " << argument->shape()
-                  << std::endl << std::flush;
-      }
-      if (argument->device() != effective_device &&
-        //effective_device == CLONE_DATA_DEVICE
-        ProxyName::is_proxy_device_name(effective_device)
-      ) {
-        if (data_mapper_->HasMapping(argument->device(), argument->GetOpaqueHandle())) {
-          DataPtr mapped_argument = data_mapper_->GetMapping(
-            argument->device(), argument->GetOpaqueHandle());
-          if (mapped_argument) {
-            argument = mapped_argument;
-          } else {
-            // TODO: use split() to do in batches
-            std::vector<DataPtr> arguments_to_move{argument};
-            std::vector<DataPtr> moved_arguments = MoveDataBetweenDevices(
-              arguments_to_move,
-              effective_device,
-              false,
-              true
-            );
-            if (verbose) {
-              std::cout << "Moved data for argument: "
-                        << argument->GetOpaqueHandle() << " @" << argument->device()
-                        << " ==> " << moved_arguments[0]->GetOpaqueHandle() << " @" << moved_arguments[0]->device()
-                        << std::endl << std::flush;
-            }
-            argument = moved_arguments[0];
-          }
-        } else {
-          ColorScope red(Color::FG_RED);
-          if (verbose) {
-            std::cout << "\t*** No mapping for argument handle:"
-                      << argument->GetOpaqueHandle() << " @" << argument->device()
-                      << std::endl << std::flush;
-          }
-          //throw std::runtime_error("Unable to map argument to new device");
-        }
-        if (verbose) {
-          std::cout << "\t-> effective argument handle: " << argument->GetOpaqueHandle() << " @" << argument->device()
-                    << " shape = " << argument->shape()
-                    << std::endl << std::flush;
-        }
-      }
-      request.add_arguments()->set_handle(argument->GetOpaqueHandle());
-    }
-#endif
 
     xla::ExecutionOptions eo;
     *eo.mutable_debug_options() = GetDebugOptionsFromFlags();
@@ -1495,8 +1314,6 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
       results.reserve(dt_response.element_handles_size());
       result_handles.reserve(dt_response.element_handles_size());
       for (const ::xla::GlobalDataHandle& element_handle : dt_response.element_handles()) {
-//        std::cout << "Tuple returned element handle: " << element_handle.handle()
-//                  << std::endl << std::flush;
         result_handles.push_back(element_handle);
       }
       for (const ::xla::GlobalDataHandle& element_handle : result_handles) {
