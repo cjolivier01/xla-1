@@ -463,6 +463,9 @@ bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, co
 }
 
 void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
+  if (!XlaComputationProxy::IsEnabled()) {
+    return;
+  }
   if (device.empty()) {
     throw std::runtime_error("Invalid empty device string");
   }
