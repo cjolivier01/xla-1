@@ -71,7 +71,7 @@ def _parse_workers_config(config):
   # XRT_WORKERS='worker:0;ismz9:25822'
   workers = collections.OrderedDict()
   for worker in config.split('|'):
-    m = re.match(r'(\w+):(\d+);((grpc://)?[\w.]+:\d+)', worker)
+    m = re.match(r'(\w+):(\d+);((grpc://)?[\w.\-]+:\d+)', worker)
     if not m:
       raise ValueError('Bad worker syntax: {}'.format(worker))
     workers['{}:{}'.format(m.group(1), m.group(2))] = WorkerConfigEntry(
@@ -83,7 +83,7 @@ def _parse_tpu_config(config):
   # XRT_TPU_CONFIG='tpu_worker;0;ismz9:25822'
   workers = collections.OrderedDict()
   for worker in config.split('|'):
-    m = re.match(r'(\w+);(\d+);([\w.]+:\d+)', worker)
+    m = re.match(r'(\w+);(\d+);([\w.\-]+:\d+)', worker)
     if not m:
       raise ValueError('Bad worker syntax: {}'.format(worker))
     workers['{}:{}'.format(m.group(1), m.group(2))] = WorkerConfigEntry(
@@ -104,7 +104,7 @@ def _get_devices_per_worker():
   num_cpus = os.environ.get(xenv.CPU_NUM_DEVICES, None)
   if num_cpus is not None:
     return int(num_cpus), 'CPU'
-  raise RuntimeError('Missing TPU or GPU configuration')
+  raise RuntimeError('Missing TPU, GPU or CPU configuration')
 
 
 def _get_multiprocessing_device():
