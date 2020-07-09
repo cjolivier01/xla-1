@@ -77,8 +77,9 @@ bool always_use_proxy = false;
 bool wse_set_topology = false;
 bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
-bool disable_proxy = true;
+bool disable_proxy = false;
 bool throw_on_compile_fail = true;
+bool verbose_pull = false;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
@@ -440,8 +441,6 @@ XlaComputationProxy::XlaComputationProxy(
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)),
     data_mapper_(std::make_unique<GlobalDataHandleMapper>()) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
-  std::cout << "CREATE XlaComputationProxy" << std::endl << std::flush;
-
 }
 
 bool XlaComputationProxy::IsEnabled() {
@@ -901,7 +900,7 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
     [this](std::vector<DataPtr>& wse_handles) {
       // WSE (true)
 
-      if (verbose) {
+      if (verbose || verbose_pull) {
         for (const DataPtr& d : wse_handles) {
           ColorScope clr(Color::FG_RED);
           std::cout << getpid() << " XlaComputationProxy::TransferFromServer() "

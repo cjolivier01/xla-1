@@ -33,9 +33,10 @@
 namespace xla {
 namespace {
 
-bool verbose = true;
+bool verbose = false;
 bool verbose_mp = true;
-bool verbose_transfers = true;
+bool verbose_transfers = false;
+bool verbose_pull = true;
 bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 
@@ -448,7 +449,7 @@ XrtComputationClient::TransferToServerInternal(
 std::vector<Literal> XrtComputationClient::TransferFromServer(
     absl::Span<const DataPtr> handles) {
 
-  if (verbose) {
+  if (verbose || verbose_pull) {
       ColorScope clr(Color::FG_MAGENTA);
       std::cout /*<< getpid()*/ << " XrtComputationClient::TransferFromServer( ";
       size_t i = 0;

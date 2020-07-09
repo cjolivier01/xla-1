@@ -32,6 +32,8 @@ bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = verbose;
 bool verbose_output_control = verbose || false;
 bool verbose_mp = true;
+bool verbose_hash = false;
+bool verbose_non_fabric = false;
 
 constexpr size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
@@ -729,7 +731,7 @@ bool XLASentinel::OnHashingComplete(
     // Note: For trusted, we don't need to analyze anything
     std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(coll.requesting_tid);
     if (coll.hash != compile_info->hash()) {
-      if (true || verbose) {
+      if (verbose || verbose_hash) {
         ColorScope clr(Color::FG_GREEN);
         std::cout << mp() << "NEW HASH: " << compile_info->hash()
                   << " -> " << coll.hash
@@ -747,10 +749,12 @@ bool XLASentinel::OnHashingComplete(
     }
 
     ColorScope clr(Color::FG_GREEN);
-    std::cout << mp()
-              << "SAME HASH AS LAST TIME OR TRUSTED: "
-              << compile_info->hash()
-              << ENDL;
+    if (verbose || verbose_hash) {
+      std::cout << mp()
+                << "SAME HASH AS LAST TIME OR TRUSTED: "
+                << compile_info->hash()
+                << ENDL;
+    }
     assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
     ++compile_info->mark_step_count_since_last_reset_;
     if (IsQualifyingStep(coll.requesting_tid)) {
@@ -822,11 +826,13 @@ void XLASentinel::NotifyCompile(
     XLA_COUNTER("SentinelMasterThreadCompile", 1);
     if (!ex_cache->has_executable_by_adjusted_hash(hash)) {
       XLA_COUNTER("SentinelNonProxyCompile", 1);
-      ColorScope clr(std::cout, {Color::FG_BLUE}, false);
       assert(instances.size() == 1);  // always just one? maybe in distrib its one each.
-      std::cout << "** NON-FABRIC COMPILE: "
-                << to_string(instances[0].computation.GetProgramShape().ValueOrDie())
-                << ENDL;
+      if (verbose || verbose_non_fabric) {
+        ColorScope clr(std::cout, {Color::FG_BLUE}, false);
+        std::cout << "** NON-FABRIC COMPILE: "
+                  << to_string(instances[0].computation.GetProgramShape().ValueOrDie())
+                  << ENDL;
+      }
     } else {
       XLA_COUNTER("SentinelProxyCompile", 1);
     }
@@ -848,10 +854,12 @@ void XLASentinel::NotifyExecute(
     XLA_COUNTER("SentinelMasterThreadExecute", 1);
     if(!ex_cache->has_executable_by_adjusted_hash(hash)) {
       XLA_COUNTER("SentinelNonProxyExecute", 1);
-      ColorScope clr(std::cout, {Color::FG_BLUE}, false);
-      std::cout << "** NON-FABRIC EXECUTION: "
-                << to_string(computation.program_shape())
-                << ENDL;
+      if (verbose || verbose_non_fabric) {
+        ColorScope clr(std::cout, {Color::FG_BLUE}, false);
+        std::cout << "** NON-FABRIC EXECUTION: "
+                  << to_string(computation.program_shape())
+                  << ENDL;
+      }
     } else {
       XLA_COUNTER("SentinelProxyExecute", 1);
     }
