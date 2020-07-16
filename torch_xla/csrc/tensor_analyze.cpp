@@ -483,13 +483,8 @@ bool XLASentinel::PreProcessHlo(
 
 void XLASentinel::SetDeviceProxyAddress(const std::string& device,
                                            const std::string& proxy_address) {
-  xla::ComputationClient* cc = xla::XrtComputationClient::Get();
-  auto computation_client = dynamic_cast<xla::XlaComputationProxy*>(cc);
-  if (computation_client) {
-    computation_client->SetDeviceProxyAddress(device, proxy_address);
-  } else {
-    throw std::runtime_error("Device proxying is not enabled");
-  }
+  // DO NOT CREATE THE COMPUTATION CLIENT!!
+  xla::XlaComputationProxy::SetDeviceProxyAddress(device, proxy_address);
 }
 
 bool XLASentinel::HasWseDevices() {

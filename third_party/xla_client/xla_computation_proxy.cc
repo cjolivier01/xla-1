@@ -273,7 +273,10 @@ __thread size_t MoveScope::in_move_scope_ = 0;
 
 }  // anonymous namespace
 
-class XlaComputationProxy::XlaClientInfo {
+std::recursive_mutex XlaComputationProxy::xla_client_map_mtx_;
+std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> XlaComputationProxy::xla_client_map_;
+
+class XlaClientInfo {
 public:
 
   inline std::shared_ptr<xla::ServiceInterface> operator ()() { return xla_client_; }
@@ -451,15 +454,15 @@ bool XlaComputationProxy::IsEnabled() {
   return enabled;
 }
 
-bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, const std::string &proxy_device) {
-  assert(!source_device.empty());
-  std::lock_guard<std::mutex> lk(proxy_mapping_mtx_);
-  if (!proxy_device.empty()) {
-    proxy_mapping_.insert({source_device, proxy_device});
-  } else {
-    proxy_mapping_.erase(source_device);
-  }
-}
+//bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, const std::string &proxy_device) {
+//  assert(!source_device.empty());
+//  std::lock_guard<std::mutex> lk(proxy_mapping_mtx_);
+//  if (!proxy_device.empty()) {
+//    proxy_mapping_.insert({source_device, proxy_device});
+//  } else {
+//    proxy_mapping_.erase(source_device);
+//  }
+//}
 
 void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
   if (!XlaComputationProxy::IsEnabled()) {

@@ -13,6 +13,7 @@
 
 namespace xla {
 
+class XlaClientInfo;
 
 class XlaComputationProxy : public XrtComputationClient {
     typedef XrtComputationClient Super;
@@ -56,7 +57,7 @@ public:
       const Computation& computation, absl::Span<const DataPtr> arguments,
       const std::string& device, const ExecuteComputationOptions& options) override;
 
-  void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
+  static void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
 
   static tensorflow::tpu::TopologyProto InitializeAndFetchTopology(
     const std::string& job, int task_no, const std::string& worker_host_port,
@@ -69,13 +70,12 @@ public:
   static bool IsEnabled();
 
 private:
-  class XlaClientInfo;
   class GlobalDataHandleMapper;
 
   std::vector<DataPtr> TransferToServerInternal(absl::Span<const TensorSource> tensors);
 
-  mutable std::recursive_mutex xla_client_map_mtx_;
-  std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
+  static std::recursive_mutex xla_client_map_mtx_;
+  static std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
 
   std::unique_ptr<GlobalDataHandleMapper> data_mapper_;
 
@@ -108,7 +108,7 @@ private:
     const Literal& literal
   );
   //bool IsProxyDevice(const std::string& device) const;
-  bool SetProxyForDevice(const std::string& source_device, const std::string& proxy_device);
+  //bool SetProxyForDevice(const std::string& source_device, const std::string& proxy_device);
   bool ShouldCloneDataForDevice(const std::string& device) const;
   bool IsProxyExecutable(uint64_t executable_handle) const;
   void AddProxyExecutable(uint64_t executable_handle);
