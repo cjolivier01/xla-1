@@ -60,8 +60,8 @@ public:
   static void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
 
   static tensorflow::tpu::TopologyProto InitializeAndFetchTopology(
-    const std::string& job, int task_no, const std::string& worker_host_port,
-    const tensorflow::ConfigProto& config);
+      const std::string& job, int task_no, const std::string& worker_host_port,
+      const tensorflow::ConfigProto& config);
 
   static XlaComputationProxy *Get() {
     return dynamic_cast<XlaComputationProxy *>(Super::Get());

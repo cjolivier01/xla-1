@@ -22,7 +22,6 @@ NodePtr LogSoftmaxBackward::Clone(OpList operands) const {
 }
 
 XlaOpVector LogSoftmaxBackward::Lower(LoweringContext* loctx) const {
-  ir::ScopePusher("WSE_LogSoftmaxBWD");
   xla::XlaOp grad_output = loctx->GetOutputOp(operand(0));
   xla::XlaOp output = loctx->GetOutputOp(operand(1));
   xla::XlaOp grad_input =

@@ -104,6 +104,7 @@ set(USE_TORCH_LIBRARIES torch torch_cpu c10 torch_python)
 
 target_link_libraries(
         ptxla
+        PUBLIC
         -Wl,--unresolved-symbols=ignore-in-shared-libs
         "${USE_TORCH_LIBRARIES}"
         "${PTPY_LIB}"
@@ -113,18 +114,27 @@ target_link_libraries(
         -lstdc++
         -latomic
 )
+#
+# _XLAC extension
+#
 
-add_custom_target(
-        xlac_link ALL
-        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${XLAC_BINARY_DIR}/_XLAC.${CPYTHON_STR}.so"
-        DEPENDS ptxla
-)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
 
 add_custom_target(
         xlac ALL
-        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
-        DEPENDS ptxla xlac_link _C
+        #COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
+        #DEPENDS ptxla xlac_link _C
+        COMMAND "echo" "build _XLAC extension"
+        DEPENDS ptxla ${XLAC_EXTENSION_TARGET}
 )
+# how to set RTLD_DEEPBIND# How to force RTLD_DEEPBIND?
+# -Wl,--copy-dt-needed-entries
+add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
+set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES OUTPUT_NAME "${XLAC_EXTENSION_TARGET}")
+set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES PREFIX "")
+target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE $<TARGET_FILE:ptxla>)
 
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="-Wl,--gdb-index" ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
 
@@ -135,8 +145,11 @@ if (BUILD_TENSORFLOW)
 
     set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
-    target_link_libraries(ptxla ${LIBXLA_COMPUTATION_CLIENT_LIB})
-    target_link_libraries(ptxla ${FRAMEWORK_LIBS})
+
+    target_link_libraries(ptxla PRIVATE ${LIBXLA_COMPUTATION_CLIENT_LIB})
+    target_link_libraries(ptxla PRIVATE ${FRAMEWORK_LIBS})
+#    target_link_libraries(ptxla /spare/chriso/home/chriso/src/ml_frameworks/bazel-cache-gcc/49c12158c33905d57743a99d8036b9ee/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/compiler/xla/xla_client/libcomputation_client_impl.pic.lo)
+
     add_dependencies(ptxla libxla_computation_client)
 
     set(TF_SOURCE_FILE "${TF_DIRECTORY}/bazel-bin/tensorflow/compiler/xla/xla_client/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")

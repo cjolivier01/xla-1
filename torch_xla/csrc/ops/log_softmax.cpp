@@ -43,7 +43,6 @@ NodePtr LogSoftmax::Clone(OpList operands) const {
 }
 
 XlaOpVector LogSoftmax::Lower(LoweringContext* loctx) const {
-  ir::ScopePusher("WSE_LogSoftmaxFWD");
   xla::XlaOp input = loctx->GetOutputOp(operand(0));
   return ReturnOp(LowerLogSoftmax(input, dim_, dtype_), loctx);
 }

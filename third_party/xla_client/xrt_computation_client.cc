@@ -33,7 +33,7 @@
 namespace xla {
 namespace {
 
-bool verbose = false;
+bool verbose = true;
 bool verbose_mp = true;
 bool verbose_transfers = false;
 bool verbose_pull = true;
@@ -46,13 +46,14 @@ thread_local std::vector<std::string> g_replication_devices;
 //     return syscall(__NR_gettid);
 // }
 
-bool IsMeshable(std::string device) {
+bool IsDistributedDevice(std::string device) {
   const char *start = device.c_str();
   const char *colon = strchr(start, ':');
   if (colon) {
     device.resize(colon - start);
   }
-  return device == "TPU" /*|| device == "WSE"*/;
+  // Apparently there's no such thing as XLA_TPU
+  return device == "TPU" || (device == "WSE" || device == "XLA_WSE");
 }
 
 // A simple Tensorflow Allocator which caches Tensor allocations in order to
@@ -378,7 +379,7 @@ std::vector<ComputationClient::DataPtr>
 XrtComputationClient::TransferToServerInternal(
     absl::Span<const TensorSource> tensors) {
   metrics::TimedSection timed(TransferToServerMetric());
-
+  //raise(SIGTRAP);
   std::mutex lock;
   XrtSessionCache::SessionMap session_map;
   int64 total_size = 0;
@@ -748,7 +749,8 @@ void XrtComputationClient::SetupExecConfig(const Device& device,
                                            T* exec_config) const {
   exec_config->set_core_index_in_replica(0);
   exec_config->set_rng_seed(rng_seed_);
-  if (device.kind != "TPU") {
+  //if (device.kind != "TPU") {
+  if (!IsDistributedDevice(device.kind)) {
     // TPU ignores those fields, and given that the device list can be in the
     // thousands for POD scale, we avoid wasting time filling it up.
     xrt::CommonExecutionConfig* cmn_config =
@@ -1034,6 +1036,7 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
       Device device(devices[i]);
       auto replica_device = computation_device->add_replica_devices();
       if (device.kind == "TPU") {
+      //if (IsDistributedDevice(device.kind)) {
         const std::string& xrt_device = TorchDeviceToXrtDevice(devices[i]);
         const auto& core_coords = GetDeviceMeshCoords(xrt_device);
         for (auto coord : core_coords) {
@@ -1315,7 +1318,7 @@ void XrtComputationClient::InitializeDevices(
     for (const auto& dev_target : options_.global_device_map) {
       tensorflow::DeviceNameUtils::ParsedName parsed_device =
           ParseFullXrtDevice(dev_target.second);
-      if (IsMeshable(parsed_device.type)) {
+      if (IsDistributedDevice(parsed_device.type)) {
         tpu_workers.emplace(parsed_device.job, parsed_device.task);
       }
     }
@@ -1327,8 +1330,9 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          InitializeAndFetchTopology(worker.name, worker.task_no, it->second,
-                                     session_cache_->GetConfig());
+          XlaComputationProxy::InitializeAndFetchTopology(
+              worker.name, worker.task_no, it->second,
+              session_cache_->GetConfig());
       if (topology_proto == nullptr) {
         topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
             std::move(worker_topology_proto));
@@ -1341,7 +1345,7 @@ void XrtComputationClient::InitializeDevices(
   for (const auto& dev_target : options_.global_device_map) {
     tensorflow::DeviceNameUtils::ParsedName parsed_device =
         ParseFullXrtDevice(dev_target.second);
-    if (!IsMeshable(parsed_device.type)) {
+    if (!IsDistributedDevice(parsed_device.type)) {
       continue;
     }
     XLA_CHECK_LE(parsed_device.task, topology_proto->num_tasks());
@@ -1356,6 +1360,7 @@ void XrtComputationClient::InitializeDevices(
                        parsed_device.id * topology_proto->mesh_shape_size();
     std::vector<int> device_mesh_coords(topology_proto->mesh_shape_size());
     for (int i = 0; i < topology_proto->mesh_shape_size(); ++i) {
+      XLA_CHECK_LT(base_index + i, topology_proto->device_coordinates_size());
       device_mesh_coords[i] =
           topology_proto->device_coordinates(base_index + i);
     }

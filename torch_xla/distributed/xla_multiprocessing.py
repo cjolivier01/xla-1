@@ -24,7 +24,7 @@ _CUDA_VISIBLE_DEVICES = 'CUDA_VISIBLE_DEVICES'
 def _is_xla_config():
   for env in [
       xenv.TPU_CONFIG, xenv.LOCAL_WORKER, xenv.GPU_NUM_DEVICES,
-      xenv.CPU_NUM_DEVICES
+      xenv.CPU_NUM_DEVICES,
   ]:
     if os.environ.get(env, None) is not None:
       return True
@@ -71,7 +71,7 @@ def _parse_workers_config(config):
   # XRT_WORKERS='worker:0;ismz9:25822'
   workers = collections.OrderedDict()
   for worker in config.split('|'):
-    m = re.match(r'(\w+):(\d+);((grpc://)?[\w.\-]+:\d+)', worker)
+    m = re.match(r'(\w+):(\d+);((grpc://)?[a-zA-Z0-9_\-]+:\d+)', worker)
     if not m:
       raise ValueError('Bad worker syntax: {}'.format(worker))
     workers['{}:{}'.format(m.group(1), m.group(2))] = WorkerConfigEntry(
@@ -83,7 +83,7 @@ def _parse_tpu_config(config):
   # XRT_TPU_CONFIG='tpu_worker;0;ismz9:25822'
   workers = collections.OrderedDict()
   for worker in config.split('|'):
-    m = re.match(r'(\w+);(\d+);([\w.\-]+:\d+)', worker)
+    m = re.match(r'(\w+);(\d+);([a-zA-Z0-9_\-]+:\d+)', worker)
     if not m:
       raise ValueError('Bad worker syntax: {}'.format(worker))
     workers['{}:{}'.format(m.group(1), m.group(2))] = WorkerConfigEntry(
@@ -93,7 +93,11 @@ def _parse_tpu_config(config):
 
 def _get_devices_per_worker():
   num_tpus = os.environ.get(xenv.TPU_NUM_DEVICES, None)
-  if os.environ.get(xenv.TPU_CONFIG, None) is not None or num_tpus is not None:
+  if (
+      (os.environ.get(xenv.TPU_CONFIG, None) is not None or num_tpus is not None)
+      and not os.environ.get(xenv.WSE_NUM_DEVICES, None)
+  ):
+    assert False  # cjolivier01: No...
     return int(num_tpus or '8'), 'TPU'
   num_gpus = os.environ.get(xenv.GPU_NUM_DEVICES, None)
   if num_gpus is not None:
@@ -230,18 +234,29 @@ def _pre_fork_setup(num_devices):
     _setup_workers(num_devices)
     _create_gpu_devices(num_devices)
   elif dev_kind == 'WSE':
-    _setup_workers(num_devices)
-    _create_wse_devices(num_devices)
+    if not _is_wse_tpu_mode():
+      _setup_workers(num_devices)
+      _create_wse_devices(num_devices)
   elif dev_kind == 'CPU':
     _pre_fork_cpu_setup(num_devices)
   _pre_fork_setup_torch_distributed()
   return PreForkConfig(dev_kind=dev_kind, num_devices=num_devices)
 
 
+def _force_remote_device():  # cjolivier01
+  """
+  Force multi-device and no local worker
+  :return:
+  """
+  remove_device_count = int(os.environ.get("XLA_DEVICE_CLUSTER", "0"))
+  return remove_device_count != 0
+
+
 def _setup_gpu_worker(index, gindex, pf_cfg):
   os.environ[xenv.MP_DEVICE] = 'GPU:{}'.format(
       _get_mp_device_ordinal(index, gindex))
-  os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
+  if not _force_remote_device():
+    os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
   # Every process is restricted to 1 GPU device, which in such process will be
   # named XLA_GPU:0.
   os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
@@ -251,16 +266,41 @@ def _setup_gpu_worker(index, gindex, pf_cfg):
   os.environ.pop(xenv.GPU_NUM_DEVICES, None)
 
 
-def _setup_wse_worker(index, gindex, pf_cfg):
-  os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(gindex)
-  os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
-  # Every process is restricted to 1 WSE device, which in such process will be
-  # named XLA_WSE:0.
-  #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
-  # We have expanded the WSE devices in the device map already, in
-  # _create_wse_devices(), so delete the key from the environment as it
-  # otherwise triggers device generation again in computation_client.cc.
-  os.environ.pop(xenv.WSE_NUM_DEVICES, None)
+def _is_wse_tpu_mode():
+  return int(os.environ.get("WSE_TPU_MODE", "0")) != 0
+
+
+def _setup_wse_worker(index, gindex, pf_cfg,  tpu_env_config, like_tpu=True):
+  if like_tpu:
+    os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(
+      _get_mp_device_ordinal(index, gindex))
+    if xenv.LOCAL_WORKER not in os.environ:
+      # The local worker can be missing for a 1 TPU host setup. Make sure we
+      # always have one.
+      assert tpu_env_config, '{} environment must be populated'.format(
+        xenv.TPU_CONFIG)
+      tpu_config = _parse_tpu_config(tpu_env_config)
+      worker = list(tpu_config.values())[0]
+      os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(worker.worker_name,
+                                                     worker.ordinal)
+    if not _wants_tpu_env_config(index, gindex):
+      # In multi-processing mode, only the process handling the first device of
+      # the master worker, will do TPU mesh initialization, so we need to remove
+      # the environment configs which would prevent the client to be falling in
+      # the mesh client config path.
+      os.environ.pop(xenv.TPU_CONFIG, None)
+      os.environ.pop(xenv.TPU_NUM_DEVICES, None)
+  else:
+    os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(gindex)
+    if not _force_remote_device():
+      os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
+    # Every process is restricted to 1 WSE device, which in such process will be
+    # named XLA_WSE:0.
+    #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
+    # We have expanded the WSE devices in the device map already, in
+    # _create_wse_devices(), so delete the key from the environment as it
+    # otherwise triggers device generation again in computation_client.cc.
+    os.environ.pop(xenv.WSE_NUM_DEVICES, None)
 
 def _setup_cpu_worker(index, gindex, pf_cfg):
   task_no = 0
@@ -334,10 +374,27 @@ def _prepare_env_for_index(index, pf_cfg):
       #  - The worker ordinal (task number) in the xenv.LOCAL_WORKER must be set
       #    to 0 in all hosts.
       _setup_torch_distributed()
+  elif pf_cfg.dev_kind == 'WSE':
+    _setup_wse_worker(index, gindex, pf_cfg,
+                      os.environ.get(xenv.TPU_CONFIG, None))
+    if _is_wse_tpu_mode() and xenv.HOST_ORDINAL in os.environ:
+      # If xenv.HOST_ORDINAL is set, we are in a sea-of-devices TPU setup, where
+      # each host has local TPU devices, but not interconnected with the fast TPU
+      # link. In this case each TPU host sees only local TPU devices, as far as
+      # fast TPU reduction goes, and global redcutions are performed with normal
+      # torch.distributed facilities. The ordinal 0 of each TPU host will be the
+      # one performing the global reductions, if no groups are defined in the
+      # reduce operation.
+      # Sea of devices configuration:
+      #  - xenv.HOST_ORDINAL must be set to the host ordinal.
+      #  - xenv.TORCH_DIST_ROOT must be set to the HOST:PORT, where HOST can be
+      #    the same host of the mesh master, but different port.
+      #  - xenv.TPU_CONFIG must be set on all host, with task number equal 0.
+      #  - The worker ordinal (task number) in the xenv.LOCAL_WORKER must be set
+      #    to 0 in all hosts.
+      _setup_torch_distributed()
   elif pf_cfg.dev_kind == 'GPU':
     _setup_gpu_worker(index, gindex, pf_cfg)
-  elif pf_cfg.dev_kind == 'WSE':
-    _setup_wse_worker(index, gindex, pf_cfg)
   elif pf_cfg.dev_kind == 'CPU':
     _setup_cpu_worker(index, gindex, pf_cfg)
     _setup_torch_distributed()
@@ -416,10 +473,13 @@ def spawn(fn,
   """
   if not _is_xla_config():
     # If this is not an XLA setup, jump to normal multi-processing.
+    assert False  # chriso@ We don't want this version
     return _run_direct(fn, args, nprocs, join, daemon, start_method)
 
   pf_cfg = _pre_fork_setup(nprocs)
-  if pf_cfg.num_devices == 1:
+  if (
+      pf_cfg.num_devices == 1 and int(os.environ.get("XLA_DEVICE_CLUSTER", "0")) == 0
+  ):
     _start_fn(0, pf_cfg, fn, args)
   else:
     return torch.multiprocessing.start_processes(

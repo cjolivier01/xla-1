@@ -74,7 +74,7 @@ bool verbose = false;
  *        (i.e. delegate everything to the grpc_service_main app)
  */
 bool always_use_proxy = false;
-bool wse_set_topology = false;
+bool wse_set_topology = true;
 bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
 bool disable_proxy = false;
@@ -504,7 +504,6 @@ void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const
 std::shared_ptr<xla::ServiceInterface> XlaComputationProxy::GetXlaClient(const std::string& device, bool create) {
   assert(ProxyName::is_proxy_device_name(device));
   assert(IsEnabled());
-  assert(IsEnabled());
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   auto iter = xla_client_map_.find(device);
   if (iter == xla_client_map_.end()) {
@@ -518,7 +517,7 @@ std::shared_ptr<xla::ServiceInterface> XlaComputationProxy::GetXlaClient(const s
 
       xla::GetDeviceHandlesRequest request;
       xla::GetDeviceHandlesResponse response;
-      request.set_device_count(using_grpc_service_main_cpu ? 1 : 2); // HOW MANY DEVICES??
+      request.set_device_count(1 /*using_grpc_service_main_cpu ? 1 : 2*/); // HOW MANY DEVICES??
       Status status = iter->second->xla_client_->GetDeviceHandles(&request, &response);
       if (!status.ok()) {
         throw std::runtime_error(status.error_message());
@@ -1425,6 +1424,28 @@ int get_env_int(const char *s, const int dflt) {
 }
 }
 
+/*
+message TopologyProto {
+  // The dimensions of the TPU topology, in cores. Typically, this is a 3D
+  // topology [x, y, core], where the major dimensions correspond to TPU chips,
+  // and the minor dimension describes the number of cores on a multicore chip.
+  repeated int32 mesh_shape = 1;
+
+  // Number of TensorFlow tasks in the cluster.
+  int32 num_tasks = 2;
+
+  // Number of TPU devices per task.
+  int32 num_tpu_devices_per_task = 3;
+
+  // A flattened rank 3 int32 array with shape
+  // [num_tasks, num_tpu_devices_per_task, len(mesh_shape)].
+  // `tasks` is the number of tasks in the TPU cluster, `devices` is the number
+  // of TPU devices per task, and the minor dimension corresponds to a position
+  // in the TPU mesh topology. Each entry [task, device, axis] gives the
+  // `axis`-th coordinate in the topology of a task/device pair.
+  repeated int32 device_coordinates = 4;
+}
+ */
 tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   const std::string& job,
   int task_no,
@@ -1438,25 +1459,86 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
             << std::endl << std::flush;
   const int wse_num_devices = get_env_int("WSE_NUM_DEVICES", 0);
   const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
-  if (!wse_set_topology || !wse_num_devices) {
+  if (!IsEnabled() || !wse_set_topology || !wse_num_devices
+      || !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
+    std::cout << "** Falling back to normal InitializeAndFetchTopology()"
+              << std::endl << std::flush;
     return Super::InitializeAndFetchTopology(
       job, task_no, worker_host_port, config
     );
   }
+
   tensorflow::tpu::TopologyProto topology_proto;
-  topology_proto.add_mesh_shape(wse_num_devices + cpu_num_devices);
-  topology_proto.add_mesh_shape(1);
-  topology_proto.add_mesh_shape(1);
-  topology_proto.set_num_tasks(wse_num_devices);
-  topology_proto.set_num_tpu_devices_per_task(wse_num_devices);
-  for (int i = 0; i < wse_num_devices + cpu_num_devices; ++i) {
-    topology_proto.add_device_coordinates(i);
-    topology_proto.add_device_coordinates(1);
-    topology_proto.add_device_coordinates(1);
+
+//  const int job_count = config.cluster_def().job_size();
+//  topology_proto.add_mesh_shape(1);
+//  for (const auto& job_name : config.cluster_def().job()) {
+//    const int job_task_count = config.cluster_def().job()
+//  }
+  const int num_devices_per_task = 1;
+
+  std::map<int, std::vector<std::string>> tasks;
+  const tensorflow::ClusterDef& cluster_def = config.cluster_def();
+  for (const tensorflow::JobDef& job_def : cluster_def.job()) {
+    for (const auto& task_id_and_host_port : job_def.tasks()) {
+      const int task_id = task_id_and_host_port.first;
+      const std::string& host_and_port = task_id_and_host_port.second;
+      tasks[task_id].emplace_back(host_and_port);
+    }
   }
+  if (tasks.empty()) {
+    throw std::runtime_error("No tasks found in the ConfigProto");
+  }
+
+/*
+    // The topology proto 'device_coordinates' is a linear list of
+    // [num_tasks][devices_per_task][mesh_shape_size] coordinates, where the
+    // mesh coordinates are usually [x, y, z, c] ('x', 'y' and 'z' being the
+    // spatial chip coordinated and 'c' the core number).
+    int64 base_index = parsed_device.task *
+                           topology_proto->num_tpu_devices_per_task() *
+                           topology_proto->mesh_shape_size() +
+                       parsed_device.id * topology_proto->mesh_shape_size();
+    std::vector<int> device_mesh_coords(topology_proto->mesh_shape_size());
+    for (int i = 0; i < topology_proto->mesh_shape_size(); ++i) {
+      assert(base_index + i < topology_proto->device_coordinates_size());
+      device_mesh_coords[i] =
+          topology_proto->device_coordinates(base_index + i);
+    }
+ */
+
+  int core_nr = 0;
+  for (int task = 0; task < tasks.size(); ++task) {
+    for (int task_core = 0; task_core < num_devices_per_task; ++task_core) {
+      topology_proto.add_device_coordinates(task);
+      topology_proto.add_device_coordinates(0);
+      topology_proto.add_device_coordinates(0);
+      topology_proto.add_device_coordinates(core_nr++);
+    }
+  }
+
+  topology_proto.add_mesh_shape(tasks.size());
+  topology_proto.add_mesh_shape(1);
+  topology_proto.add_mesh_shape(1);
+  topology_proto.add_mesh_shape(core_nr);
+
+//  topology_proto.add_mesh_shape(wse_num_devices + cpu_num_devices);
+//  topology_proto.add_mesh_shape(1);
+//  topology_proto.add_mesh_shape(1);
+
+  topology_proto.set_num_tasks(tasks.size());
+
+  topology_proto.set_num_tpu_devices_per_task(1/*wse_num_devices ? */);
+
+//  topology_proto.add_device_coordinates(tasks.size());
+//  topology_proto.add_device_coordinates(num_devices_per_task);
+//  // Is this supposed to be the # elements or # shapes?
+//  topology_proto.add_device_coordinates(topology_proto.mesh_shape_size());
+
+//  std::cout << "Topology: " << topology_proto.DebugString()
+//            << std::endl << std::flush;
   return std::move(topology_proto);
 }
-
 
 #ifdef WSE_DEBUG_LOGGING
 __thread int EnterLeave::depth_ = 0;

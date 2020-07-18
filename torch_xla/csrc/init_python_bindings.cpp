@@ -695,7 +695,13 @@ void InitXlaModuleBindings(py::module m) {
   m.def("_xla_get_tensor_id",
         [](const at::Tensor& tensor) { return GetTensorId(tensor); });
   m.def("_xla_get_devices",
-        []() { return xla::ComputationClient::Get()->GetLocalDevices(); });
+        []() {
+    const char *s = getenv("XRT_LOCAL_WORKER");
+//    if (s) {
+//      std::cout << "XRT_LOCAL_WORKER=" << s << std::endl << std::flush;
+//    }
+    return xla::ComputationClient::Get()->GetLocalDevices();
+  });
   m.def("_xla_get_all_devices",
         []() { return xla::ComputationClient::Get()->GetAllDevices(); });
   m.def("_xla_real_devices", [](const std::vector<std::string>& devices) {
@@ -951,6 +957,10 @@ void InitXlaModuleBindings(py::module m) {
         });
   m.def("_xla_trap",
         []() {
+//          const char *s = getenv("XRT_LOCAL_WORKER");
+//          if (s) {
+//            std::cout << "XRT_LOCAL_WORKER=" << s << std::endl << std::flush;
+//          }
           raise(SIGTRAP);
         });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");

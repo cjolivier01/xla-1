@@ -185,7 +185,11 @@ bool ParseEnvBasedTpuClusterConfig(XrtComputationClient::Options* options) {
   std::vector<std::string> spec_parts = absl::StrSplit(tpu_config, '|');
   XLA_CHECK(!spec_parts.empty()) << tpu_config;
   DeviceCountDefaults device_counts;
-  device_counts.num_tpus = 8;
+  if (!sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
+    device_counts.num_tpus = 8;
+  } else {
+    device_counts.num_cpus = 0;  // is this correct?
+  }
   for (const auto& spec : spec_parts) {
     std::vector<std::string> host_parts = absl::StrSplit(spec, ';');
     XLA_CHECK_EQ(host_parts.size(), 3) << spec;
@@ -255,6 +259,9 @@ bool ParseEnvDeviceCounts(XrtComputationClient::Options* options) {
   device_counts.num_gpus = sys_util::GetEnvInt(env::kEnvNumGpu, 0);
   device_counts.num_wses = sys_util::GetEnvInt(env::kEnvNumWse, 0);
   if (device_counts.num_tpus > 0 || device_counts.num_gpus > 0 || device_counts.num_wses > 0) {
+//    if(sys_util::GetEnvBool("XLA_DEVICE_CLUSTER", false)) {
+//      return false;
+//    }
     std::map<std::string, int> device_ordinals;
     std::string host_port =
         absl::StrCat("localhost:", tensorflow::internal::PickUnusedPortOrDie());
