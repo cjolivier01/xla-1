@@ -94,9 +94,7 @@ std::string SetCurrentThreadDevice(const std::string& device_str) {
 }
 
 std::string GetCurrentThreadDevice() {
-  std::stringstream ss;
-  ss << bridge::GetCurrentAtenDevice();
-  return ss.str();
+  return bridge::GetCurrentAtenDevice().str();
 }
 
 std::vector<std::string> GetXlaDevices(
@@ -236,16 +234,14 @@ void SyncLiveTensors(const std::string& device_str,
 
 void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
-  auto opt_device = GetOptionalDevice(device_str);
-  const Device* device = opt_device ? &opt_device.value() : nullptr;
+  Device device = GetDeviceOrCurrent(device_str);
   MarkStepScope mark_step_scope(device_str, devices);
-  XLATensor::SyncLiveTensorsGraph(device, devices, wait);
+  XLATensor::SyncLiveTensorsGraph(&device, devices, wait);
   XLATensor::MarkStep(device);
 }
 
 void SetRngSeed(xla::uint64 seed, const std::string& device_str) {
-  auto opt_device = GetOptionalDevice(device_str);
-  const Device* device = opt_device ? &opt_device.value() : nullptr;
+  Device device = GetDeviceOrCurrent(device_str);
   XLATensor::SetRngSeed(device, seed);
 }
 
@@ -318,6 +314,19 @@ std::vector<at::Tensor> GetXlaTensorsFromAten(
     xla_tensors.push_back(bridge::AtenFromXlaTensor(std::move(xla_tensor)));
   }
   return xla_tensors;
+}
+
+std::shared_ptr<ir::Value> CreateToken(const std::string& device_str) {
+  // This should be using xla::CreateToken() once we have added Token support to
+  // XLA AllReduce(). Meanwhile we use a constant as token, and we handle it
+  // accordingly in cross_replica_reduces.cpp.
+  // This needs to be device data (hence coming in as XLA computation parameter)
+  // as otherwise the XLA compiler passes will remove it, vanishing its
+  // sequencing effects.
+  Device device = GetDeviceOrCurrent(device_str);
+  ir::Value ir_value =
+      XLATensor::GetDeviceDataIrValue(0.0, xla::PrimitiveType::F32, device);
+  return std::make_shared<ir::Value>(std::move(ir_value));
 }
 
 at::Tensor GetXlaTensorDimensionSize(const at::Tensor& tensor, xla::int64 dim) {
@@ -714,13 +723,21 @@ void InitXlaModuleBindings(py::module m) {
   });
   m.def("_xla_set_replication_devices",
         [](const std::vector<std::string>& devices) {
-          xla::ComputationClient::Get()->SetReplicationDevices(devices);
+          auto replication_devices =
+              std::make_shared<std::vector<std::string>>(devices);
+          xla::ComputationClient::Get()->SetReplicationDevices(
+              std::move(replication_devices));
         });
   m.def("_xla_get_replication_devices", []() {
-    return xla::ComputationClient::Get()->GetReplicationDevices();
+    auto replication_devices =
+        xla::ComputationClient::Get()->GetReplicationDevices();
+    return replication_devices != nullptr ? *replication_devices
+                                          : std::vector<std::string>();
   });
   m.def("_xla_get_replication_devices_count", []() {
-    return xla::ComputationClient::Get()->GetReplicationDevices().size();
+    auto replication_devices =
+        xla::ComputationClient::Get()->GetReplicationDevices();
+    return replication_devices != nullptr ? replication_devices->size() : 0;
   });
   m.def("_xla_rendezvous",
         [](int ordinal, const std::string& tag, const std::string& payload,
@@ -729,10 +746,8 @@ void InitXlaModuleBindings(py::module m) {
         });
 
   py::class_<ir::Value, std::shared_ptr<ir::Value>>(m, "IrValue");
-  m.def("_xla_create_token", []() {
-    ir::NodePtr node = ir::MakeNode<ir::ops::Token>();
-    return std::make_shared<ir::Value>(node);
-  });
+  m.def("_xla_create_token",
+        [](const std::string& device) { return CreateToken(device); });
   m.def("_xla_all_reduce_inplace", [](const std::string& reduce_type,
                                       const std::vector<at::Tensor>& tensors,
                                       const std::shared_ptr<ir::Value>& token,

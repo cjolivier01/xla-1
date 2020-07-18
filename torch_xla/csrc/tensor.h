@@ -104,6 +104,9 @@ class XLATensor {
   // Applies the queue of operations in preparation for using the data.
   void ApplyPendingGraph();
 
+  static ir::Value GetDeviceDataIrValue(at::Scalar value,
+                                        xla::PrimitiveType type,
+                                        const Device& device);
   static ir::Value GetIrValueForScalar(at::Scalar value,
                                        xla::PrimitiveType type,
                                        const Device& device);
@@ -121,7 +124,7 @@ class XLATensor {
 
   static ir::Value GetRngSeed(const Device& device);
 
-  static void SetRngSeed(const Device* device, xla::uint64 seed);
+  static void SetRngSeed(const Device& device, xla::uint64 seed);
 
   static xla::uint64 GetRunningSeed(const Device& device);
 
@@ -164,7 +167,7 @@ class XLATensor {
 
   // Marks an execution step, which allows the tensor framework to understand
   // the computation boundaries.
-  static void MarkStep(const Device* device);
+  static void MarkStep(const Device& device);
 
   // Waits for all the outstanding operations on all the supplied devices.
   // If devices is empty, the wait will happen for all local devices.
