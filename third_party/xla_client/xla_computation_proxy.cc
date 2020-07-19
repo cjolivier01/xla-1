@@ -327,7 +327,7 @@ public:
 
   std::string address_;
   std::shared_ptr<xla::ServiceInterface> xla_client_;
-  std::vector<xla::DeviceHandle> device_handles_;
+  std::unordered_map<int, xla::DeviceHandle> device_handles_;
 };
 
 /**
@@ -570,11 +570,15 @@ std::shared_ptr<xla::ServiceInterface> XlaComputationProxy::GetXlaClient(const s
       if (!status.ok()) {
         throw std::runtime_error(status.error_message());
       }
-      iter->second->device_handles_.resize(0);
       iter->second->device_handles_.reserve(response.device_handles_size());
+
+      const int device_ordinal = std::stoi(split(device, ':')[1]);
+
       for (const ::xla::DeviceHandle& device_handle : response.device_handles()) {
         // Add device to our device list
-        iter->second->device_handles_.emplace_back(device_handle);
+        assert(iter->second->device_handles_.find(device_ordinal) ==
+          iter->second->device_handles_.end());
+        iter->second->device_handles_.emplace(device_ordinal, device_handle);
 
         // Reset the device if supported
         if (!using_grpc_service_main_cpu) {
@@ -604,10 +608,13 @@ xla::DeviceHandle XlaComputationProxy::GetDeviceHandle(const std::string& device
   }
   std::shared_ptr<XlaClientInfo> info = iter->second;
   const int64 ordinal = GetDeviceOrdinal(device);
-  if (ordinal >= info->device_handles_.size()) {
-    throw std::runtime_error("Attempt to get handle of device with too high of an ordinal");
+  auto found = info->device_handles_.find(ordinal);
+  if (found == info->device_handles_.end()) {
+    std::stringstream ss;
+    ss << "Attempt to get handle of device with unknown ordinal: " << ordinal;
+    throw std::runtime_error(ss.str());
   }
-  return info->device_handles_[ordinal];
+  return found->second;
 }
 
 bool XlaComputationProxy::ShouldCloneDataForDevice(const std::string& device) const {
@@ -1558,15 +1565,16 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
 
   int core_nr = 0;
   for (int task = 0; task < tasks.size(); ++task) {
+    int base = task * num_devices_per_task;
     for (int task_core = 0; task_core < num_devices_per_task; ++task_core) {
-      topology_proto.add_device_coordinates(task);
       topology_proto.add_device_coordinates(0);
       topology_proto.add_device_coordinates(0);
-      topology_proto.add_device_coordinates(core_nr++);
+      topology_proto.add_device_coordinates(0);
+      topology_proto.add_device_coordinates(base + core_nr++);
     }
   }
 
-  topology_proto.add_mesh_shape(tasks.size());
+  topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(core_nr);
