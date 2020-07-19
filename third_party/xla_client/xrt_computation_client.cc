@@ -253,6 +253,7 @@ XrtComputationClient::XrtComputationClient(
     : options_(std::move(options)),
       compilation_cache_(sys_util::GetEnvInt("XLA_COMPILATION_CACHE_SIZE", 64)),
       rng_seed_(0x5a2d296e9) {
+  //raise(SIGTRAP);
   tensorflow::ConfigProto config = CreateConfigProto(options_);
   std::string local_target = GetLocalTarget(options_);
   session_cache_ = absl::make_unique<XrtSessionCache>(

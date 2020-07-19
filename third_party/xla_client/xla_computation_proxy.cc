@@ -126,6 +126,19 @@ bool verbose_pull = false;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
+enum class ProxyableApi {
+  PAPI_TRANSFER,
+  PAPI_COMPILE,
+  PAPI_EXECUTE,
+  PAPI_NUM,  // last item so that ones before can be commented-out at will
+};
+
+const std::set<ProxyableApi> do_not_proxy(
+    {
+        ProxyableApi::PAPI_COMPILE,
+        ProxyableApi::PAPI_NUM
+    });
+
 template <typename MSG>
 inline std::string msg_to_json(const MSG& msg) {
     std::string json;
@@ -158,7 +171,10 @@ const DEST_MSG *get_id(const SRC_MSG_ARRAY& array, const int64 id) {
   return nullptr;
 }
 
-std::string get_proxy_device(const xla::HloModuleProto& module) {
+std::string get_frontend_attribute(
+    const xla::HloModuleProto& module,
+    const std::string& attribute_name
+) {
   if (!XlaComputationProxy::IsEnabled()) return "";
   const int64 entry_computation_id = module.entry_computation_id();
   if (entry_computation_id) {
@@ -176,21 +192,27 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
         );
       const xla::FrontendAttributes &frontend_attributes =
         root_instruction->frontend_attributes();
-      auto iter = frontend_attributes.map().find("PROXY_DEVICE");
+      auto iter = frontend_attributes.map().find(attribute_name);
       if (iter != frontend_attributes.map().end()) {
-        // A compile may have failed, in which case it
-        // gets delegated back to the default device
-        auto cancel_iter = frontend_attributes.map().find("CANCEL_PROXY_DEVICE");
-        if (cancel_iter != frontend_attributes.map().end()) {
-          if (cancel_iter->second == iter->second) {
-            return "";  // this proxying was cancelled (i.e. failed compile)
-          }
-        }
         return iter->second;
       }
     }
   }
   return "";
+}
+
+std::string get_proxy_device(const xla::HloModuleProto& module) {
+  return get_frontend_attribute(module, "PROXY_DEVICE");
+}
+
+std::unique_ptr<xla::HloModuleProto> get_proxy_hlo_module(const xla::HloModuleProto& module) {
+  std::unique_ptr<xla::HloModuleProto> result;
+  std::string proxy_hlo_string = get_frontend_attribute(module, "PROXY_HLO");
+  if (!proxy_hlo_string.empty()) {
+    result = std::make_unique<xla::HloModuleProto>();
+    result->ParseFromString(proxy_hlo_string);
+  }
+  return std::move(result);
 }
 
 class ProxyName {
@@ -1034,6 +1056,9 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
       if (always_use_proxy) {
         return true;
       }
+      if (do_not_proxy.count(ProxyableApi::PAPI_COMPILE)) {
+        return false;
+      }
       const std::string proxy_device = get_proxy_device(instance.computation.proto());
       if (proxy_device.empty()) {
         return false;
@@ -1469,16 +1494,6 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::ExecuteComputation(
   return std::move(results);
 }
 
-namespace {
-int get_env_int(const char *s, const int dflt) {
-  const char* v = getenv(s);
-  if (v && *v) {
-    return atoi(v);
-  }
-  return dflt;
-}
-}
-
 /*
 message TopologyProto {
   // The dimensions of the TPU topology, in cores. Typically, this is a 3D
@@ -1507,16 +1522,16 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   const std::string& worker_host_port,
   const tensorflow::ConfigProto& config
 ) {
-  std::cout << "InitializeAndFetchTopology( job=" << job
+  std::cout << "InitializeAndFetchTopology: job=" << job
             << ", task_no=" << task_no
             << ", worker_host_port=" << worker_host_port
             << ", config=" << msg_to_json(config)
             << std::endl << std::flush;
-  const int wse_num_devices = get_env_int("WSE_NUM_DEVICES", 0);
+  const int wse_num_devices = sys_util::GetEnvInt("WSE_NUM_DEVICES", 0);
   //const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
   //if (!wse_set_topology || !wse_num_devices
       //|| !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
-  if (!HasProxyAddresses()) {
+  if (!HasProxyAddresses() || !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
     std::cout << "** Falling back to normal InitializeAndFetchTopology()"
               << std::endl << std::flush;
     return Super::InitializeAndFetchTopology(
@@ -1543,7 +1558,8 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
     }
   }
   if (tasks.empty()) {
-    throw std::runtime_error("No tasks found in the ConfigProto");
+    tasks[0] = {""};
+    //throw std::runtime_error("No tasks found in the ConfigProto");
   }
 
 /*
@@ -1565,7 +1581,7 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
 
   int core_nr = 0;
   for (int task = 0; task < tasks.size(); ++task) {
-    int base = task * num_devices_per_task;
+    const int base = task * num_devices_per_task;
     for (int task_core = 0; task_core < num_devices_per_task; ++task_core) {
       topology_proto.add_device_coordinates(0);
       topology_proto.add_device_coordinates(0);
