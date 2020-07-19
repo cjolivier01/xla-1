@@ -65,6 +65,45 @@ using namespace tensorflow;
 
 namespace xla {
 
+static const char *env_vars[] = {
+    "XRT_MULTI_PROCESSING_DEVICE",
+    "XRT_LOCAL_WORKER",
+    "XRT_TPU_CONFIG",
+    "XRT_MESH_SERVICE_ADDRESS",
+    "XRT_DEVICE_MAP",
+    "XRT_WORKERS",
+    "XRT_SHARD_LOCAL_ORDINAL",
+    "XRT_SHARD_ORDINAL",
+    "XRT_SHARD_WORLD_SIZE",
+    "XRT_HOST_WORLD_SIZE",
+    "XRT_HOST_ORDINAL",
+    "XRT_TORCH_DIST_METHOD",
+    "XRT_TORCH_DIST_ROOT",
+    "TPU_NUM_DEVICES",
+    "GPU_NUM_DEVICES",
+    "WSE_NUM_DEVICES",
+    "CPU_NUM_DEVICES"
+};
+
+void print_environment_config() {
+  std::stringstream ss;
+  ss << "------------------"
+     << getpid() << " PROCESS CONFIG"
+     << "------------------"
+     << std::endl;
+  for (std::size_t i = 0; i < sizeof(env_vars)/sizeof(env_vars[0]); ++i) {
+    const char *s = getenv(env_vars[i]);
+    if (s && *s) {
+      ss << "\t\"" << env_vars[i]
+         << "\" = \"" << s << "\"" << std::endl;
+    }
+  }
+  ss << "------------------" << std::endl
+     << std::flush;
+  std::cout << ss.str();
+}
+
+
 namespace {
 
 bool verbose = false;
@@ -119,14 +158,14 @@ std::string get_proxy_device(const xla::HloModuleProto& module) {
   if (!XlaComputationProxy::IsEnabled()) return "";
   const int64 entry_computation_id = module.entry_computation_id();
   if (entry_computation_id) {
-    const xla::HloComputationProto *computation =
+    const auto *computation =
       get_id<xla::HloComputationProto>(
         module.computations(),
         entry_computation_id
       );
     const int64 root_id = computation->root_id();
     if (root_id) {
-      const xla::HloInstructionProto *root_instruction =
+      const auto *root_instruction =
         get_id<xla::HloInstructionProto>(
           computation->instructions(),
           root_id
@@ -464,10 +503,15 @@ bool XlaComputationProxy::IsEnabled() {
 //  }
 //}
 
+bool XlaComputationProxy::HasProxyAddresses() {
+  std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
+  return !xla_client_map_.empty();
+}
+
 void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address) {
-  if (!XlaComputationProxy::IsEnabled()) {
-    return;
-  }
+//  if (!XlaComputationProxy::IsEnabled()) {
+//    return;
+//  }
   if (device.empty()) {
     throw std::runtime_error("Invalid empty device string");
   }
@@ -1458,9 +1502,10 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
             << ", config=" << msg_to_json(config)
             << std::endl << std::flush;
   const int wse_num_devices = get_env_int("WSE_NUM_DEVICES", 0);
-  const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
-  if (!IsEnabled() || !wse_set_topology || !wse_num_devices
-      || !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
+  //const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
+  //if (!wse_set_topology || !wse_num_devices
+      //|| !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
+  if (!HasProxyAddresses()) {
     std::cout << "** Falling back to normal InitializeAndFetchTopology()"
               << std::endl << std::flush;
     return Super::InitializeAndFetchTopology(

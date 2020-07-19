@@ -31,6 +31,9 @@
 #include "tensorflow/core/util/util.h"
 
 namespace xla {
+
+extern void print_environment_config();
+
 namespace {
 
 bool verbose = true;
@@ -252,6 +255,7 @@ XrtComputationClient::XrtComputationClient(
     : options_(std::move(options)),
       compilation_cache_(sys_util::GetEnvInt("XLA_COMPILATION_CACHE_SIZE", 64)),
       rng_seed_(0x5a2d296e9) {
+  print_environment_config();
   tensorflow::ConfigProto config = CreateConfigProto(options_);
   std::string local_target = GetLocalTarget(options_);
   session_cache_ = absl::make_unique<XrtSessionCache>(
@@ -1242,6 +1246,16 @@ XrtComputationClient::GetWorkerForXrtDevice(
       ParseFullXrtDevice(xrt_device);
   auto worker_hostport =
       options_.workers_map.find(Worker(parsed_device.job, parsed_device.task));
+  if (worker_hostport == options_.workers_map.end()) {
+    std::cout << "COULD NOT FIND WORKER FOR DEVICE: "
+              << parsed_device.job << ":" << parsed_device.task
+              << " from current map of workers:"
+              << std::endl;
+    for (const auto& item : options_.workers_map) {
+      std::cout << "\t" << item.first.ToString() << " -> " << item.second
+                << std::endl << std::flush;
+    }
+  }
   XLA_CHECK(worker_hostport != options_.workers_map.end()) << xrt_device;
   return std::pair<Worker, std::string>(worker_hostport->first,
                                         worker_hostport->second);

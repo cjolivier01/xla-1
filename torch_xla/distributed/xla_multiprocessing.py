@@ -38,6 +38,8 @@ def _get_world_size():
 
 
 def _create_gpu_devices(num_gpus):
+  if _no_localservice() and os.environ.get(xenv.DEVICE_MAP, None):
+    return
   devices = []
   for h in range(0, _get_world_size()):
     for i in range(0, num_gpus):
@@ -71,7 +73,7 @@ def _parse_workers_config(config):
   # XRT_WORKERS='worker:0;ismz9:25822'
   workers = collections.OrderedDict()
   for worker in config.split('|'):
-    m = re.match(r'(\w+):(\d+);((grpc://)?[a-zA-Z0-9_\-]+:\d+)', worker)
+    m = re.match(r'(\w+):(\d+);((grpc://)?[a-zA-Z0-9_\-\.]+:\d+)', worker)
     if not m:
       raise ValueError('Bad worker syntax: {}'.format(worker))
     workers['{}:{}'.format(m.group(1), m.group(2))] = WorkerConfigEntry(
@@ -83,7 +85,7 @@ def _parse_tpu_config(config):
   # XRT_TPU_CONFIG='tpu_worker;0;ismz9:25822'
   workers = collections.OrderedDict()
   for worker in config.split('|'):
-    m = re.match(r'(\w+);(\d+);([a-zA-Z0-9_\-]+:\d+)', worker)
+    m = re.match(r'(\w+);(\d+);([a-zA-Z0-9_\-\.]+:\d+)', worker)
     if not m:
       raise ValueError('Bad worker syntax: {}'.format(worker))
     workers['{}:{}'.format(m.group(1), m.group(2))] = WorkerConfigEntry(
@@ -150,7 +152,9 @@ def _setup_world_size(pf_cfg):
   host_world_size = _get_world_size()
   world_size = host_world_size * pf_cfg.num_devices
   os.environ[xenv.WORLD_SIZE] = str(world_size)
-  if pf_cfg.dev_kind == 'CPU':
+  if pf_cfg.dev_kind == 'CPU' or (
+      pf_cfg.dev_kind == 'GPU' and int(os.environ.get("XLA_DEVICE_CLUSTER", 0))
+  ):
     # Since XLA CPU does not support across device reduces, and suport only one
     # device per process, we make each CPU device look like if it was a single
     # process host, and use torch.distributed for inter-host reductions (like in
@@ -233,6 +237,9 @@ def _pre_fork_setup(num_devices):
   if dev_kind == 'GPU':
     _setup_workers(num_devices)
     _create_gpu_devices(num_devices)
+    num_devices = int(
+      os.environ.get("XLA_DEVICE_CLUSTER", num_devices)
+    )
   elif dev_kind == 'WSE':
     if not _is_wse_tpu_mode():
       _setup_workers(num_devices)
@@ -243,20 +250,48 @@ def _pre_fork_setup(num_devices):
   return PreForkConfig(dev_kind=dev_kind, num_devices=num_devices)
 
 
-def _force_remote_device():  # cjolivier01
+def _no_localservice():  # cjolivier01
   """
   Force multi-device and no local worker
   :return:
   """
-  remove_device_count = int(os.environ.get("XLA_DEVICE_CLUSTER", "0"))
+  remove_device_count = int(os.environ.get("XRT_NO_LOCALSERVICE", "0"))
   return remove_device_count != 0
+
+
+def _get_mp_local_service():
+
+  def default_localservice(gindex):
+    return '{}:{}'.format(_LOCAL_WORKER, gindex)
+
+  mp_device = os.environ.get(xenv.MP_DEVICE)
+  if not mp_device:
+    return None
+
+  gindex = int(mp_device.split(':')[1])
+
+  if not _no_localservice():
+    return default_localservice(gindex)
+
+  device_map = os.environ.get(xenv.DEVICE_MAP, None)
+  if device_map is None:
+    return default_localservice(gindex)
+
+  devices = dict(x.split(";") for x in device_map.split("|"))
+  # Should this be xenv.HOST_WORLD_SIZE ?
+  #assert len(devices) == int(os.environ[xenv.WORLD_SIZE])
+  assert mp_device in devices.keys()
+  newstr = "_".join(devices[mp_device][1:].rsplit(":", 1))
+  device_specs = dict(x.split(":") for x in newstr.split("/"))
+  job_name = device_specs['job']
+  task_id = int(device_specs['task'])
+  return '{}:{}'.format(job_name, task_id)
 
 
 def _setup_gpu_worker(index, gindex, pf_cfg):
   os.environ[xenv.MP_DEVICE] = 'GPU:{}'.format(
       _get_mp_device_ordinal(index, gindex))
-  if not _force_remote_device():
-    os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
+  os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
   # Every process is restricted to 1 GPU device, which in such process will be
   # named XLA_GPU:0.
   os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
@@ -292,8 +327,7 @@ def _setup_wse_worker(index, gindex, pf_cfg,  tpu_env_config, like_tpu=True):
       os.environ.pop(xenv.TPU_NUM_DEVICES, None)
   else:
     os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(gindex)
-    if not _force_remote_device():
-      os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(_LOCAL_WORKER, gindex)
+    os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
     # Every process is restricted to 1 WSE device, which in such process will be
     # named XLA_WSE:0.
     #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
@@ -478,7 +512,7 @@ def spawn(fn,
 
   pf_cfg = _pre_fork_setup(nprocs)
   if (
-      pf_cfg.num_devices == 1 and int(os.environ.get("XLA_DEVICE_CLUSTER", "0")) == 0
+      pf_cfg.num_devices == 1
   ):
     _start_fn(0, pf_cfg, fn, args)
   else:

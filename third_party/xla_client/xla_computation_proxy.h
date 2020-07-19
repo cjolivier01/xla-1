@@ -72,6 +72,8 @@ public:
 private:
   class GlobalDataHandleMapper;
 
+  static bool HasProxyAddresses();
+
   std::vector<DataPtr> TransferToServerInternal(absl::Span<const TensorSource> tensors);
 
   static std::recursive_mutex xla_client_map_mtx_;
@@ -79,7 +81,7 @@ private:
 
   std::unique_ptr<GlobalDataHandleMapper> data_mapper_;
 
-  std::shared_ptr<xla::ServiceInterface> GetXlaClient(const std::string& device, bool create = true);
+  static std::shared_ptr<xla::ServiceInterface> GetXlaClient(const std::string& device, bool create = true);
   xla::DeviceHandle GetDeviceHandle(const std::string& device);
 
   mutable std::mutex proxy_executable_set_mtx_;

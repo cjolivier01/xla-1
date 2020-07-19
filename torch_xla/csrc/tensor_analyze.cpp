@@ -34,8 +34,9 @@ bool verbose_output_control = verbose || false;
 bool verbose_mp = true;
 bool verbose_hash = false;
 bool verbose_non_fabric = false;
+bool disable_proxy = true;
 
-constexpr size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
+constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
 std::string mp() {
   std::stringstream ss;
@@ -279,10 +280,6 @@ class ExecutableCache {
 
  public:
 
-//  ~ExecutableCache() {
-//    std::cout << "end of executable cache" << ENDL;
-//  }
-
   ExecutablePtr get_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     auto found = executables_.find(hash);
@@ -337,18 +334,6 @@ class ExecutableCache {
     }
   }
 
-//  void modify_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
-//    Lock lk(mtx_);
-//    assert(h1 != h2);
-//    assert(executables_.count(h1) != 0);
-//    auto found = adjusted_hash_map_.find(h1);
-//    if (found != adjusted_hash_map_.end()) {
-//      auto exe = std::move(found->second);
-//      adjusted_hash_map_.erase(found);
-//      adjusted_hash_map_.insert({h2, std::move(exe)});
-//    }
-//  }
-
   void set_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
     Lock lk(mtx_);
     assert(h1 != h2);
@@ -400,14 +385,17 @@ std::shared_ptr<CompileInfo> GetCompileInfo(pid_t tid) {
 
 std::shared_ptr<ExecutableCache> ex_cache = std::make_shared<ExecutableCache>();
 
-size_t get_number_of_required_runs_since_reset() {
+std::size_t get_number_of_required_runs_since_reset() {
+  if (disable_proxy) {
+    return std::numeric_limits<std::size_t>::max();
+  }
   static bool trusted_model =
       xla::sys_util::GetEnvBool("XLA_TRUSTED_MODEL", false);
   if (trusted_model) {
     return 0;
   }
-  static size_t rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTIL_PROXY",
-                                               DEFAULT_CLEAN_STEPS_UNTIL_PROXY);
+  static std::size_t rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTIL_PROXY",
+                                                    DEFAULT_CLEAN_STEPS_UNTIL_PROXY);
   return rtc;
 }
 
@@ -1069,6 +1057,10 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   const std::size_t mark_step_count_since_reset =
       compile_info->mark_step_count_since_last_reset_.load();
   const std::size_t steps_required = get_number_of_required_runs_since_reset();
+  if (steps_required == std::numeric_limits<std::size_t>::max()) {
+    // This is the case of simply being turned off/disabled
+    return false;
+  }
   if (!steps_required && is_clean_step) {
     return true;
   }
