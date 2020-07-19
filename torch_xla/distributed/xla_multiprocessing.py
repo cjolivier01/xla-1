@@ -265,6 +265,7 @@ def _get_mp_local_service():
     return '{}:{}'.format(_LOCAL_WORKER, gindex)
 
   mp_device = os.environ.get(xenv.MP_DEVICE)
+  #print(f"os.environ.get(xenv.MP_DEVICE) == {os.environ.get(xenv.MP_DEVICE)}")
   if not mp_device:
     return None
 
@@ -278,8 +279,6 @@ def _get_mp_local_service():
     return default_localservice(gindex)
 
   devices = dict(x.split(";") for x in device_map.split("|"))
-  # Should this be xenv.HOST_WORLD_SIZE ?
-  #assert len(devices) == int(os.environ[xenv.WORLD_SIZE])
   assert mp_device in devices.keys()
   newstr = "_".join(devices[mp_device][1:].rsplit(":", 1))
   device_specs = dict(x.split(":") for x in newstr.split("/"))
@@ -304,37 +303,6 @@ def _setup_gpu_worker(index, gindex, pf_cfg):
 def _is_wse_tpu_mode():
   return int(os.environ.get("WSE_TPU_MODE", "0")) != 0
 
-
-def _setup_wse_worker(index, gindex, pf_cfg,  tpu_env_config, like_tpu=True):
-  if like_tpu:
-    os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(
-      _get_mp_device_ordinal(index, gindex))
-    if xenv.LOCAL_WORKER not in os.environ:
-      # The local worker can be missing for a 1 TPU host setup. Make sure we
-      # always have one.
-      assert tpu_env_config, '{} environment must be populated'.format(
-        xenv.TPU_CONFIG)
-      tpu_config = _parse_tpu_config(tpu_env_config)
-      worker = list(tpu_config.values())[0]
-      os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(worker.worker_name,
-                                                     worker.ordinal)
-    if not _wants_tpu_env_config(index, gindex):
-      # In multi-processing mode, only the process handling the first device of
-      # the master worker, will do TPU mesh initialization, so we need to remove
-      # the environment configs which would prevent the client to be falling in
-      # the mesh client config path.
-      os.environ.pop(xenv.TPU_CONFIG, None)
-      os.environ.pop(xenv.TPU_NUM_DEVICES, None)
-  else:
-    os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(gindex)
-    os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
-    # Every process is restricted to 1 WSE device, which in such process will be
-    # named XLA_WSE:0.
-    #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
-    # We have expanded the WSE devices in the device map already, in
-    # _create_wse_devices(), so delete the key from the environment as it
-    # otherwise triggers device generation again in computation_client.cc.
-    os.environ.pop(xenv.WSE_NUM_DEVICES, None)
 
 def _setup_cpu_worker(index, gindex, pf_cfg):
   task_no = 0
@@ -363,6 +331,7 @@ def _wants_tpu_env_config(index, gindex):
 
 
 def _setup_tpu_worker(index, gindex, pf_cfg, tpu_env_config):
+  assert index >= 0 and gindex >= 0
   os.environ[xenv.MP_DEVICE] = 'TPU:{}'.format(
       _get_mp_device_ordinal(index, gindex))
   if xenv.LOCAL_WORKER not in os.environ:
@@ -381,6 +350,45 @@ def _setup_tpu_worker(index, gindex, pf_cfg, tpu_env_config):
     # the mesh client config path.
     os.environ.pop(xenv.TPU_CONFIG, None)
     os.environ.pop(xenv.TPU_NUM_DEVICES, None)
+
+
+def _setup_wse_worker(index, gindex, pf_cfg,  tpu_env_config, like_tpu=True):
+  if like_tpu:
+    if index < 0:
+      print('oopd')
+    ordinal = _get_mp_device_ordinal(index, gindex)
+    assert ordinal >= 0
+    os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(
+      _get_mp_device_ordinal(index, gindex))
+    if xenv.LOCAL_WORKER not in os.environ:
+      # The local worker can be missing for a 1 TPU host setup. Make sure we
+      # always have one.
+      assert tpu_env_config, '{} environment must be populated'.format(
+        xenv.TPU_CONFIG)
+      # tpu_config = _parse_tpu_config(tpu_env_config)
+      # worker = list(tpu_config.values())[0]
+      # os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(worker.worker_name,
+      #                                                worker.ordinal)
+      os.environ["XRT_NO_LOCALSERVICE"] = "1"
+      os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
+    if not _wants_tpu_env_config(index, gindex):
+      # In multi-processing mode, only the process handling the first device of
+      # the master worker, will do TPU mesh initialization, so we need to remove
+      # the environment configs which would prevent the client to be falling in
+      # the mesh client config path.
+      os.environ.pop(xenv.TPU_CONFIG, None)
+      os.environ.pop(xenv.WSE_NUM_DEVICES, None)
+  else:
+    assert gindex >= 0
+    os.environ[xenv.MP_DEVICE] = 'WSE:{}'.format(gindex)
+    os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
+    # Every process is restricted to 1 WSE device, which in such process will be
+    # named XLA_WSE:0.
+    #os.environ[_CUDA_VISIBLE_DEVICES] = str(index)
+    # We have expanded the WSE devices in the device map already, in
+    # _create_wse_devices(), so delete the key from the environment as it
+    # otherwise triggers device generation again in computation_client.cc.
+    os.environ.pop(xenv.WSE_NUM_DEVICES, None)
 
 
 def _prepare_env_for_index(index, pf_cfg):
@@ -426,6 +434,7 @@ def _prepare_env_for_index(index, pf_cfg):
       #  - xenv.TPU_CONFIG must be set on all host, with task number equal 0.
       #  - The worker ordinal (task number) in the xenv.LOCAL_WORKER must be set
       #    to 0 in all hosts.
+      assert False, "Probably don't want this"
       _setup_torch_distributed()
   elif pf_cfg.dev_kind == 'GPU':
     _setup_gpu_worker(index, gindex, pf_cfg)

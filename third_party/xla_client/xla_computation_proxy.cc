@@ -34,10 +34,14 @@
 
 #ifdef TF_HAS_WSE_DEVICE
 #include "tensorflow/compiler/xla/service/cpu/wse_compiler.h"
-using CompilerType = xla::wse::WseCompiler;
+std::unique_ptr<xla::Compiler> CreateCompiler() {
+  return xla::wse::CreateCompiler();
+}
 #else
 #include "tensorflow/compiler/xla/service/cpu/cpu_compiler.h"
-using CompilerType = xla::cpu::CpuCompiler;
+std::unique_ptr<xla::Compiler> CreateCompiler() {
+  return absl::make_unique<xla::cpu::CpuCompiler>();
+}
 #endif
 
 #if 1
@@ -1070,7 +1074,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
           xla::HloModule::CreateFromProto(instance.computation.proto(), config)
         );
         if (new_hlo_module.ok()) {
-          auto compiler = std::make_unique<CompilerType>();
+          auto compiler = CreateCompiler();
           StatusOr<std::unique_ptr<HloModule>> result =
             compiler->RunHloPasses(std::move(new_hlo_module.ConsumeValueOrDie()), nullptr, nullptr);
           if (result.ok()) {
@@ -1497,7 +1501,7 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   const tensorflow::ConfigProto& config
 ) {
   std::cout << "InitializeAndFetchTopology( job=" << job
-            << ", task_no= << " << task_no
+            << ", task_no=" << task_no
             << ", worker_host_port=" << worker_host_port
             << ", config=" << msg_to_json(config)
             << std::endl << std::flush;

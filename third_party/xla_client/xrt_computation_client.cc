@@ -32,8 +32,6 @@
 
 namespace xla {
 
-extern void print_environment_config();
-
 namespace {
 
 bool verbose = true;
@@ -255,7 +253,6 @@ XrtComputationClient::XrtComputationClient(
     : options_(std::move(options)),
       compilation_cache_(sys_util::GetEnvInt("XLA_COMPILATION_CACHE_SIZE", 64)),
       rng_seed_(0x5a2d296e9) {
-  print_environment_config();
   tensorflow::ConfigProto config = CreateConfigProto(options_);
   std::string local_target = GetLocalTarget(options_);
   session_cache_ = absl::make_unique<XrtSessionCache>(
@@ -265,6 +262,19 @@ XrtComputationClient::XrtComputationClient(
 
   auto default_device_target =
       options_.global_device_map.find(options_.default_device);
+
+  if (default_device_target == options_.global_device_map.end()) {
+    std::cout << "COULD NOT FIND DEVICE: \""
+              << options_.default_device
+              << "\" from global_device_map:"
+              << std::endl;
+    raise(SIGTRAP);
+    for (const auto& item : options_.global_device_map) {
+      std::cout << "\t" << item.first << " -> " << item.second
+                << std::endl << std::flush;
+    }
+  }
+
   XLA_CHECK(default_device_target != options_.global_device_map.end())
       << options_.default_device;
   for (auto& device : options_.devices) {
@@ -1033,14 +1043,14 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
     for (int64 i = 0; i < devices.size(); ++i) {
       Device device(devices[i]);
       auto replica_device = computation_device->add_replica_devices();
-      if (device.kind == "TPU") {
-      //if (IsDistributedDevice(device.kind)) {
+      //if (device.kind == "TPU") {
+      if (IsDistributedDevice(device.kind)) {
         const std::string& xrt_device = TorchDeviceToXrtDevice(devices[i]);
         const auto& core_coords = GetDeviceMeshCoords(xrt_device);
         for (auto coord : core_coords) {
           replica_device->add_value(coord);
         }
-      } else if (device.kind == "GPU" || device.kind == "WSE") {
+      } else if (device.kind == "GPU" /*|| device.kind == "WSE"*/) {
         // For GPU use X,Y,Z=0 and CORE=GPU_ORDINAL (where GPU_ORDINAL is the
         // global ordinal value).
         replica_device->add_value(0);

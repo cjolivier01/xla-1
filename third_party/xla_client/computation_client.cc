@@ -23,6 +23,9 @@
 #include "tensorflow/core/util/device_name_utils.h"
 
 namespace xla {
+
+extern void print_environment_config();
+
 namespace {
 
 struct DeviceCountDefaults {
@@ -121,7 +124,8 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
       if (!IsLocalDevice(worker, parsed_device, dev_task_map)) {
         continue;
       }
-      std::cout << "Found local device: " << device_xrt_device.first
+      std::cout << PIDSTR << "Found local device: "
+                << device_xrt_device.first
                 <<  " (" << device_xrt_device.second
                 << std::endl << std::flush;
     }
@@ -132,11 +136,12 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
                          global_device.ordinal,
                          [](int a, int b) { return std::min(a, b); });
   }
-  for (auto kind : {"TPU", "GPU", "CPU", "WSE"}) {
+  //raise(SIGTRAP);
+  for (auto kind : {"TPU", "WSE", "GPU", "CPU"}) {
     auto it = min_ordinals.find(kind);
     if (it != min_ordinals.end()) {
       options->default_device = absl::StrCat(kind, ":", it->second);
-      std::cout << "Setting default local device to: "
+      std::cout << PIDSTR << "Setting default local device to: "
                 << options->default_device
                 << std::endl << std::flush;
       break;
@@ -152,7 +157,7 @@ void AddXrtHostDevices(const std::string& worker_name, int task_no,
   struct Devices {
     const char* name;
     const char* tf_name;
-    int count;
+    int64 count;
   } const devices[] = {
       {"TPU", "TPU",
        sys_util::GetEnvInt(env::kEnvNumTpu, device_counts.num_tpus)},
@@ -167,10 +172,13 @@ void AddXrtHostDevices(const std::string& worker_name, int task_no,
       MakeGrpcEndPoint(server));
   for (auto& device : devices) {
     int& device_ordinal = (*device_ordinals)[device.name];
-    for (int j = 0; j < device.count; ++j, ++device_ordinal) {
+    for (int64 j = 0; j < device.count; ++j, ++device_ordinal) {
       std::string device_name = absl::StrCat(device.name, ":", device_ordinal);
       std::string xrt_device_name =
           GetXrtDevicePath(worker_name, task_no, device.tf_name, j);
+      std::cout << PIDSTR << "Adding global device to global device map: "
+                << device_name << " -> " << xrt_device_name
+                << std::endl << std::flush;
       options->global_device_map.emplace(device_name, xrt_device_name);
     }
   }
@@ -188,7 +196,18 @@ bool ParseEnvBasedTpuClusterConfig(XrtComputationClient::Options* options) {
   if (!sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
     device_counts.num_tpus = 8;
   } else {
-    device_counts.num_cpus = 0;  // is this correct?
+    const int num_wses = sys_util::GetEnvInt(env::kEnvNumWse, 0);
+    if (num_wses > 1) {
+      // Only one per child process, although for some
+      // reason we need the env var to be more to get
+      // this far past multi_processing.py since we
+      // behave a little differently from TPU and trying not to
+      // deviate in too many places from that.  This stems somewhat
+      // from the fact that we use a single local CPU sometimes for
+      // this device whereas TPU is *never* on this device.
+      setenv(env::kEnvNumWse, "1", true);
+      device_counts.num_cpus = 0;
+    }
   }
   for (const auto& spec : spec_parts) {
     std::vector<std::string> host_parts = absl::StrSplit(spec, ';');
@@ -293,6 +312,7 @@ bool ParseEnvDevices(XrtComputationClient::Options* options) {
 }  // namespace
 
 std::unique_ptr<ComputationClient> ComputationClient::Create() {
+  print_environment_config();
   XrtComputationClient::Options options;
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto;
   if (!ParseEnvBasedTpuClusterConfig(&options) &&
