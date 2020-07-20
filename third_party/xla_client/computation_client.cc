@@ -197,7 +197,7 @@ bool ParseEnvBasedTpuClusterConfig(XrtComputationClient::Options* options) {
     device_counts.num_tpus = 8;
   } else {
     const int num_wses = sys_util::GetEnvInt(env::kEnvNumWse, 0);
-    if (num_wses > 1) {
+    if (num_wses >= 1) {
       // Only one per child process, although for some
       // reason we need the env var to be more to get
       // this far past multi_processing.py since we

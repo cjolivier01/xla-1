@@ -117,7 +117,7 @@ bool verbose = false;
  *        (i.e. delegate everything to the grpc_service_main app)
  */
 bool always_use_proxy = false;
-bool wse_set_topology = true;
+//bool wse_set_topology = true;
 bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
 bool disable_proxy = false;
@@ -135,7 +135,7 @@ enum class ProxyableApi {
 
 const std::set<ProxyableApi> do_not_proxy(
     {
-        ProxyableApi::PAPI_COMPILE,
+        //ProxyableApi::PAPI_COMPILE,
         ProxyableApi::PAPI_NUM
     });
 
@@ -210,7 +210,11 @@ std::unique_ptr<xla::HloModuleProto> get_proxy_hlo_module(const xla::HloModulePr
   std::string proxy_hlo_string = get_frontend_attribute(module, "PROXY_HLO");
   if (!proxy_hlo_string.empty()) {
     result = std::make_unique<xla::HloModuleProto>();
-    result->ParseFromString(proxy_hlo_string);
+    auto status = google::protobuf::util::JsonStringToMessage(
+        std::move(proxy_hlo_string), result.get());
+    if (!status.ok()) {
+      throw std::runtime_error(status.ToString());
+    }
   }
   return std::move(result);
 }
@@ -518,16 +522,6 @@ bool XlaComputationProxy::IsEnabled() {
   static bool enabled = xla::sys_util::GetEnvBool("XLA_PROXY_ENABLED", true);
   return enabled;
 }
-
-//bool XlaComputationProxy::SetProxyForDevice(const std::string &source_device, const std::string &proxy_device) {
-//  assert(!source_device.empty());
-//  std::lock_guard<std::mutex> lk(proxy_mapping_mtx_);
-//  if (!proxy_device.empty()) {
-//    proxy_mapping_.insert({source_device, proxy_device});
-//  } else {
-//    proxy_mapping_.erase(source_device);
-//  }
-//}
 
 bool XlaComputationProxy::HasProxyAddresses() {
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
@@ -1085,7 +1079,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
       return UseProxyForDevice(compilation_device);
 #endif
     },
-    [this /*, &compilation_device*/](std::vector<CompileInstance>& instances) {
+    [this](std::vector<CompileInstance>& instances) {
       // WSE (true)
       std::vector<ComputationClient::ComputationPtr> local_results;
       local_results.reserve(instances.size());
@@ -1111,7 +1105,9 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
             compiler->RunHloPasses(std::move(new_hlo_module.ConsumeValueOrDie()), nullptr, nullptr);
           if (result.ok()) {
             std::unique_ptr<xla::HloModule> hlo_module = result.ConsumeValueOrDie();
-            const HloModuleProto hlo_module_proto = hlo_module->ToProto();
+
+            std::unique_ptr<xla::HloModuleProto> hlo_module_proto =
+                get_proxy_hlo_module(hlo_module->ToProto());
 
             xla::CompileRequest compile_request;
             xla::CompileResponse compile_response;
@@ -1128,7 +1124,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
               compile_request.add_input_shape_with_layout()->CopyFrom(parameter_shape.ToProto());
             }
 
-            *compile_request.mutable_computation() = hlo_module_proto;
+            *compile_request.mutable_computation() = *hlo_module_proto;
             *compile_request.mutable_execution_options()->add_device_handles() =
               GetDeviceHandle(compilation_device);
             *compile_request.mutable_execution_options()->mutable_shape_with_output_layout() =
@@ -1144,7 +1140,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
               // We compiled it ourselves, should insert a ComputationClient::ComputationPtr
               ComputationClient::ComputationPtr computation_ptr =
                 std::make_shared<ComputationClient::Computation>(
-                  XlaComputation(hlo_module_proto),
+                  XlaComputation(std::move(*hlo_module_proto)),
                   ProgramShape(instance.computation.proto().host_program_shape()),
                   instance.devices,
                   compile_response.handle().handle()
