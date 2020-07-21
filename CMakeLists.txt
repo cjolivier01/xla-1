@@ -41,6 +41,8 @@ if(NOT TORCH_PATH)
 endif()
 message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
+add_compile_definitions(XLA_CUDA=1)
+
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)

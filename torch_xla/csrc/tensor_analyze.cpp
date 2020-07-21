@@ -34,7 +34,7 @@ bool verbose_output_control = verbose || false;
 bool verbose_mp = true;
 bool verbose_hash = true;
 bool verbose_non_fabric = false;
-bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
+bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", true);
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
@@ -387,6 +387,11 @@ std::shared_ptr<ExecutableCache> ex_cache = std::make_shared<ExecutableCache>();
 
 std::size_t get_number_of_required_runs_since_reset() {
   if (disable_proxy) {
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      std::cerr << "**** WARNING **** PROXY IS DISABLED" << ENDL;
+    }
     return std::numeric_limits<std::size_t>::max();
   }
   static bool trusted_model =
