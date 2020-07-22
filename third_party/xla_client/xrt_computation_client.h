@@ -324,7 +324,7 @@ class XrtComputationClient : public ComputationClient {
   void ReleaseHandle(int64 handle, const std::string& device,
                      std::vector<DeviceHandle>* handles);
 
-  virtual void ReleaseXrtData(const std::string& device, int64 handle);
+  void ReleaseXrtData(const std::string& device, int64 handle);
 
   void ReleaseXrtComputation(const std::string& compilation_device,
                              int64 handle);
@@ -471,8 +471,6 @@ class XrtComputationClient : public ComputationClient {
   const XrtSession::CachedNode& GetSubTupleNode(
       XrtSession* session, const tensorflow::Scope& scope,
       const std::string& device) const;
-
-  std::string DeviceSummary(std::string device, bool verbose = false) const;
 
   // Creates an XRTMemoryInfo node:
   //

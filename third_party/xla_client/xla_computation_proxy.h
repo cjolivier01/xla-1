@@ -120,7 +120,7 @@ private:
    * @param device
    * @return
    */
-  void ReleaseXrtData(const std::string& device, int64 handle) override;
+  virtual void ReleaseXrtData(const std::string& device, int64 handle) override;
   void ReleaseXlaProxyData(const std::string& device, int64 handle);
 };
 

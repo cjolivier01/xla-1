@@ -3,7 +3,6 @@ from __future__ import print_function
 
 from six import iteritems, itervalues
 import threading
-import os
 import torch
 import torch_xla
 import torch_xla.utils.keyd_queue as kq

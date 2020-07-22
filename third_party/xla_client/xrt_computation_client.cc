@@ -253,7 +253,6 @@ XrtComputationClient::XrtComputationClient(
     : options_(std::move(options)),
       compilation_cache_(sys_util::GetEnvInt("XLA_COMPILATION_CACHE_SIZE", 64)),
       rng_seed_(0x5a2d296e9) {
-  //raise(SIGTRAP);
   tensorflow::ConfigProto config = CreateConfigProto(options_);
   std::string local_target = GetLocalTarget(options_);
   session_cache_ = absl::make_unique<XrtSessionCache>(
@@ -371,24 +370,11 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
   return results;
 }
 
-std::string XrtComputationClient::DeviceSummary(std::string device, bool verbose) const {
-  if (verbose || verbose_mp) {
-    std::stringstream ss;
-    const auto worker_pair = GetWorkerForDevice(device);
-    ss << device << "@" << TorchDeviceToXrtDevice(device)
-       << " -> " << worker_pair.first.name << " task_no=" << worker_pair.first.task_no
-       << ", " << worker_pair.second;
-    return ss.str();
-  } else {
-    return std::move(device);
-  }
-}
-
 std::vector<ComputationClient::DataPtr>
 XrtComputationClient::TransferToServerInternal(
     absl::Span<const TensorSource> tensors) {
   metrics::TimedSection timed(TransferToServerMetric());
-  //raise(SIGTRAP);
+
   std::mutex lock;
   XrtSessionCache::SessionMap session_map;
   int64 total_size = 0;
@@ -758,7 +744,6 @@ void XrtComputationClient::SetupExecConfig(const Device& device,
                                            T* exec_config) const {
   exec_config->set_core_index_in_replica(0);
   exec_config->set_rng_seed(rng_seed_);
-  //if (device.kind != "TPU") {
   if (!IsDistributedDevice(device.kind)) {
     // TPU ignores those fields, and given that the device list can be in the
     // thousands for POD scale, we avoid wasting time filling it up.
@@ -1044,14 +1029,13 @@ std::unique_ptr<xrt::XLAComputation> XrtComputationClient::CreateXrtComputation(
     for (int64 i = 0; i < devices.size(); ++i) {
       Device device(devices[i]);
       auto replica_device = computation_device->add_replica_devices();
-      //if (device.kind == "TPU") {
       if (IsDistributedDevice(device.kind)) {
         const std::string& xrt_device = TorchDeviceToXrtDevice(devices[i]);
         const auto& core_coords = GetDeviceMeshCoords(xrt_device);
         for (auto coord : core_coords) {
           replica_device->add_value(coord);
         }
-      } else if (device.kind == "GPU" /*|| device.kind == "WSE"*/) {
+      } else if (device.kind == "GPU") {
         // For GPU use X,Y,Z=0 and CORE=GPU_ORDINAL (where GPU_ORDINAL is the
         // global ordinal value).
         replica_device->add_value(0);
@@ -1307,7 +1291,6 @@ tensorflow::tpu::TopologyProto XrtComputationClient::InitializeAndFetchTopology(
           .Attr("tpu_embedding_config", "")
           .Attr("is_global_init", false);
   // TODO: Remove this once the new TF build can be relied upon, on the Cloud
-  // TODO: Remove this once the new TF build can be relied upon, on the Cloud
   // TPU side.
   const tensorflow::ClusterDef cluster_def = config.cluster_def();
   if (cluster_def.job_size() > 1 ||
@@ -1349,9 +1332,8 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          XlaComputationProxy::InitializeAndFetchTopology(
-              worker.name, worker.task_no, it->second,
-              session_cache_->GetConfig());
+          InitializeAndFetchTopology(worker.name, worker.task_no, it->second,
+                                     session_cache_->GetConfig());
       if (topology_proto == nullptr) {
         topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
             std::move(worker_topology_proto));

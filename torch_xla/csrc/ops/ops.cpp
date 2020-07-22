@@ -8,7 +8,6 @@
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
-#include "tensorflow/compiler/xla/service/shape_inference.h"
 #include "torch_xla/csrc/convert_ops.h"
 #include "torch_xla/csrc/data_ops.h"
 #include "torch_xla/csrc/elementwise.h"
@@ -25,7 +24,6 @@
 #include "torch_xla/csrc/ops/softmax_backward.h"
 #include "torch_xla/csrc/ops/sum.h"
 #include "torch_xla/csrc/pooling.h"
-#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/xla_lower_util.h"
@@ -267,10 +265,7 @@ NodePtr Ger(const Value& input, const Value& other) {
 
 NodePtr AddMatMulOp(const Value& input, const Value& weight,
                     const Value& bias) {
-  ScopePusher ir_scope(absl::StrCat("WSE_", __FUNCTION__));
-  auto lower_fn = [depth = ir_scope.Depth(),
-                   scope_name = ir_scope.CurrentScope()](
-                      const Node& node, LoweringContext* loctx) -> XlaOpVector {
+  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
     XLA_CHECK_EQ(node.operands().size(), 3) << "Unexpected number of operands";
     xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
     xla::XlaOp xla_weight = loctx->GetOutputOp(node.operand(1));

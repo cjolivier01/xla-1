@@ -43,8 +43,6 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-//#define WSE_REDIRECT
-
 namespace torch_xla {
 namespace {
 
@@ -1295,11 +1293,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
                  << " on device " << async->device << " done!";
 
       for (size_t i = 0; i < results.size(); ++i) {
-        assert(i < async->tensors_data.size());
         if (async->tensors_data[i] != nullptr) {
           async->tensors_data[i]->Assign(*results[i]);
         } else {
-
           async->tensors_data[i] = std::move(results[i]);
         }
       }
