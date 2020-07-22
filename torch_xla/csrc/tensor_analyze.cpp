@@ -34,7 +34,7 @@ bool verbose_output_control = verbose || false;
 bool verbose_mp = true;
 bool verbose_hash = true;
 bool verbose_non_fabric = false;
-bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", true);
+bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
