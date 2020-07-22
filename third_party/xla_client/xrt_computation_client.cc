@@ -1332,7 +1332,7 @@ void XrtComputationClient::InitializeDevices(
       TF_VLOG(1) << "Configuring TPU for master worker " << worker.name << ":"
                  << worker.task_no << " at " << it->second;
       tensorflow::tpu::TopologyProto worker_topology_proto =
-          InitializeAndFetchTopology(worker.name, worker.task_no, it->second,
+          XlaComputationProxy::InitializeAndFetchTopology(worker.name, worker.task_no, it->second,
                                      session_cache_->GetConfig());
       if (topology_proto == nullptr) {
         topology_proto = absl::make_unique<tensorflow::tpu::TopologyProto>(
