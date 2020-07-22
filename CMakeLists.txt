@@ -43,6 +43,13 @@ message(STATUS "TORCH_PATH: ${TORCH_PATH}")
 
 add_compile_definitions(XLA_CUDA=1)
 
+include_directories(${TORCH_PATH})
+include_directories(${TORCH_PATH}/torch/csrc)
+include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
+include_directories(${TORCH_PATH}/torch/include)
+include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
+include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/toolchain/rootfs-x86_64/usr/include)
+
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
@@ -50,17 +57,17 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-ten
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-bin)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/protobuf_archive/src)
-include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_protobuf/src)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/eigen_archive)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_absl/)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
-include_directories(${TORCH_PATH})
-include_directories(${TORCH_PATH}/torch/csrc)
-include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
-include_directories(${TORCH_PATH}/torch/include)
-include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
-include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/toolchain/rootfs-x86_64/usr/include)
+
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_protobuf/src)
+
+#get_property(the_include_dirs DIRECTORY ptxla PROPERTY INCLUDE_DIRECTORIES)
+#message(WARNING "the_include_dirs=${the_include_dirs}")
+#string(REPLACE ${what_needs_to_go} "" new_include_dirs ${the_include_dirs})
+#set_property(DIRECTORY foo PROPERTY INCLUDE_DIRECTORIES ${new_include_dirs})
 
 message(STATUS "ptxla CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 

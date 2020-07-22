@@ -884,7 +884,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServerInt
       if (i++) {
         std::cout << ", ";
       }
-      std::cout << t.shape << "@" << DeviceSummary(t.device);
+      std::cout << t.shape << "@" << t.device;
     }
     std::cout << ")" << std::endl << std::flush;
   }
