@@ -88,6 +88,10 @@ set(CMAKE_CXX_FLAGS "-DTORCH_EXTENSION_NAME=_XLAC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 #set(CMAKE_CXX_FLAGS "-DTF_HAS_WSE_DEVICE=1 ${CMAKE_CXX_FLAGS}")
 
+add_compile_options(-fvisibility=hidden)
+add_link_options(-fvisibility=hidden)
+add_compile_options(-Wno-ignored-qualifiers)
+
 add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
 add_dependencies(ptxla torch torch_python c10 shm torch_global_deps)
 
