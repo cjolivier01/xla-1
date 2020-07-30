@@ -122,7 +122,8 @@ bool clone_all_data = true;
 bool using_grpc_service_main_cpu = false;
 bool disable_proxy = false;
 bool throw_on_compile_fail = true;
-bool verbose_pull = false;
+bool verbose_pull = true;
+bool verbose_transfer = false;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
@@ -811,7 +812,7 @@ ComputationClient::DataPtr XlaComputationProxy::TransferLiteralToServer(
     throw std::runtime_error(status.error_message());
   }
 
-  if (false && verbose) {
+  if (verbose_transfer || verbose) {
     ColorScope clr(Color::FG_GREEN);
     std::cout << "TransferLiteralToServer() Sent data , received handle: " << response.data().handle()
               << ", shape=" << literal.shape().ToString()
@@ -876,7 +877,7 @@ std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServer(
 std::vector<ComputationClient::DataPtr> XlaComputationProxy::TransferToServerInternal(
   absl::Span<const TensorSource> tensors
 ) {
-  if (verbose) {
+  if (verbose_transfer || verbose) {
     ColorScope clr(Color::FG_YELLOW);
     std::cout << getpid() << " XlaComputationProxy::TransferToServer( ";
     size_t i = 0;
@@ -973,12 +974,12 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
     [this](std::vector<DataPtr>& wse_handles) {
       // WSE (true)
 
-      if (verbose || verbose_pull) {
+      if (verbose || verbose_transfer || verbose_pull) {
         for (const DataPtr& d : wse_handles) {
           ColorScope clr(Color::FG_RED);
-          std::cout << getpid() << " XlaComputationProxy::TransferFromServer() "
+          std::cout << getpid() << " *WSE* XlaComputationProxy::TransferFromServer() "
                     << " handle = " << d->GetOpaqueHandle()
-                    << ", shape = " << d->shape()
+                    << ", shape = " << d->shape() << "@" << d->device()
                     << ENDL;
         }
       }
@@ -1012,6 +1013,16 @@ std::vector<Literal> XlaComputationProxy::TransferFromServer(
     [this](std::vector<DataPtr>& other_handles) {
       // CPU or other (false)
       assert(!always_use_proxy);
+      if (verbose || verbose_transfer || verbose_pull) {
+        for (const DataPtr& d : other_handles) {
+          ColorScope clr(Color::FG_RED);
+          std::cout << getpid() << " *XRT* XlaComputationProxy::TransferFromServer() "
+                    << " handle = " << d->GetOpaqueHandle()
+                    << ", shape = " << d->shape() << "@" << d->device()
+                    << ENDL;
+        }
+      }
+
       return Super::TransferFromServer(other_handles);
     }
   );
