@@ -284,7 +284,7 @@ class DistributedExecutor(object):
       os.makedirs(os.path.dirname(script_path), exist_ok=True)
       with open(script_path, 'w') as f:
         f.write(script_body)
-      subprocess.call(['chmod', '+x', script_path])
+      subprocess.call(['/bin/chmod', '+x', script_path])
       worker_script_map[self._cluster.get_client_workers()[i]] = {
           'local_path':
               script_path,
@@ -467,6 +467,11 @@ if __name__ == '__main__':
   cluster_group.add_argument(
       '--tpu', type=str, required=True, help='Name of the Cloud TPU pod.')
   cluster_group.add_argument(
+      '--wse',
+    action='store_true',
+    default=False,
+    help='Use Wafer-Scale Engine.')
+  cluster_group.add_argument(
       '--vm',
       action='append',
       type=str,
@@ -516,7 +521,7 @@ if __name__ == '__main__':
                      ' arguments are mutually exclusive.')
 
   # Resolve VM and TPU clusters.
-  cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm)
+  cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm, cloud=False)
   cluster = cluster_resolver.get_cluster()
   executor = DistributedExecutor(
       cluster,

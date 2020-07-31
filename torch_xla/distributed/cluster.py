@@ -239,15 +239,17 @@ class ClusterResolver(object):
     self._compute_service = discovery.build(
         'compute',
         'v1',
-        credentials=GoogleCredentials.get_application_default()
-        cache_discovery=False) if cloud else None
+        credentials=GoogleCredentials.get_application_default(),
+      cache_discovery=False) if cloud else None
 
-    if project is None:
-      self._project = self.get_instance_metadata('project/project-id')
-    if zone is None:
-      zone_path = self.get_instance_metadata('instance/zone')
-      self._zone = self._parse_resource_url(zone_path, 'zones')
-    self._vm_master = self.get_instance_metadata('instance/name')
+    if self._cloud:
+      if project is None:
+        self._project = self.get_instance_metadata('project/project-id')
+      if zone is None:
+        zone_path = self.get_instance_metadata('instance/zone')
+        self._zone = self._parse_resource_url(zone_path, 'zones')
+      self._vm_master = self.get_instance_metadata('instance/name')
+
 
   def _get_instance_group(self):
     """Gets the instance group that the current VM belongs to."""
@@ -270,6 +272,10 @@ class ClusterResolver(object):
                         'if not using an instance group'))
 
   def _get_member_instance_names(self, instance_group):
+    if not self._cloud:
+      instances = ['localhost', '127.0.0.1']
+      return instances
+
     """Gets all the instance names that belong to the given instance group."""
     resp = self._compute_service.instanceGroups().listInstances(
         project=self._project, zone=self._zone,
@@ -395,8 +401,19 @@ class ClusterResolver(object):
       RuntimeError: If the VM cluster is not healthy. Also if the TPU
         cluster is not healthy.
     """
-    client_workers = self.get_client_workers()
-    service_workers = self.get_service_workers()
-    cluster = Cluster(client_workers, service_workers)
-    cluster.validate()
+    if not self._cloud:
+      client_workers = [
+        ClientWorker('localhost', machine_type='m3.xlarge', zone='us-east-1'),
+        ClientWorker('127.0.0.1', machine_type='m3.xlarge', zone='us-east-1'),
+      ]
+      service_workers = [
+        ServiceWorker('chriso-monster', port=2228, machine_type='m3.xlarge', zone='us-east-1', runtime_version='0.1'),
+        ServiceWorker('chriso-monster', port=2229, machine_type='m3.xlarge', zone='us-east-1', runtime_version='0.1'),
+      ]
+      cluster = Cluster(client_workers, service_workers, client_master_ip='localhost')
+    else:
+      client_workers = self.get_client_workers()
+      service_workers = self.get_service_workers()
+      cluster = Cluster(client_workers, service_workers)
+      cluster.validate()
     return cluster
