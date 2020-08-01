@@ -17,6 +17,7 @@ import threading
 import torch_xla.core.xla_env_vars as xenv
 from torch_xla.distributed.cluster import ClusterResolver
 import torch_xla.utils.utils as xu
+import ptwse.patch
 
 
 def concat_cmd_list(cmd_list, delimiter=' ', quote='"'):
@@ -330,9 +331,9 @@ class DistributedExecutor(object):
   def _cleanup(self, script_map):
 
     def _cleanup_worker(local_script, remote_script, client_worker):
-      rm_tmp_dir = ['rm', '-rf', os.path.dirname(remote_script)]
+      rm_tmp_dir = ['/bin/rm', '-rf', os.path.dirname(remote_script)]
       self._build_and_run_ssh(rm_tmp_dir, client_worker, log=False)
-      subprocess.call(['rm', '-rf', os.path.dirname(local_script)])
+      subprocess.call(['/bin/rm', '-rf', os.path.dirname(local_script)])
       if self.docker_image:
         rm_container = ['docker', 'rm', '-f', self.docker_container]
         self._build_and_run_ssh(rm_container, client_worker, log=False)
@@ -366,7 +367,7 @@ class DistributedExecutor(object):
       exit_code = self._build_and_run_ssh([script_path], client_worker)
       if exit_code != 0:
         raise RuntimeError(
-            'Remote command exitted with code: {}'.format(exit_code))
+            'Remote command exited with code: {}'.format(exit_code))
 
     def _regular_health_check():
       uneven_health_timeout = xu.getenv_as('XLA_UNEVEN_HEARTBEAT_TIMEOUT', int,
@@ -380,7 +381,8 @@ class DistributedExecutor(object):
 
     threading.Thread(target=_regular_health_check, daemon=True).start()
     xu.parallel_work(
-        len(script_map), _run_script, script_map.values(), script_map.keys())
+      len(script_map),
+      _run_script, script_map.values(), script_map.keys())
 
   def _run_cmd(self, script_map):
     try:
@@ -519,6 +521,8 @@ if __name__ == '__main__':
       FLAGS.docker_run_flag) and FLAGS.conda_env:
     raise ValueError('Docker Setup arguments and Conda Setup'
                      ' arguments are mutually exclusive.')
+
+  ptwse.patch.install()
 
   # Resolve VM and TPU clusters.
   cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm, cloud=False)

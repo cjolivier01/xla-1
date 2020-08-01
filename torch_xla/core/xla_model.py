@@ -283,8 +283,8 @@ def xla_replication_devices(local_devices):
   if len(kind_devices) != len(local_devices):
     # Replication can only happen among all devices of one kind.
     raise RuntimeError(
-        'Cannot replicate if number of devices ({}) is different from {}'.
-        format(len(local_devices), len(kind_devices)))
+        'Cannot replicate if number of devices ({}) is different from {} ({} vs {}'.
+        format(len(local_devices), len(kind_devices), str(local_devices), str(kind_devices)))
   replication_devices = []
   for device in torch_xla._XLAC._xla_get_all_devices():
     xdev = parse_xla_device(device)

@@ -403,8 +403,8 @@ class ClusterResolver(object):
     """
     if not self._cloud:
       client_workers = [
-        ClientWorker('localhost', machine_type='m3.xlarge', zone='us-east-1'),
-        ClientWorker('127.0.0.1', machine_type='m3.xlarge', zone='us-east-1'),
+        ClientWorker('localhost', machine_type='m3.xlarge', zone='us-east-1', hostname='chriso-monster'),
+        ClientWorker('127.0.0.1', machine_type='m3.xlarge', zone='us-east-1', hostname='chriso-monster'),
       ]
       service_workers = [
         ServiceWorker('chriso-monster', port=2228, machine_type='m3.xlarge', zone='us-east-1', runtime_version='0.1'),

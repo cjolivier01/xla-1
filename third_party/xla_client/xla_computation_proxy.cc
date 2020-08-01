@@ -83,11 +83,17 @@ static const char *env_vars[] = {
     "XRT_HOST_ORDINAL",
     "XRT_TORCH_DIST_METHOD",
     "XRT_TORCH_DIST_ROOT",
+    "XRT_MULTI_PROCESSING_DEVICE",
     "TPU_NUM_DEVICES",
     "GPU_NUM_DEVICES",
     "WSE_NUM_DEVICES",
-    "CPU_NUM_DEVICES"
+    "CPU_NUM_DEVICES",
+    "WSE_TPU_MODE"
 };
+
+extern "C" {
+  extern char **environ;
+}
 
 void print_environment_config() {
   std::stringstream ss;
@@ -95,6 +101,14 @@ void print_environment_config() {
      << getpid() << " PROCESS CONFIG"
      << "------------------"
      << std::endl;
+  int i = 0;
+  while(environ[i]) {
+    if (strncmp(environ[i], "XRT_", 4) == 0 /*|| strncmp(environ[i], "XLA_", 4) == 0*/) {
+      ss << "\t" << environ[i] << std::endl;
+    }
+    ++i;
+  }
+  ss << "------------------" << std::endl;
   for (std::size_t i = 0; i < sizeof(env_vars)/sizeof(env_vars[0]); ++i) {
     const char *s = getenv(env_vars[i]);
     if (s && *s) {
@@ -1586,21 +1600,27 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
     }
  */
 
-  int core_nr = 0;
-  for (int task = 0; task < tasks.size(); ++task) {
-    const int base = task * num_devices_per_task;
-    for (int task_core = 0; task_core < num_devices_per_task; ++task_core) {
-      topology_proto.add_device_coordinates(0);
-      topology_proto.add_device_coordinates(0);
-      topology_proto.add_device_coordinates(0);
-      topology_proto.add_device_coordinates(base + core_nr++);
-    }
-  }
+  const int total_nr_cores = tasks.size() * num_devices_per_task;
+
+  std::cout << "InitializeAndFetchTopology(): task count = " << tasks.size() << ENDL;
 
   topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(1);
-  topology_proto.add_mesh_shape(core_nr);
+  topology_proto.add_mesh_shape(total_nr_cores * 3 /* x, y, x */);
+
+  int core_nr = 0;
+  for (int task = 0; task < tasks.size(); ++task) {
+    //const int base = task * num_devices_per_task;
+    for (int task_core = 0; task_core < num_devices_per_task; ++task_core) {
+      for (int i = 0; i < topology_proto.mesh_shape_size(); ++i) {
+        topology_proto.add_device_coordinates(0 /*task*/);
+        topology_proto.add_device_coordinates(0/*task_core*/);
+        topology_proto.add_device_coordinates(0/*core_nr++*/);
+        //topology_proto.add_device_coordinates(task/*core_nr++*/);
+      }
+    }
+  }
 
 //  topology_proto.add_mesh_shape(wse_num_devices + cpu_num_devices);
 //  topology_proto.add_mesh_shape(1);
@@ -1620,12 +1640,12 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   return std::move(topology_proto);
 }
 
-#ifdef WSE_DEBUG_LOGGING
+//#ifdef WSE_DEBUG_LOGGING
 __thread int EnterLeave::depth_ = 0;
 const std::string EnterLeave::library_ = "ptxla";
 const Color EnterLeave::library_color_ = Color::FG_BLUE;
 std::mutex EnterLeave::mtx_;
-#endif
+//#endif
 
 const char *prev_char(const char *original, const char *start, char c) {
   while(start > original && *start != c) {

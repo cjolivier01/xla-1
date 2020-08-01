@@ -34,7 +34,7 @@ namespace xla {
 
 namespace {
 
-bool verbose = true;
+bool verbose = false;
 bool verbose_mp = true;
 bool verbose_transfers = false;
 bool verbose_pull = true;
@@ -267,8 +267,8 @@ XrtComputationClient::XrtComputationClient(
     std::cout << "COULD NOT FIND DEVICE: \""
               << options_.default_device
               << "\" from global_device_map:"
-              << std::endl;
-    raise(SIGTRAP);
+              << std::endl << std::flush;
+    //raise(SIGTRAP);
     for (const auto& item : options_.global_device_map) {
       std::cout << "\t" << item.first << " -> " << item.second
                 << std::endl << std::flush;
@@ -1355,10 +1355,15 @@ void XrtComputationClient::InitializeDevices(
     // [num_tasks][devices_per_task][mesh_shape_size] coordinates, where the
     // mesh coordinates are usually [x, y, z, c] ('x', 'y' and 'z' being the
     // spatial chip coordinated and 'c' the core number).
+    std::cout << dev_target.first << ENDL;
+    std::cout << dev_target.first << "-> " << "topology_proto->num_tpu_devices_per_task()=" << topology_proto->num_tpu_devices_per_task() << ENDL;
+    std::cout << dev_target.first << "-> " << "topology_proto->mesh_shape_size()=" << topology_proto->mesh_shape_size() << ENDL;
+    std::cout << dev_target.first << "-> " << "parsed_device.id=" << parsed_device.id << ENDL;
     int64 base_index = parsed_device.task *
                            topology_proto->num_tpu_devices_per_task() *
                            topology_proto->mesh_shape_size() +
                        parsed_device.id * topology_proto->mesh_shape_size();
+    std::cout << dev_target.first << "-> " << "base_index = " << base_index << ENDL;
     std::vector<int> device_mesh_coords(topology_proto->mesh_shape_size());
     for (int i = 0; i < topology_proto->mesh_shape_size(); ++i) {
       XLA_CHECK_LT(base_index + i, topology_proto->device_coordinates_size());
@@ -1955,6 +1960,9 @@ std::string XrtComputationClient::GetLocalTarget(const Options& options) {
 }
 
 void XrtComputationClient::MaybeCreateLocalService(const Options& options) {
+//  if (sys_util:GetEnvBool("WSE_TPU_MODE", false)) {
+//    return;
+//  }
   std::string grpc_root("grpc://");
   std::string local_worker = sys_util::GetEnvString(env::kEnvLocalWorker, "");
   XrtComputationClient::Worker worker("", -1);
