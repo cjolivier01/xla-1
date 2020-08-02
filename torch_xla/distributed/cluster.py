@@ -208,20 +208,20 @@ class Cluster(object):
 class ClusterResolver(object):
   """Cluster Resolver for Client VM and Cloud TPU mesh."""
 
-  @staticmethod
-  def get_instance_metadata(metadata):
+  # @staticmethod
+  def get_instance_metadata(self, metadata):
     response = requests.get(
         '{}/computeMetadata/v1/{}'.format(_GCE_METADATA_ENDPOINT, metadata),
         headers={'Metadata-Flavor': 'Google'})
     return response.content.decode('utf-8')
 
-  @staticmethod
-  def _parse_resource_url(url, name):
+  # @staticmethod
+  def _parse_resource_url(self, url, name):
     parts = url.split('/')
     idx = parts.index(name)
     return parts[idx + 1]
 
-  def __init__(self, tpu, vms=None, zone=None, project=None, cloud=True):
+  def __init__(self, tpu, vms=None, zone=None, project=None, compute_service=None):
     """Creates a new ClusterResolver object."""
 
     if not tpu:
@@ -234,27 +234,23 @@ class ClusterResolver(object):
     self._vms = vms
     self._zone = zone
     self._project = project
-    self._cloud = cloud
 
     self._compute_service = discovery.build(
         'compute',
         'v1',
         credentials=GoogleCredentials.get_application_default(),
-      cache_discovery=False) if cloud else None
+      cache_discovery=False) if compute_service is None else compute_service
 
-    if self._cloud:
-      if project is None:
-        self._project = self.get_instance_metadata('project/project-id')
-      if zone is None:
-        zone_path = self.get_instance_metadata('instance/zone')
-        self._zone = self._parse_resource_url(zone_path, 'zones')
-      self._vm_master = self.get_instance_metadata('instance/name')
+    if project is None:
+      self._project = self.get_instance_metadata('project/project-id')
+    if zone is None:
+      zone_path = self.get_instance_metadata('instance/zone')
+      self._zone = self._parse_resource_url(zone_path, 'zones')
+    self._vm_master = self.get_instance_metadata('instance/name')
 
 
   def _get_instance_group(self):
     """Gets the instance group that the current VM belongs to."""
-    if self._compute_service is None:
-      return None
     resp = self._compute_service.instances().get(
         project=self._project,
         zone=self._zone,
@@ -272,10 +268,6 @@ class ClusterResolver(object):
                         'if not using an instance group'))
 
   def _get_member_instance_names(self, instance_group):
-    if not self._cloud:
-      instances = ['localhost', '127.0.0.1']
-      return instances
-
     """Gets all the instance names that belong to the given instance group."""
     resp = self._compute_service.instanceGroups().listInstances(
         project=self._project, zone=self._zone,
@@ -401,19 +393,8 @@ class ClusterResolver(object):
       RuntimeError: If the VM cluster is not healthy. Also if the TPU
         cluster is not healthy.
     """
-    if not self._cloud:
-      client_workers = [
-        ClientWorker('localhost', machine_type='m3.xlarge', zone='us-east-1', hostname='chriso-monster'),
-        ClientWorker('127.0.0.1', machine_type='m3.xlarge', zone='us-east-1', hostname='chriso-monster'),
-      ]
-      service_workers = [
-        ServiceWorker('chriso-monster', port=2228, machine_type='m3.xlarge', zone='us-east-1', runtime_version='0.1'),
-        ServiceWorker('chriso-monster', port=2229, machine_type='m3.xlarge', zone='us-east-1', runtime_version='0.1'),
-      ]
-      cluster = Cluster(client_workers, service_workers, client_master_ip='localhost')
-    else:
-      client_workers = self.get_client_workers()
-      service_workers = self.get_service_workers()
-      cluster = Cluster(client_workers, service_workers)
-      cluster.validate()
+    client_workers = self.get_client_workers()
+    service_workers = self.get_service_workers()
+    cluster = Cluster(client_workers, service_workers)
+    cluster.validate()
     return cluster

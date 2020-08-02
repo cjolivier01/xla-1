@@ -525,7 +525,7 @@ if __name__ == '__main__':
   ptwse.patch.install()
 
   # Resolve VM and TPU clusters.
-  cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm, cloud=False)
+  cluster_resolver = ClusterResolver(FLAGS.tpu, vms=FLAGS.vm)
   cluster = cluster_resolver.get_cluster()
   executor = DistributedExecutor(
       cluster,
