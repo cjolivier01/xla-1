@@ -250,7 +250,12 @@ xla::uint64 GetRngSeed(const std::string& device_str) {
 
 std::string GetTensorsHloGraph(const std::vector<at::Tensor>& tensors) {
   std::vector<XLATensor> xtensors = GetXlaTensors(tensors, /*want_all=*/false);
-  return XLATensor::DumpHloComputation(xtensors);
+  return XLATensor::DumpHloComputation(xtensors, false);
+}
+
+std::string GetTensorsJsonGraph(const std::vector<at::Tensor>& tensors) {
+  std::vector<XLATensor> xtensors = GetXlaTensors(tensors, /*want_all=*/false);
+  return XLATensor::DumpHloComputation(xtensors, true);
 }
 
 void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
@@ -662,6 +667,10 @@ void InitXlaModuleBindings(py::module m) {
   m.def("_get_xla_tensors_hlo",
         [](const std::vector<at::Tensor>& tensors) -> std::string {
           return GetTensorsHloGraph(tensors);
+        });
+  m.def("_get_xla_tensors_json",
+        [](const std::vector<at::Tensor>& tensors) -> std::string {
+          return GetTensorsJsonGraph(tensors);
         });
   m.def("_xla_set_outputs",
         [](const std::vector<at::Tensor>& output_tensors, bool append) {

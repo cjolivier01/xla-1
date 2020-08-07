@@ -21,6 +21,9 @@ StatusOr<std::unique_ptr<HloModule>> CreateModuleFromProto(
 // Returns a textual representation of the input XLA computation.
 StatusOr<std::string> GetComputationHloText(const XlaComputation& computation);
 
+// Returns a json representation of the input XLA computation.
+StatusOr<std::string> GetComputationHloJson(const XlaComputation& computation);
+
 void ReportComputationError(
     const Status& status, absl::Span<const XlaComputation* const> computations,
     absl::Span<const Shape* const> output_shapes);

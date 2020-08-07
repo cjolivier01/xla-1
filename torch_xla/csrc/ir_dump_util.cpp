@@ -248,5 +248,16 @@ std::string DumpUtil::ToHlo(absl::Span<const Value> values,
   return ConsumeValue(xla::util::GetComputationHloText(computation));
 }
 
+std::string DumpUtil::ToJson(absl::Span<const Value> values,
+                            const Device& device) {
+  ir::LoweringContext lowering_ctx("IrToJson", device);
+  for (auto& ir_value : values) {
+    xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
+    lowering_ctx.AddResult(root);
+  }
+  xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
+  return ConsumeValue(xla::util::GetComputationHloJson(computation));
+}
+
 }  // namespace ir
 }  // namespace torch_xla

@@ -23,6 +23,9 @@ class DumpUtil {
 
   static std::string ToHlo(absl::Span<const Value> values,
                            const Device& device);
+
+  static std::string ToJson(absl::Span<const Value> values,
+                           const Device& device);
 };
 
 }  // namespace ir

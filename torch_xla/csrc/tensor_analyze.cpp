@@ -30,10 +30,12 @@ namespace torch_xla {
 
 bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = verbose;
-bool verbose_output_control = verbose || false;
+bool verbose_output_control = verbose || true;
 bool verbose_mp = true;
 bool verbose_hash = true;
+bool verbose_remove_tensors = true;
 bool verbose_non_fabric = false;
+bool verbose_mark_step = true;
 bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
@@ -210,7 +212,7 @@ void PopPythonState() { python_state.pop(); }
 MarkStepScope::MarkStepScope(
     const std::string& device_str,
     const std::vector<std::string>& devices) {
-  if (verbose) {
+  if (verbose || verbose_mark_step) {
     el_ = std::make_unique<EnterLeave>("*** MARK STEP", verbose, Color::FG_RED);
   }
   XLASentinel::NotifyStepMarkerBegin(device_str, devices);
@@ -501,9 +503,10 @@ bool XLASentinel::PruneTensors(std::vector<XLATensor>* tensors, XLATensor::SyncT
   for (std::size_t i = 0, n = coll.indices.size(); i < n; ++i) {
     const std::size_t tensor_index = coll.indices[i];
     const XLATensor& tensor = (*tensors)[tensor_index];
-    if (IsAllowedOutput(tensor, coll)) {
+    bool is_restricting;
+    if (IsAllowedOutput(tensor, coll, &is_restricting)) {
       adjusted_indices.push_back(coll.indices[i]);
-      if (verbose_output_control) {
+      if (is_restricting && verbose_output_control) {
         ColorScope clr(Color::FG_DEFAULT);
         std::stringstream ss;
         ss << "Allowing output";
@@ -514,7 +517,7 @@ bool XLASentinel::PruneTensors(std::vector<XLATensor>* tensors, XLATensor::SyncT
         XLATensor::print_tensor(ss.str(), tensor);
       }
     } else {
-      if (verbose) {
+      if (is_restricting && (verbose || verbose_output_control || verbose_remove_tensors)) {
         std::stringstream ss;
         ss << "Removing output";
         if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
@@ -1123,14 +1126,25 @@ void XLASentinel::SetOutputs(const std::vector<at::Tensor>& output_tensors,
 }
 
 bool XLASentinel::IsAllowedOutput(const XLATensor& tensor,
-                                  XLATensor::SyncTensorCollection& coll) {
+                                  XLATensor::SyncTensorCollection& coll,
+                                  bool *is_restricting) {
+  if (!is_clean_step || !is_in_mark_step) {
+    return true;
+  }
+
   assert(HasWseDevices());  // why?
   assert(is_in_mark_step);  // gets cleared at end of step
   assert(is_clean_step);    // otherwise, why are you asking?
   std::shared_ptr<CompileInfo> compile_info =
       GetCompileInfo(coll.requesting_tid);
   if (compile_info->output_ids_.empty()) {
+    if (is_restricting) {
+      *is_restricting = false;
+    }
     return true;
+  }
+  if (is_restricting) {
+    *is_restricting = true;
   }
   return compile_info->output_ids_.find(tensor.data()->unique_id) !=
          compile_info->output_ids_.end();
