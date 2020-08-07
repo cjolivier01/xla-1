@@ -1493,8 +1493,10 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
         const xla::Shape& root_shape = XlaHelpers::ShapeOfXlaOp(root);
         if (parameters_data[i]->shape() != root_shape) {
           std::cout << "Not same shape..." << ENDL;
+          raise(SIGTRAP);
         } else if (alias_map[output_index] >= 0) {
           std::cout << "Found another one..." << ENDL;
+          raise(SIGTRAP);
         }
         if (parameters_data[i]->shape() == root_shape &&
             alias_map[output_index] < 0) {
@@ -1504,12 +1506,12 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
 
           TF_VLOG(6) << "Aliased parameter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
-          std::cout << "Aliased parameter " << i
-                    << " (id=" << data_info->tensor_id << ") "
-                    << " with output index " << output_index << ": "
-                    << parameters_data[i]->shape()
-                    //<< " (id=" << tensor_id << ") "
-                    << ENDL;
+//          std::cout << "Aliased parameter " << i
+//                    << " (id=" << data_info->tensor_id << ") "
+//                    << " with output index " << output_index << ": "
+//                    << parameters_data[i]->shape()
+//                    //<< " (id=" << tensor_id << ") "
+//                    << ENDL;
         }
       }
     }
