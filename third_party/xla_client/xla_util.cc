@@ -66,7 +66,7 @@ StatusOr<std::string> GetComputationHloJson(const XlaComputation& computation) {
   google::protobuf::util::JsonOptions json_options;
   auto status = google::protobuf::util::MessageToJsonString(hlo_module->ToProto(), &json_text, json_options);
   if (!status.ok()) {
-    return tensorflow::Status(static_cast<tensorflow::error::Code>(status.code()), status.error_message());
+    return tensorflow::Status(static_cast<tensorflow::error::Code>(status.code()), std::string(status.error_message()));
   }
   return std::move(json_text);
 }
