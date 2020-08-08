@@ -44,6 +44,7 @@ class HloMetadataSetter {
     const ir::MetaData& nmeta = node->metadata();
     if (!nmeta.scope.empty()) {
       metadata.set_op_name(nmeta.scope);
+      metadata.set_op_type(nmeta.scope);
     }
     if (!nmeta.frame_info.empty()) {
       const SourceLocation& frame = nmeta.frame_info.front();
@@ -66,15 +67,16 @@ class HloMetadataSetter {
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
     : builder_(name), device_(std::move(device)),
-      allow_custom_lowering_(XLASentinel::IsSpecialLowering()) {}
+      allow_custom_lowering_(false /*XLASentinel::IsSpecialLoweringEnabled()*/) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,
-                                 Util::EmissionMap emit_status)
+                                 Util::EmissionMap emit_status,
+                                 bool allow_custom_lowering)
     : builder_(name),
       device_(std::move(device)),
       emit_status_(std::move(emit_status)),
-      allow_custom_lowering_(XLASentinel::IsSpecialLowering()) {
+      allow_custom_lowering_(allow_custom_lowering && XLASentinel::IsSpecialLoweringEnabled()) {
   for (auto node : post_order) {
     LowerNode(node);
   }

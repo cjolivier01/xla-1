@@ -280,17 +280,18 @@ class XLASentinel {
   static bool PreProcessHlo(xla::XlaBuilder* builder,
                             const XLATensor::SyncTensorCollection& coll);
 
-  static bool IsSpecialLowering();
+  static bool IsSpecialLoweringEnabled();
 
   static std::map<std::string, std::string> GetStats(bool reset_stats);
 
+  static bool IsAllowedOutput(const XLATensor& tensor,
+                              XLATensor::SyncTensorCollection& coll,
+                              bool *is_restricting);
  private:
   static void NotifyStepMarkerBegin(const std::string& device_str,
                                     const std::vector<std::string>& devices);
   static void NotifyStepMarkerEnd();
 
-  static bool IsAllowedOutput(const XLATensor& tensor,
-                              XLATensor::SyncTensorCollection& coll);
   static bool IsTrainingThread(pid_t tid);
   static bool IsQualifyingStep(pid_t tid /*, bool or_higher = false*/);
   static void SetAllDevices(const std::vector<std::string>& all_devices);

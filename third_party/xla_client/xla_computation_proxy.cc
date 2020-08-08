@@ -1552,7 +1552,7 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   //const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
   //if (!wse_set_topology || !wse_num_devices
       //|| !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
-  if (!HasProxyAddresses() || !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
+  if (!wse_num_devices && (!HasProxyAddresses() || !sys_util::GetEnvBool("WSE_TPU_MODE", false))) {
     std::cout << "** Falling back to normal InitializeAndFetchTopology()"
               << std::endl << std::flush;
     return Super::InitializeAndFetchTopology(

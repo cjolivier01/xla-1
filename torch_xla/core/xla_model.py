@@ -134,7 +134,7 @@ def get_xla_supported_devices(devkind=None, max_devices=None):
     The list of device strings.
   """
   xla_devices = _DEVICES.value
-  devkind = devkind or ['TPU', 'GPU', 'CPU', 'WSE']
+  devkind = devkind or ['WSE', 'TPU', 'GPU', 'CPU']
   for kind in devkind:
     kind_devices = []
     for i, device in enumerate(xla_devices):

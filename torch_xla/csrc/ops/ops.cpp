@@ -8,6 +8,7 @@
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
+#include "tensorflow/compiler/xla/service/shape_inference.h"
 #include "torch_xla/csrc/convert_ops.h"
 #include "torch_xla/csrc/data_ops.h"
 #include "torch_xla/csrc/elementwise.h"
@@ -24,9 +25,11 @@
 #include "torch_xla/csrc/ops/softmax_backward.h"
 #include "torch_xla/csrc/ops/sum.h"
 #include "torch_xla/csrc/pooling.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/xla_lower_util.h"
+#include "torch_xla/csrc/lower_custom.h"
 
 namespace torch_xla {
 namespace ir {
@@ -263,19 +266,89 @@ NodePtr Ger(const Value& input, const Value& other) {
                    std::move(lower_fn));
 }
 
+#if 0
+xla::XlaOp WseMatMul(const std::string& name, xla::XlaOp lhs, xla::XlaOp rhs,
+                     xla::XlaOp bias, xla::XlaBuilder* builder) {
+  const xla::Shape* lhs_shape = &XlaHelpers::ShapeOfXlaOp(lhs);
+  const xla::Shape* rhs_shape = &XlaHelpers::ShapeOfXlaOp(rhs);
+  xla::DotDimensionNumbers dimension_numbers;
+  dimension_numbers.add_lhs_contracting_dimensions(
+      lhs_shape->dimensions_size() == 1 ? 0 : 1);
+  dimension_numbers.add_rhs_contracting_dimensions(0);
+
+  xla::Shape result_shape = xla::ShapeInference::InferDotOpShape(
+      *lhs_shape, *rhs_shape, dimension_numbers).ValueOrDie();
+
+  xla::HloInstructionProto instr;
+  *instr.mutable_shape() = result_shape.ToProto();
+  *instr.mutable_name() = name;
+  //instr.set_backend_config("{\"my\": \"config\"}");
+  //instr.set_backend_config(std::string("fc_transpose_no_d<float32>(NAT,NAT)"));
+
+//  xla::FrontendAttributes frontend_attributes;
+//  frontend_attributes.CopyFrom(instr.frontend_attributes());
+
+//  (*frontend_attributes.mutable_map())["quark_type"] = "fc_comp_transpose_no_d";
+//  (*frontend_attributes.mutable_map())["quark_flavor"] = "fc_comp_transpose_no_d<float32>(NAL,NAT)";
+//
+//  *instr.mutable_frontend_attributes() = frontend_attributes;
+
+//  std::cout << msg_to_json(instr) << std::endl;
+//  std::string ss = instr.backend_config();
+//  std::cout << ss << std::endl << std::flush;
+
+  ir::FrontendAttributeScope fa(
+      builder,
+      name,
+      "fc_comp_transpose_no_d<float32>(NAL,NAT)",
+      {
+          {"quark_type", "fc_comp_transpose_no_d"},
+          {"quark_flavor", "fc_comp_transpose_no_d<float32>(NAL,NAT)"},
+      }
+  );
+
+  return builder->AddInstructionEx(std::move(instr), xla::HloOpcode::kQuarkTernary,
+                                   {lhs, rhs, bias}).ValueOrDie();
+}
+#endif
+
 NodePtr AddMatMulOp(const Value& input, const Value& weight,
                     const Value& bias) {
-  auto lower_fn = [](const Node& node, LoweringContext* loctx) -> XlaOpVector {
+  ScopePusher ir_scope(absl::StrCat("WSE_", __FUNCTION__));
+  auto lower_fn = [depth = ir_scope.Depth(),
+                   scope_name = ir_scope.CurrentScope()](
+                      const Node& node, LoweringContext* loctx) -> XlaOpVector {
     XLA_CHECK_EQ(node.operands().size(), 3) << "Unexpected number of operands";
     xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
     xla::XlaOp xla_weight = loctx->GetOutputOp(node.operand(1));
     xla::XlaOp xla_bias = loctx->GetOutputOp(node.operand(2));
+#if 1
+    if (/*depth == 1 &&*/ loctx->AllowCustomLowering()) {
+      return node.ReturnOp(CustomLowerOp(
+          "WSE_AddMatMulOp_FWD", &node,
+          "ws_add_mat_mul_op_fwd", "wse_ws_add_mat_mul_op_fwd_",
+          {/*{"quark_type", "fc_comp_transpose_no_d"},
+           {"quark_flavor", "fc_comp_transpose_no_d<float32>(NAL,NAT)"},*/
+           {"in0", "input"},
+           {"in1", "weight"},
+           {"in2", "bias"}}, loctx), loctx);
+    }
+#endif
     return node.ReturnOp(BuildMatMul(xla_input, xla_weight, xla_bias), loctx);
   };
   auto lower_for_shape_fn =
       [](absl::Span<const xla::XlaOp> operands) -> xla::XlaOp {
     return BuildMatMul(operands[0], operands[1], operands[2]);
   };
+#if 0
+  return SpecialGenericOp(OpKind(at::aten::addmm), {input, weight, bias},
+                          [&]() {
+                            return InferOutputShape(
+                                {input.shape(), weight.shape(), bias.shape()},
+                                lower_for_shape_fn);
+                          },
+                          std::move(lower_fn));
+#else
   return GenericOp(OpKind(at::aten::addmm), {input, weight, bias},
                    [&]() {
                      return InferOutputShape(
@@ -283,6 +356,7 @@ NodePtr AddMatMulOp(const Value& input, const Value& weight,
                          lower_for_shape_fn);
                    },
                    std::move(lower_fn));
+#endif
 }
 
 NodePtr Dot(const Value& input, const Value& weight) {

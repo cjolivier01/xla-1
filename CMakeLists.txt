@@ -71,6 +71,10 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/ba
 
 message(STATUS "ptxla CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
+add_compile_options(-O0)
+add_compile_options(-UNDEBUG)
+add_compile_options(-ggdb3)
+
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fPIC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fwrapv ${CMAKE_CXX_FLAGS}")

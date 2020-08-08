@@ -35,9 +35,9 @@
 #include "torch_xla/csrc/ops/ops.h"
 #include "torch_xla/csrc/ops/view.h"
 #include "torch_xla/csrc/ops/xla_ops.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
-#include "torch_xla/csrc/tensor_analyze.h"
 
 extern "C" {
 extern int is_autograd_thread();
@@ -477,6 +477,15 @@ XLATensor::XLATensor(ir::Value ir_value, const Device& device,
                      c10::optional<at::ScalarType> logical_element_type)
     : data_(std::make_shared<Data>(std::move(ir_value), device,
                                    logical_element_type)) {
+//  if (data_.get()->tensor_data.has_value()) {
+//    const bool is_weight =
+//        data_.get()->tensor_data->is_leaf() && data_.get()->tensor_data->requires_grad();
+//    if (is_weight) {
+//      std::cout << "WEIGHT" << std::endl << std::flush;
+//    } else {
+//      std::cout << "NOT WEIGHT" << std::endl << std::flush;
+//    }
+//  }
   TryLimitGraphSize();
 }
 
@@ -582,8 +591,8 @@ xla::ComputationClient::DataPtr XLATensor::CurrentXlaData() const {
   return data()->xla_data;
 }
 
-std::string XLATensor::DumpHloComputation(
-    const std::vector<XLATensor>& tensors) {
+std::string XLATensor::DumpHloComputation(const std::vector<XLATensor>& tensors,
+                                          bool json) {
   std::vector<ir::Value> ir_values;
   for (auto& tensor : tensors) {
     ir::Value ir_value = tensor.CurrentIrValue();
@@ -591,8 +600,10 @@ std::string XLATensor::DumpHloComputation(
       ir_values.push_back(std::move(ir_value));
     }
   }
-  return !ir_values.empty() ? ir::DumpUtil::ToHlo(ir_values, GetCurrentDevice())
-                            : std::string();
+  return !ir_values.empty()
+             ? (json ? ir::DumpUtil::ToJson(ir_values, GetCurrentDevice())
+                     : ir::DumpUtil::ToHlo(ir_values, GetCurrentDevice()))
+             : std::string();
 }
 
 void XLATensor::SetXlaData(xla::ComputationClient::DataPtr xla_data) {
@@ -1278,12 +1289,12 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       coll, std::move(parameters_data), std::move(tensors_data),
       std::move(cached_computation));
 
-  auto syncfn = [async, hash = coll->hash, requesting_tid=coll->requesting_tid]() {
+  auto syncfn = [async, hash = coll->hash,
+                 requesting_tid = coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      XLASentinel::NotifyExecute(
-          *async->cached_computation->computation,
-          async->device, hash, requesting_tid);
+      XLASentinel::NotifyExecute(*async->cached_computation->computation,
+                                 async->device, hash, requesting_tid);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
@@ -1451,28 +1462,56 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
   for (size_t i = 0; i < indices.size(); ++i) {
     size_t tensor_index = indices[i];
     xla::int64 tensor_id = tensors[tensor_index].GetUniqueId();
+    //    ptrdiff_t view = tensors[tensor_index].GetViewAliasId();
+    //    if (view) {
+    //      std::cout << "Tensor id " << tensor_id
+    //                << " is a view of " << view
+    //                << std::endl << std::flush;
+    //    }
+    if (output_tensor_id_map.count(tensor_id) != 0) {
+      throw std::runtime_error("More than one alias for tensor");
+    }
     output_tensor_id_map[tensor_id] = i;
   }
   const std::vector<xla::ComputationClient::DataPtr>& parameters_data =
       lowering_ctx->GetParametersData();
+
+  std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT: " << indices.size() << ENDL;
+
   std::vector<ssize_t> alias_map(indices.size(), -1);
   for (size_t i = 0; i < parameters_data.size(); ++i) {
     DeviceDataInfo* data_info =
         dynamic_cast<DeviceDataInfo*>(parameters_data[i]->info());
     if (data_info != nullptr && !data_info->read_only) {
       auto it = output_tensor_id_map.find(data_info->tensor_id);
+      //      if (it == output_tensor_id_map.end()) {
+      //        const ptrdiff_t view_of =
+      //      }
       if (it != output_tensor_id_map.end()) {
         size_t output_index = it->second;
         xla::XlaOp root = lowering_ctx->GetResult(output_index);
         const xla::Shape& root_shape = XlaHelpers::ShapeOfXlaOp(root);
+        if (parameters_data[i]->shape() != root_shape) {
+          std::cout << "Not same shape..." << ENDL;
+          raise(SIGTRAP);
+        } else if (alias_map[output_index] >= 0) {
+          std::cout << "Found another one..." << ENDL;
+          raise(SIGTRAP);
+        }
         if (parameters_data[i]->shape() == root_shape &&
             alias_map[output_index] < 0) {
           lowering_ctx->builder()->SetUpAlias(
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;
 
-          TF_VLOG(6) << "Aliased paramter " << i << " with output "
+          TF_VLOG(6) << "Aliased parameter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
+//          std::cout << "Aliased parameter " << i
+//                    << " (id=" << data_info->tensor_id << ") "
+//                    << " with output index " << output_index << ": "
+//                    << parameters_data[i]->shape()
+//                    //<< " (id=" << tensor_id << ") "
+//                    << ENDL;
         }
       }
     }
@@ -1488,7 +1527,8 @@ XLATensor::CompilationResult XLATensor::Compile(
       xla::sys_util::GetEnvBool("XLA_ENABLE_PARAM_ALIASING", true);
   ir::LoweringContext lowering_ctx("SyncTensorsGraph", coll.device,
                                    po_data->post_order,
-                                   std::move(po_data->emission_map));
+                                   std::move(po_data->emission_map),
+                                   coll.config.allow_custom_lowering);
   for (auto index : coll.indices) {
     ir::Value ir_value = tensors[index].CurrentIrValue();
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
@@ -1573,16 +1613,14 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   do {
     XLASentinel::PostmarkHash(state, tensors, coll);
 
-    DebugUtil::SaveTensorsGraphInfo(
-        "ScheduleSyncTensorsGraph", *tensors,
-        &coll.indices
-    );
+    DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
+                                    &coll.indices);
 
     po_data = std::move(RunPostOrder(*tensors, coll.indices));
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
 
-  } while(XLASentinel::OnHashingComplete(state, tensors, coll));
+  } while (XLASentinel::OnHashingComplete(state, tensors, coll));
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
@@ -1607,7 +1645,17 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
 xla::int64 XLATensor::GetNextTensorId() {
   static std::atomic<xla::int64>* id_generator = new std::atomic<xla::int64>(1);
-  return id_generator->fetch_add(1);
+  xla::int64 id = id_generator->fetch_add(1);
+//  if (id < 100) {
+//    static std::mutex mtx;
+//    std::lock_guard<std::mutex> lk(mtx);
+//    std::cout << "Creating tensor id: " << id << std::endl;
+//    if (id == 28) {
+//      //raise(SIGTRAP);
+//      std::cout << "Creating # 28" << std::endl << std::flush;
+//    }
+//  }
+  return id;
 }
 
 ir::Value XLATensor::GetRngSeed(const Device& device) {
