@@ -43,7 +43,6 @@
 #include "torch_xla/csrc/ops/cumsum.h"
 #include "torch_xla/csrc/ops/device_data.h"
 #include "torch_xla/csrc/ops/diagonal.h"
-#include "torch_xla/csrc/ops/einsum.h"
 #include "torch_xla/csrc/ops/expand.h"
 #include "torch_xla/csrc/ops/exponential.h"
 #include "torch_xla/csrc/ops/flip.h"
@@ -78,6 +77,8 @@
 #include "torch_xla/csrc/ops/native_batch_norm_backward.h"
 #include "torch_xla/csrc/ops/native_batch_norm_forward.h"
 #include "torch_xla/csrc/ops/nll_loss.h"
+#include "torch_xla/csrc/ops/nll_loss2d.h"
+#include "torch_xla/csrc/ops/nll_loss2d_backward.h"
 #include "torch_xla/csrc/ops/nll_loss_backward.h"
 #include "torch_xla/csrc/ops/nms.h"
 #include "torch_xla/csrc/ops/nonzero.h"
@@ -998,17 +999,6 @@ void XLATensor::eq_(XLATensor& input, const XLATensor& other) {
   input.SetIrValue(ir::MakeNode<ir::ops::Cast>(cmp_result, input.dtype()));
 }
 
-XLATensor XLATensor::einsum(const std::string& equation,
-                            absl::Span<const XLATensor> tensors) {
-  std::vector<ir::Value> tensor_ir_values;
-  for (const auto& tensor : tensors) {
-    tensor_ir_values.push_back(tensor.GetIrValue());
-  }
-  XLA_CHECK_EQ(tensors.size(), 2);
-  return tensors[0].CreateFrom(
-      ir::MakeNode<ir::ops::Einsum>(equation, tensor_ir_values));
-}
-
 XLATensor XLATensor::elu(const XLATensor& input, at::Scalar alpha,
                          at::Scalar scale, at::Scalar input_scale) {
   return input.CreateFrom(
@@ -1861,6 +1851,26 @@ XLATensor XLATensor::nll_loss(const XLATensor& input, const XLATensor& target,
                               int ignore_index) {
   return input.CreateFrom(ir::MakeNode<ir::ops::NllLoss>(
       input.GetIrValue(), target.GetIrValue(), GetOptionalIrValue(weight),
+      GetXlaReductionMode(reduction), ignore_index));
+}
+
+XLATensor XLATensor::nll_loss2d(const XLATensor& input, const XLATensor& target,
+                                const XLATensor& weight, xla::int64 reduction,
+                                int ignore_index) {
+  return input.CreateFrom(ir::MakeNode<ir::ops::NllLoss2d>(
+      input.GetIrValue(), target.GetIrValue(), GetOptionalIrValue(weight),
+      GetXlaReductionMode(reduction), ignore_index));
+}
+
+XLATensor XLATensor::nll_loss2d_backward(const XLATensor& grad_output,
+                                         const XLATensor& input,
+                                         const XLATensor& target,
+                                         const XLATensor& weight,
+                                         xla::int64 reduction, int ignore_index,
+                                         const XLATensor& total_weight) {
+  return input.CreateFrom(ir::MakeNode<ir::ops::NllLoss2dBackward>(
+      grad_output.GetIrValue(), input.GetIrValue(), target.GetIrValue(),
+      GetOptionalIrValue(weight), GetOptionalIrValue(total_weight),
       GetXlaReductionMode(reduction), ignore_index));
 }
 

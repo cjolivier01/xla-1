@@ -48,7 +48,7 @@ TEST_F(AtenXlaTensorTest, TestTo) {
   });
 
   ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
-  ExpectCounterChanged("xla::copy_", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_copy_from", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestIsFloatingPoint) {
@@ -2571,7 +2571,7 @@ TEST_F(AtenXlaTensorTest, TestZerosLikeOptions) {
 
   ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
   ExpectCounterChanged("xla::empty", cpp_test::GetIgnoredCounters());
-  ExpectCounterChanged("xla::copy_", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_copy_from", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestZeros) {
@@ -2626,7 +2626,7 @@ TEST_F(AtenXlaTensorTest, TestOnesLikeOptions) {
 
   ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
   ExpectCounterChanged("xla::empty", cpp_test::GetIgnoredCounters());
-  ExpectCounterChanged("xla::copy_", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_copy_from", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestFull) {
@@ -2670,7 +2670,7 @@ TEST_F(AtenXlaTensorTest, TestFullLikeOptions) {
 
   ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
   ExpectCounterChanged("xla::empty", cpp_test::GetIgnoredCounters());
-  ExpectCounterChanged("xla::copy_", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_copy_from", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestARange) {
@@ -3069,6 +3069,23 @@ TEST_F(AtenXlaTensorTest, TestEinsumOuter) {
     torch::Tensor xla_b = CopyToDevice(b, device);
     torch::Tensor xla_c = torch::einsum(equation, {xla_a, xla_b});
     AllClose(c, xla_c);
+  });
+
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::view", cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestEinsumOuterBackward) {
+  torch::Tensor a =
+      torch::rand({5}, torch::TensorOptions(torch::kFloat).requires_grad(true));
+  torch::Tensor b =
+      torch::rand({5}, torch::TensorOptions(torch::kFloat).requires_grad(true));
+  std::string equation = "i,j->ij";
+  auto testfn = [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+    return torch::einsum(equation, inputs);
+  };
+  ForEachDevice([&](const torch::Device& device) {
+    TestBackward({a, b}, device, testfn, /*rtol=*/1e-3, /*atol=*/1e-4);
   });
 
   ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
@@ -6848,6 +6865,53 @@ TEST_F(AtenXlaTensorTest, TestNllLoss) {
   ExpectCounterChanged("xla::nll_loss_forward", cpp_test::GetIgnoredCounters());
 }
 
+TEST_F(AtenXlaTensorTest, TestNllLoss2d) {
+  int batch = 6;
+  int classes = 2;
+  int height = 3;
+  int width = 3;
+  for (auto dtype : {torch::kFloat, torch::kDouble}) {
+    for (int ignore_index : {-1, 0, 1, 5}) {
+      for (bool def_weight : {false, true}) {
+        torch::Tensor input = torch::rand({batch, classes, height, width},
+                                          torch::TensorOptions(dtype));
+        torch::Tensor target = torch::randint(
+            std::min(ignore_index, 0), classes, {batch, height, width},
+            torch::TensorOptions(torch::kLong));
+        torch::Tensor weight;
+        if (def_weight) {
+          weight = torch::rand({classes}, torch::TensorOptions(dtype));
+        }
+        for (torch::Reduction::Reduction reduction :
+             {torch::Reduction::Mean, torch::Reduction::Sum,
+              torch::Reduction::None}) {
+          torch::Tensor output =
+              torch::nll_loss2d(/*self=*/input, /*target=*/target,
+                                /*weight=*/weight,
+                                /*reduction=*/reduction,
+                                /*ignore_index=*/ignore_index);
+
+          ForEachDevice([&](const torch::Device& device) {
+            torch::Tensor xla_input = CopyToDevice(input, device);
+            torch::Tensor xla_target = CopyToDevice(target, device);
+            torch::Tensor xla_weight =
+                def_weight ? CopyToDevice(weight, device) : torch::Tensor();
+            torch::Tensor xla_output = torch::nll_loss2d(
+                /*self=*/xla_input, /*target=*/xla_target,
+                /*weight=*/xla_weight,
+                /*reduction=*/reduction, /*ignore_index=*/ignore_index);
+            AllClose(output, xla_output);
+          });
+        }
+      }
+    }
+  }
+
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::nll_loss2d_forward",
+                       cpp_test::GetIgnoredCounters());
+}
+
 TEST_F(AtenXlaTensorTest, TestSmoothL1Loss) {
   torch::Tensor input =
       torch::randn({2, 4}, torch::TensorOptions(torch::kFloat));
@@ -7053,7 +7117,7 @@ TEST_F(AtenXlaTensorTest, TestContiguous) {
   });
 
   ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
-  ExpectCounterChanged("xla::copy_", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_copy_from", cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestSqueezeAll) {
@@ -9229,6 +9293,51 @@ TEST_F(AtenXlaTensorTest, TestNllLossBackward) {
                           cpp_test::GetIgnoredCounters());
   ExpectCounterChanged("xla::nll_loss_forward", cpp_test::GetIgnoredCounters());
   ExpectCounterChanged("xla::nll_loss_backward",
+                       cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestNllLoss2dBackward) {
+  int batch = 6;
+  int classes = 2;
+  int height = 3;
+  int width = 3;
+  for (auto dtype : {torch::kFloat, torch::kDouble}) {
+    for (int ignore_index : {-1, 0, 1, 5}) {
+      for (bool def_weight : {false, true}) {
+        torch::Tensor input =
+            torch::rand({batch, classes, height, width},
+                        torch::TensorOptions(dtype).requires_grad(true));
+        torch::Tensor target = torch::randint(
+            std::min(ignore_index, 0), classes, {batch, height, width},
+            torch::TensorOptions(torch::kLong));
+        torch::Tensor weight;
+        if (def_weight) {
+          weight = torch::rand({classes}, torch::TensorOptions(dtype));
+        }
+        for (torch::Reduction::Reduction reduction :
+             {torch::Reduction::Mean, torch::Reduction::Sum,
+              torch::Reduction::None}) {
+          auto testfn =
+              [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+            return torch::nll_loss2d(
+                /*self=*/inputs[0], /*target=*/inputs[1],
+                /*weight=*/inputs[2],
+                /*reduction=*/reduction, /*ignore_index=*/ignore_index);
+          };
+          ForEachDevice([&](const torch::Device& device) {
+            TestBackward({input, target, weight}, device, testfn, /*rtol=*/1e-5,
+                         /*atol=*/1e-8);
+          });
+        }
+      }
+    }
+  }
+
+  ExpectCounterNotChanged("aten::(?!_local_scalar_dense).*",
+                          cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::nll_loss2d_forward",
+                       cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::nll_loss2d_backward",
                        cpp_test::GetIgnoredCounters());
 }
 
