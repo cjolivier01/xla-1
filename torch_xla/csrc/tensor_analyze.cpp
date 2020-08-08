@@ -716,6 +716,7 @@ bool XLASentinel::OnHashingComplete(
         coll.hash = state.start_hash_;
         return true;  // need to recalculate postorder with new inputs
       }
+      coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
     }
 
@@ -768,6 +769,7 @@ bool XLASentinel::OnHashingComplete(
       ex_cache->set_adjusted_hash(coll.hash, proxy_hash);
       coll.hash = proxy_hash;
       state.fabric_run_ = true;
+      coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
     }
   } else {
@@ -799,6 +801,7 @@ bool XLASentinel::OnHashingComplete(
     //ex_cache->modify_adjusted_hash(coll.hash, proxy_hash);
     ex_cache->set_adjusted_hash(state.pre_prune_hash_, proxy_hash);
     coll.hash = proxy_hash;
+    coll.config.allow_custom_lowering = true;
     return false;
   }
 }
@@ -1046,7 +1049,7 @@ void XLASentinel::NotifyStepMarkerEnd() {
   //is_qualifying_step = false;
 }
 
-bool XLASentinel::IsSpecialLowering() {
+bool XLASentinel::IsSpecialLoweringEnabled() {
   static bool allow_special_compile =
       xla::sys_util::GetEnvBool("XLA_ALLOW_SPECIAL_LOWERING", false);
   return allow_special_compile /*&& is_qualifying_step*/;

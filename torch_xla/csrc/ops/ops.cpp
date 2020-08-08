@@ -322,11 +322,16 @@ NodePtr AddMatMulOp(const Value& input, const Value& weight,
     xla::XlaOp xla_input = loctx->GetOutputOp(node.operand(0));
     xla::XlaOp xla_weight = loctx->GetOutputOp(node.operand(1));
     xla::XlaOp xla_bias = loctx->GetOutputOp(node.operand(2));
-#if 0
-    if (depth == 1 && loctx->AllowCustomLowering()) {
-      return node.ReturnOp(
-          WseMatMul(scope_name, xla_input, xla_weight, xla_bias,
-          loctx->builder()), loctx);
+#if 1
+    if (/*depth == 1 &&*/ loctx->AllowCustomLowering()) {
+      return node.ReturnOp(CustomLowerOp(
+          "WSE_AddMatMulOp_FWD", &node,
+          "ws_add_mat_mul_op_fwd", "wse_ws_add_mat_mul_op_fwd_",
+          {/*{"quark_type", "fc_comp_transpose_no_d"},
+           {"quark_flavor", "fc_comp_transpose_no_d<float32>(NAL,NAT)"},*/
+           {"in0", "input"},
+           {"in1", "weight"},
+           {"in2", "bias"}}, loctx), loctx);
     }
 #endif
     return node.ReturnOp(BuildMatMul(xla_input, xla_weight, xla_bias), loctx);

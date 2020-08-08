@@ -1527,7 +1527,8 @@ XLATensor::CompilationResult XLATensor::Compile(
       xla::sys_util::GetEnvBool("XLA_ENABLE_PARAM_ALIASING", true);
   ir::LoweringContext lowering_ctx("SyncTensorsGraph", coll.device,
                                    po_data->post_order,
-                                   std::move(po_data->emission_map));
+                                   std::move(po_data->emission_map),
+                                   coll.config.allow_custom_lowering);
   for (auto index : coll.indices) {
     ir::Value ir_value = tensors[index].CurrentIrValue();
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
@@ -1645,15 +1646,15 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 xla::int64 XLATensor::GetNextTensorId() {
   static std::atomic<xla::int64>* id_generator = new std::atomic<xla::int64>(1);
   xla::int64 id = id_generator->fetch_add(1);
-  if (id < 100) {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lk(mtx);
-    std::cout << "Creating tensor id: " << id << std::endl;
-    if (id == 28) {
-      //raise(SIGTRAP);
-      std::cout << "Creating # 28" << std::endl << std::flush;
-    }
-  }
+//  if (id < 100) {
+//    static std::mutex mtx;
+//    std::lock_guard<std::mutex> lk(mtx);
+//    std::cout << "Creating tensor id: " << id << std::endl;
+//    if (id == 28) {
+//      //raise(SIGTRAP);
+//      std::cout << "Creating # 28" << std::endl << std::flush;
+//    }
+//  }
   return id;
 }
 

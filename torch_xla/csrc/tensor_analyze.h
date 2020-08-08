@@ -280,7 +280,7 @@ class XLASentinel {
   static bool PreProcessHlo(xla::XlaBuilder* builder,
                             const XLATensor::SyncTensorCollection& coll);
 
-  static bool IsSpecialLowering();
+  static bool IsSpecialLoweringEnabled();
 
   static std::map<std::string, std::string> GetStats(bool reset_stats);
 

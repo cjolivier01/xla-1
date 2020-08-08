@@ -13,9 +13,9 @@ namespace ir {
 
 xla::XlaOp CustomLowerOp(const std::string& name,
                          const ir::Node *node,
-                         std::string quark_type,
-                         std::string quark_flavor,
-                         const std::unordered_map<std::string, std::string>& config,
+                         const std::string& quark_type,
+                         const std::string& quark_flavor,
+                         std::unordered_map<std::string, std::string> config,
                          LoweringContext* loctx);
 
 }  // namespace ir

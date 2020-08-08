@@ -1130,6 +1130,8 @@ class XLATensor {
     // Whether when setting the XLA data, the other properties of the tensor
     // state should be reset.
     bool sync_xla_data = true;
+    // Whether custom lowering is allowed
+    bool allow_custom_lowering = false;
   };
 
   struct SyncTensorCollection {
