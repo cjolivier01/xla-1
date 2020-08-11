@@ -42,9 +42,18 @@ class HloMetadataSetter {
     xla::OpMetadata metadata;
     metadata.set_op_type(node->op().ToString());
     const ir::MetaData& nmeta = node->metadata();
-    if (!nmeta.scope.empty()) {
-      metadata.set_op_name(nmeta.scope);
-      metadata.set_op_type(nmeta.scope);
+
+    std::stringstream ss;
+    if (node->IsAutograd()) {
+      ss << "@autograd";
+      if (!nmeta.scope.empty()) {
+        ss << "/";
+      }
+    }
+    ss << nmeta.scope;
+    if (!ss.str().empty()) {
+      //if (!nmeta.scope.empty()) {
+      metadata.set_op_name(ss.str());
     }
     if (!nmeta.frame_info.empty()) {
       const SourceLocation& frame = nmeta.frame_info.front();

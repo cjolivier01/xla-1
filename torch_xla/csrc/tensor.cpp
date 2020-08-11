@@ -1512,7 +1512,15 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
 //                    << parameters_data[i]->shape()
 //                    //<< " (id=" << tensor_id << ") "
 //                    << ENDL;
+        } else {
+          // TODO: need to put this in alias map as well
+          std::cerr << "Aliased param wrong shape or more than one?" << ENDL;
         }
+      } else {
+        std::cout << "Input parameter " << i
+                  << " (id=" << data_info->tensor_id << ") and shape: "
+                  << parameters_data[i]->shape()
+                  << ENDL;
       }
     }
   }

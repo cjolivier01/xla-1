@@ -30,10 +30,10 @@ namespace torch_xla {
 
 bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = verbose;
-bool verbose_output_control = verbose || true;
+bool verbose_output_control = verbose || false;
 bool verbose_mp = true;
 bool verbose_hash = true;
-bool verbose_remove_tensors = true;
+bool verbose_remove_tensors = false;
 bool verbose_non_fabric = false;
 bool verbose_mark_step = true;
 bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);

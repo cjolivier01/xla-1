@@ -151,7 +151,13 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       node_hash_(xla::util::HashCombine(op_.hash(), hash_seed)),
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
+  if (is_autograd_) {
+    std::cout << "creating autograd node" << std::endl;
+  }
   metadata_.scope = GetCurrentScope();
+  if (std::strstr(metadata_.scope.c_str(), "optimizer_step")) {
+    std::cout << metadata_.scope << std::endl;
+  }
   metadata_.frame_info = GetFrameInfo();
   for (auto& operand : operands) {
     AddOperand(operand.node, operand.index);
@@ -176,6 +182,9 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       node_hash_(GetOpHash(op_, shape_, hash_seed)),
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
+  if (is_autograd_) {
+    std::cout << "creating autograd node" << std::endl;
+  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
 }
