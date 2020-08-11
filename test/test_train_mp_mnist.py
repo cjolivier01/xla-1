@@ -62,13 +62,11 @@ def train_mnist():
   torch.manual_seed(1)
 
   if FLAGS.fake_data:
-    SAMPLE_COUNT = 1000
-    #SAMPLE_COUNT = 60000
     train_loader = xu.SampleGenerator(
         data=(torch.zeros(FLAGS.batch_size, 1, 28,
                           28), torch.zeros(FLAGS.batch_size,
                                            dtype=torch.int64)),
-        sample_count=SAMPLE_COUNT // FLAGS.batch_size // xm.xrt_world_size())
+        sample_count=60000 // FLAGS.batch_size // xm.xrt_world_size())
     test_loader = xu.SampleGenerator(
         data=(torch.zeros(FLAGS.batch_size, 1, 28,
                           28), torch.zeros(FLAGS.batch_size,
@@ -117,10 +115,7 @@ def train_mnist():
   model = MNIST().to(device)
   writer = None
   if xm.is_master_ordinal():
-    writer = test_utils.get_summary_writer(
-        "/tmp"
-#        FLAGS.logdir
-    )
+    writer = test_utils.get_summary_writer(FLAGS.logdir)
   optimizer = optim.SGD(model.parameters(), lr=lr, momentum=FLAGS.momentum)
   loss_fn = nn.NLLLoss()
 
@@ -185,7 +180,7 @@ def _mp_fn(index, flags):
   accuracy = train_mnist()
   if FLAGS.tidy and os.path.isdir(FLAGS.datadir):
     shutil.rmtree(FLAGS.datadir)
-  if not FLAGS.fake_data and accuracy < FLAGS.target_accuracy:
+  if accuracy < FLAGS.target_accuracy:
     print('Accuracy {} is below target {}'.format(accuracy,
                                                   FLAGS.target_accuracy))
     sys.exit(21)

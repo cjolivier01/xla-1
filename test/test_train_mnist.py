@@ -1,7 +1,5 @@
 import args_parse
 
-global FLAGS
-
 FLAGS = args_parse.parse_common_options(
     datadir='/tmp/mnist-data',
     batch_size=128,
@@ -131,11 +129,6 @@ def train_mnist():
       loss = loss_fn(output, target)
       loss.backward()
       xm.optimizer_step(optimizer)
-
-      if not FLAGS.dont_set_outputs:
-        outputs = [loss] + list(model.parameters())
-        torch_xla._XLAC._xla_set_outputs(outputs, append=False)
-
       tracker.add(FLAGS.batch_size)
       if x % FLAGS.log_steps == 0:
         test_utils.print_training_update(device, x, loss.item(), tracker.rate(),
@@ -195,29 +188,5 @@ class TrainMnist(unittest.TestCase):
 
 # Run the tests.
 if __name__ == '__main__':
-
-  import argparse
-  parser = argparse.ArgumentParser(description='Run PyTorch test')
-
-  import ptwse.args
-
-  os.environ['SAVE_GRAPH_FMT'] = 'json'
-
-  #
-  # There are a LOT of configurable behaviors in ptwse.util.args
-  #
-  parser = ptwse.args.add_all_arguments(parser)
-  args = parser.parse_args()
-
-  FLAGS = args
-
-  ptwse.initialize(args)
-
-  if args.fp == 16:
-    torch.set_default_tensor_type('torch.HalfTensor')
-  else:
-    assert args.fp == 32
-    torch.set_default_tensor_type('torch.FloatTensor')
-
-  #unittest.main()
-  train_mnist()
+  torch.set_default_tensor_type('torch.FloatTensor')
+  unittest.main()
