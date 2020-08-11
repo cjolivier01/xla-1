@@ -49,6 +49,9 @@ if [[ "$XLA_CUDA" == "1" ]]; then
   OPTS+=(--config=cuda)
 fi
 
+OPTS+=(--copt="-Dtensorflow=ptxla_tf")
+OPTS+=(--cxxopt="-Dtensorflow=ptxla_tf")
+
 if [ "$CMD" == "clean" ]; then
   pushd $THIRD_PARTY_DIR/tensorflow
   ~/bin/bazel clean

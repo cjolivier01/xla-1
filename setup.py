@@ -291,6 +291,7 @@ extra_compile_args = [
     '-Wno-sign-compare',
     '-Wno-deprecated-declarations',
     '-Wno-return-type',
+    '-Dtensorflow=ptxla_tf',
 ]
 
 if re.match(r'clang', os.getenv('CC', '')):
