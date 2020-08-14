@@ -1647,29 +1647,29 @@ const Color EnterLeave::library_color_ = Color::FG_BLUE;
 std::mutex EnterLeave::mtx_;
 //#endif
 
-const char *prev_char(const char *original, const char *start, char c) {
-  while(start > original && *start != c) {
-    --start;
-  }
-  return start;
-}
-
-std::string short_fn_name(const std::string &fn_name) {
-  std::string result = fn_name;
-  const char *start = fn_name.c_str();
-  const char *s = strchr(start, '(');
-  if (s && *s && s > start) {
-    if (const char *s0 = prev_char(start, s - 1, ' ')) {
-      if (*s0 == ' ') {
-        ++s0;
-      }
-      const size_t sz = s - s0 + 1;
-      result = std::string(s0, sz);
-      result.append(")");
-    }
-  }
-  return result;
-}
+//const char *prev_char(const char *original, const char *start, char c) {
+//  while(start > original && *start != c) {
+//    --start;
+//  }
+//  return start;
+//}
+//
+//std::string short_fn_name(const std::string &fn_name) {
+//  std::string result = fn_name;
+//  const char *start = fn_name.c_str();
+//  const char *s = strchr(start, '(');
+//  if (s && *s && s > start) {
+//    if (const char *s0 = prev_char(start, s - 1, ' ')) {
+//      if (*s0 == ' ') {
+//        ++s0;
+//      }
+//      const size_t sz = s - s0 + 1;
+//      result = std::string(s0, sz);
+//      result.append(")");
+//    }
+//  }
+//  return result;
+//}
 
 }  // namespace xla
 

@@ -1055,6 +1055,11 @@ bool XLASentinel::IsSpecialLoweringEnabled() {
   return allow_special_compile /*&& is_qualifying_step*/;
 }
 
+bool XLASentinel::IsForcingCustomLowering() {
+  static int val = xla::sys_util::GetEnvInt("XLA_ALLOW_SPECIAL_LOWERING", 0);
+  return val == 2;
+}
+
 bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   assert(is_in_mark_step);  // shouldn't we always be? then we can just call
                             // once in MarkStep

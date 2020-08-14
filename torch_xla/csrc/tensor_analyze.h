@@ -287,6 +287,7 @@ class XLASentinel {
   static bool IsAllowedOutput(const XLATensor& tensor,
                               XLATensor::SyncTensorCollection& coll,
                               bool *is_restricting);
+  static bool IsForcingCustomLowering();
  private:
   static void NotifyStepMarkerBegin(const std::string& device_str,
                                     const std::vector<std::string>& devices);
