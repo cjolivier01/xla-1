@@ -729,6 +729,8 @@ void *get_data_ptr(xla::Literal& literal) {
       return get_data_pointer<bool>(literal);
     case xla::PrimitiveType::F16:
       return get_data_pointer<xla::half>(literal);
+    case xla::PrimitiveType::BF16:
+      return get_data_pointer<tensorflow::bfloat16>(literal);
     case xla::PrimitiveType::F32:
       return get_data_pointer<float>(literal);
     case xla::PrimitiveType::F64:
