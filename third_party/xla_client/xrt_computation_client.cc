@@ -37,7 +37,7 @@ namespace {
 bool verbose = false;
 bool verbose_mp = true;
 bool verbose_transfers = false;
-bool verbose_pull = true;
+bool verbose_pull = false;
 bool all_devices_meshable = false;
 static const char* const kLocalService = "localservice";
 

@@ -96,15 +96,15 @@ class DataParallel(object):
     # device.
     os._exit(17)
 
-  def _module_runner(self, loop_fn, device, module, loader, context, result):
+  def _module_runner(self, loop_fn, device, module, loader, context, result, **kwargs):
     xm.set_replication(device, self._device_ids)
     try:
-      result.result = loop_fn(module, loader, torch.device(device), context)
+      result.result = loop_fn(module, loader, torch.device(device), context, **kwargs)
     except Exception as e:
       result.result = e
       self._handle_runner_exception(device, e)
 
-  def __call__(self, loop_fn, loader, fixed_batch_size=False, batchdim=0):
+  def __call__(self, loop_fn, loader, fixed_batch_size=False, batchdim=0, **kwargs):
     """Runs one EPOCH of training/test.
 
     Args:
@@ -131,7 +131,7 @@ class DataParallel(object):
       ## This is called without XLA devices available. Run in normal mode.
       return [
           loop_fn(self._models[0], enumerate(loader),
-                  torch.device(self._device_ids[0]), self._contexts[0])
+                  torch.device(self._device_ids[0]), self._contexts[0], self._kwargs)
       ]
 
     xm.wait_device_ops()
@@ -149,7 +149,8 @@ class DataParallel(object):
       loader = para_loader.per_device_loader(device)
       thread = threading.Thread(
           target=self._module_runner,
-          args=(loop_fn, device, module, loader, context, result))
+          args=(loop_fn, device, module, loader, context, result),
+          kwargs=kwargs)
       thread.daemon = True
       thread.start()
       threads.append(thread)

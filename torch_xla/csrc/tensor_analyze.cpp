@@ -33,6 +33,8 @@ bool verbose_tensor_sync = verbose;
 bool verbose_output_control = verbose || false;
 bool verbose_mp = true;
 bool verbose_hash = true;
+bool verbose_notify_compile = true;
+bool verbose_notify_execute = true;
 bool verbose_remove_tensors = false;
 bool verbose_non_fabric = false;
 bool verbose_mark_step = true;
@@ -809,7 +811,9 @@ bool XLASentinel::OnHashingComplete(
 void XLASentinel::NotifyCompile(
     std::vector<xla::ComputationClient::CompileInstance>& instances,
     hash_t hash, pid_t tid) {
-  //HEREX();
+  if (verbose_notify_compile) {
+    HEREX();
+  }
   if (!HasWseDevices()) return;
   XLA_COUNTER("SentinelNotifyCompile", 1);
   if (is_in_mark_step) {
@@ -839,11 +843,17 @@ void XLASentinel::NotifyExecute(
     hash_t hash,
     pid_t tid
 ) {
-  if (!HasWseDevices()) return;
   if (verbose) {
     HEREX();
   }
+  if (verbose_notify_execute) {
+    ColorScope clr(std::cout, {Color::FG_CYAN}, false);
+    std::cout << "** EXECUTE ON TRAIN THREAD HASH: "
+              << hash
+              << ENDL;
+  }
   XLA_COUNTER("SentinelExecute", 1);
+  if (!HasWseDevices()) return;
   if (IsTrainingThread(tid)) {
     XLA_COUNTER("SentinelMasterThreadExecute", 1);
     if(!ex_cache->has_executable_by_adjusted_hash(hash)) {
@@ -867,9 +877,12 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
     XLATensor::SyncTensorCollection* coll,
     std::shared_ptr<xla::ComputationClient::Computation>& computation) {
 
-  //if (!HasWseDevices()) return std::move(tensors);
   if (!is_in_mark_step) {
     // Anything outside of mark step is a reset
+    if (verbose_mark_step) {
+      ColorScope clr(std::cout, {Color::FG_RED}, false);
+      std::cout << "Sync tensor request outside of MarkStep" << ENDL;
+    }
     std::shared_ptr<CompileInfo> compile_info =
         GetCompileInfo(coll->requesting_tid);
     compile_info->sync_count_since_hash_change_ = 0;
@@ -900,92 +913,6 @@ XLASentinel::NotifyScheduleSyncTensorsGraph(
         }
     );
   }
-
-#if 0
-  std::shared_ptr<CompileInfo> compile_info =
-      GetCompileInfo(coll->requesting_tid);
-  if (!compile_info->hash()) {
-    compile_info->set_hash(coll->hash);
-    compile_info->sync_count_since_hash_change_ = 0;
-  } else if (coll->hash == compile_info->hash()) {
-    ++compile_info->sync_count_since_hash_change_;
-#if 0
-    ++compile_info->mark_step_count_since_last_reset_;  // new
-
-    auto exe = ex_cache->get_executable_by_adjusted_hash(coll->hash);
-    if (/*exe && exe->is_active() &&*/
-      IsQualifyingStep(coll->requesting_tid)) {
-      //is_qualifying_step) {
-
-      // vvv SAME AS IN POST MARK HASH
-      std::vector<size_t> adjusted_indices;
-      adjusted_indices.reserve(coll->indices.size());
-
-      std::vector<xla::ComputationClient::DataPtr> new_tensors;
-      new_tensors.reserve(coll->indices.size());
-      //assert(xla_tensors->size() == coll->indices.size());   // assuming these are the same? or I have to use indexes?
-      for (std::size_t i = 0, n = coll->indices.size(); i < n; ++i) {
-        const std::size_t tensor_index = coll->indices[i];
-        const XLATensor& tensor = (*xla_tensors)[tensor_index];
-        //const XLATensor& tensor = (*xla_tensors)[i];
-        if (IsAllowedOutput(tensor, *coll)) {
-          adjusted_indices.push_back(coll->indices[i]);
-          new_tensors.push_back(tensors[i]);
-          if (verbose_output_control) {
-            ColorScope clr(Color::FG_DEFAULT);
-            std::stringstream ss;
-            ss << "Allowing output";
-            if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
-              ss << " HANDLE = "
-                 << tensor.data()->xla_data->GetOpaqueHandle();
-            }
-            XLATensor::print_tensor(ss.str(), tensor);
-          }
-        } else {
-          if (verbose) {
-            std::stringstream ss;
-            ss << "Removing output";
-            if (tensor.data()->xla_data && tensor.data()->xla_data->HasValue()) {
-              ss << " HANDLE = "
-                 << tensor.data()->xla_data->GetOpaqueHandle();
-            }
-            XLATensor::print_tensor(ss.str(), tensor);
-          }
-        }
-      }
-
-      if (!adjusted_indices.empty()) {
-        coll->indices = std::move(adjusted_indices);
-        if (verbose) {
-          std::cout << "PostmarkHash(): coll.hash: " << coll->hash << " -> "
-                    << exe->get_adjusted_hash() << ENDL;
-        }
-        coll->hash = exe->get_adjusted_hash();
-        return std::move(new_tensors);
-      }
-      // ^^^ SAME AS IN POST MARK HASH
-    }
-#endif
-
-  } else {
-    ColorScope clr(Color::FG_CYAN);
-    std::cout << "ScheduleSyncTensorsGraph() MarkStep hash change: "
-              << compile_info->hash() << " -> " << coll->hash
-              << ", is_clean_step = " << is_clean_step
-              << ENDL;
-
-    // Disable any old executables?
-    //ex_cache->deactivate_current(compile_info->hash());
-    auto current_exec = ex_cache->get_executable(coll->hash);
-    if (current_exec && current_exec->is_active()) {
-      current_exec->set_active(false);
-    }
-    compile_info->set_hash(coll->hash);
-    //compile_info->sync_count_since_hash_change_ = 1;
-    compile_info->sync_count_since_hash_change_ = 0;
-    compile_info->mark_step_count_since_last_reset_ = 0;
-  }
-#endif
   return std::move(tensors);
 }
 
@@ -1022,9 +949,15 @@ void XLASentinel::NotifyStepMarkerBegin(
     // It's the first MarkStep, so just return (at top of training loop)
     compile_info->mark_step_count_since_last_reset_ = 0;
     compile_info->sync_count_since_hash_change_ = 0;
+    if (verbose_mark_step) {
+      std::cout << "Unclean or precursor step detected" << ENDL;
+    }
     return;
   }
   is_clean_step = true;
+//  if (verbose_mark_step) {
+//    std::cout << "Clean step detected" << ENDL;
+//  }
   ++compile_info->mark_step_count_since_last_reset_;
   //const std::size_t step = ++compile_info->mark_step_count_since_last_reset_;
   //is_clean_step = compile_info->mark_step_count_since_last_reset_.load() > 0;
