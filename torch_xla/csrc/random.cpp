@@ -48,7 +48,7 @@ xla::XlaOp MakeSeed(xla::XlaOp seed) {
 xla::XlaOp MakeUniformBoundaryValue(xla::XlaOp val) {
   xla::PrimitiveType element_type = XlaHelpers::TypeOfXlaOp(val);
   if (element_type == xla::PrimitiveType::BF16 ||
-    element_type == xla::PrimitiveType::F16) {
+      element_type == xla::PrimitiveType::F16) {
     return xla::ConvertElementType(val, xla::PrimitiveType::F32);
   } else if (xla::primitive_util::IsComplexType(element_type)) {
     return xla::Real(val);
