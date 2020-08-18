@@ -71,6 +71,9 @@ xla::Shape MakeRngShape(const xla::Shape& shape) {
 
 xla::XlaOp RngUniform(xla::XlaOp seed, const xla::Shape& shape,
                       xla::XlaOp minval, xla::XlaOp maxval) {
+  if (seed.builder()->IsConstant(seed).ValueOrDie()) {
+    return xla::RngUniform(minval, maxval, shape);
+  }
   xla::XlaOp rng_seed = MakeSeed(seed);
   xla::Shape rng_shape = MakeRngShape(shape);
   xla::XlaOp rng_minval = MakeUniformBoundaryValue(minval);
@@ -124,6 +127,9 @@ xla::XlaOp RngUniform(xla::XlaOp seed, const xla::Shape& shape,
 
 xla::XlaOp RngNormal(xla::XlaOp seed, const xla::Shape& shape, xla::XlaOp mean,
                      xla::XlaOp std) {
+  if (seed.builder()->IsConstant(seed).ValueOrDie()) {
+    return xla::RngNormal(mean, std, shape);
+  }
   xla::XlaOp rng_seed = MakeSeed(seed);
   xla::Shape rng_shape = MakeRngShape(shape);
   xla::XlaOp initial_state =

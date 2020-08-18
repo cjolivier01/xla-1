@@ -235,6 +235,12 @@ xla::ComputationClient::DataPtr GetDeviceData(at::Scalar value,
                        device);
 }
 
+bool AllNumbersSpecialScalar() {
+  static bool all_scalar_numbers_special =
+      xla::sys_util::GetEnvBool("XLA_ALL_NUMBERS_SPECIAL_SCALARS", false);
+  return all_scalar_numbers_special;
+}
+
 // Routing values to device data maximizes the changes for compilation cache
 // hits, but it can prevent the compiler to perform optimizations. So tensor
 // values which are within a given set, are routed to constant scalars if this
@@ -242,10 +248,8 @@ xla::ComputationClient::DataPtr GetDeviceData(at::Scalar value,
 bool IsSpecialScalar(at::Scalar value) {
   static bool no_scalars =
       xla::sys_util::GetEnvBool("XLA_NO_SPECIAL_SCALARS", false);
-  static bool all_scalar_numbers_special =
-      xla::sys_util::GetEnvBool("XLA_ALL_NUMBERS_SPECIAL_SCALARS", false);
   if (!no_scalars && (value.isIntegral() || value.isFloatingPoint())) {
-    if (all_scalar_numbers_special) {
+    if (AllNumbersSpecialScalar()) {
       return true;
     }
     double scalar_value = value.toDouble();
@@ -349,7 +353,9 @@ class XLATensor::DeviceContextArena {
   void MarkStep(const Device& device) {
     DeviceContext* devctx = GetDeviceContext(device);
     std::lock_guard<std::mutex> lock(devctx->lock);
-    devctx->seed = 1012031 + devctx->seed * 7012063;
+    if (!AllNumbersSpecialScalar()) {
+      devctx->seed = 1012031 + devctx->seed * 7012063;
+    }
     devctx->running_seed = devctx->seed;
     devctx->seed_ir_value = ir::Value();
   }
@@ -1671,6 +1677,12 @@ xla::int64 XLATensor::GetNextTensorId() {
 }
 
 ir::Value XLATensor::GetRngSeed(const Device& device) {
+  if (AllNumbersSpecialScalar()) {
+    at::Scalar value = static_cast<int64_t>(GetRunningSeed(device));
+    return ir::ops::ScalarOp(
+        std::move(value),
+        MakeXlaPrimitiveType(at::ScalarType::Long, &device));
+  }
   return DeviceContextArena::Get()->GetRngSeed(device);
 }
 
