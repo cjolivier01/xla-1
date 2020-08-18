@@ -155,9 +155,6 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
 //    std::cout << "creating autograd node" << std::endl;
 //  }
   metadata_.scope = GetCurrentScope();
-  if (std::strstr(metadata_.scope.c_str(), "optimizer_step")) {
-    std::cout << metadata_.scope << std::endl;
-  }
   metadata_.frame_info = GetFrameInfo();
   for (auto& operand : operands) {
     AddOperand(operand.node, operand.index);
