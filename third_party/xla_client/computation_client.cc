@@ -28,6 +28,8 @@ extern void print_environment_config();
 
 namespace {
 
+bool verbose = false;
+
 struct DeviceCountDefaults {
   int num_tpus = 0;
   int num_gpus = 0;
@@ -124,10 +126,12 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
       if (!IsLocalDevice(worker, parsed_device, dev_task_map)) {
         continue;
       }
-      std::cout << PIDSTR << "Found local device: "
-                << device_xrt_device.first
-                <<  " (" << device_xrt_device.second
-                << std::endl << std::flush;
+      if (verbose) {
+        std::cout << PIDSTR << "Found local device: "
+                  << device_xrt_device.first
+                  << " (" << device_xrt_device.second
+                  << std::endl << std::flush;
+      }
     }
     options->devices.insert(device_xrt_device.first);
 
@@ -140,9 +144,11 @@ void PopulateLocalDevices(XrtComputationClient::Options* options) {
     auto it = min_ordinals.find(kind);
     if (it != min_ordinals.end()) {
       options->default_device = absl::StrCat(kind, ":", it->second);
-      std::cout << PIDSTR << "Setting default local device to: "
-                << options->default_device
-                << std::endl << std::flush;
+      if (verbose) {
+        std::cout << PIDSTR << "Setting default local device to: "
+                  << options->default_device
+                  << std::endl << std::flush;
+      }
       break;
     }
   }
@@ -175,9 +181,11 @@ void AddXrtHostDevices(const std::string& worker_name, int task_no,
       std::string device_name = absl::StrCat(device.name, ":", device_ordinal);
       std::string xrt_device_name =
           GetXrtDevicePath(worker_name, task_no, device.tf_name, j);
-      std::cout << PIDSTR << "Adding global device to global device map: "
-                << device_name << " -> " << xrt_device_name
-                << std::endl << std::flush;
+      if (verbose) {
+        std::cout << PIDSTR << "Adding global device to global device map: "
+                  << device_name << " -> " << xrt_device_name
+                  << std::endl << std::flush;
+      }
       options->global_device_map.emplace(device_name, xrt_device_name);
     }
   }

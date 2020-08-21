@@ -138,6 +138,7 @@ bool disable_proxy = false;
 bool throw_on_compile_fail = true;
 bool verbose_pull = false;
 bool verbose_transfer = false;
+bool verbose_topology = false;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
@@ -1538,25 +1539,26 @@ message TopologyProto {
   // `axis`-th coordinate in the topology of a task/device pair.
   repeated int32 device_coordinates = 4;
 }
- */
+*/
 tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   const std::string& job,
   int task_no,
   const std::string& worker_host_port,
   const tensorflow::ConfigProto& config
 ) {
-  std::cout << "InitializeAndFetchTopology: job=" << job
-            << ", task_no=" << task_no
-            << ", worker_host_port=" << worker_host_port
-            << ", config=" << msg_to_json(config)
-            << std::endl << std::flush;
-  const int wse_num_devices = sys_util::GetEnvInt("WSE_NUM_DEVICES", 0);
-  //const int cpu_num_devices = get_env_int("CPU_NUM_DEVICES", 0);
-  //if (!wse_set_topology || !wse_num_devices
-      //|| !sys_util::GetEnvBool("WSE_TPU_MODE", false)) {
-  if (!wse_num_devices && (!HasProxyAddresses() || !sys_util::GetEnvBool("WSE_TPU_MODE", false))) {
-    std::cout << "** Falling back to normal InitializeAndFetchTopology()"
+  if (verbose_topology) {
+    std::cout << "InitializeAndFetchTopology: job=" << job
+              << ", task_no=" << task_no
+              << ", worker_host_port=" << worker_host_port
+              << ", config=" << msg_to_json(config)
               << std::endl << std::flush;
+  }
+  const int wse_num_devices = sys_util::GetEnvInt("WSE_NUM_DEVICES", 0);
+  if (!wse_num_devices && (!HasProxyAddresses() || !sys_util::GetEnvBool("WSE_TPU_MODE", false))) {
+    if (verbose_topology) {
+      std::cout << "** Falling back to normal InitializeAndFetchTopology()"
+                << std::endl << std::flush;
+    }
     return Super::InitializeAndFetchTopology(
       job, task_no, worker_host_port, config
     );
@@ -1564,11 +1566,6 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
 
   tensorflow::tpu::TopologyProto topology_proto;
 
-//  const int job_count = config.cluster_def().job_size();
-//  topology_proto.add_mesh_shape(1);
-//  for (const auto& job_name : config.cluster_def().job()) {
-//    const int job_task_count = config.cluster_def().job()
-//  }
   const int num_devices_per_task = 1;
 
   std::map<int, std::vector<std::string>> tasks;
@@ -1582,29 +1579,13 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
   }
   if (tasks.empty()) {
     tasks[0] = {""};
-    //throw std::runtime_error("No tasks found in the ConfigProto");
   }
-
-/*
-    // The topology proto 'device_coordinates' is a linear list of
-    // [num_tasks][devices_per_task][mesh_shape_size] coordinates, where the
-    // mesh coordinates are usually [x, y, z, c] ('x', 'y' and 'z' being the
-    // spatial chip coordinated and 'c' the core number).
-    int64 base_index = parsed_device.task *
-                           topology_proto->num_tpu_devices_per_task() *
-                           topology_proto->mesh_shape_size() +
-                       parsed_device.id * topology_proto->mesh_shape_size();
-    std::vector<int> device_mesh_coords(topology_proto->mesh_shape_size());
-    for (int i = 0; i < topology_proto->mesh_shape_size(); ++i) {
-      assert(base_index + i < topology_proto->device_coordinates_size());
-      device_mesh_coords[i] =
-          topology_proto->device_coordinates(base_index + i);
-    }
- */
 
   const int total_nr_cores = tasks.size() * num_devices_per_task;
 
-  std::cout << "InitializeAndFetchTopology(): task count = " << tasks.size() << ENDL;
+  if (verbose_topology) {
+    std::cout << "InitializeAndFetchTopology(): task count = " << tasks.size() << ENDL;
+  }
 
   topology_proto.add_mesh_shape(1);
   topology_proto.add_mesh_shape(1);
@@ -1613,32 +1594,19 @@ tensorflow::tpu::TopologyProto XlaComputationProxy::InitializeAndFetchTopology(
 
   int core_nr = 0;
   for (int task = 0; task < tasks.size(); ++task) {
-    //const int base = task * num_devices_per_task;
     for (int task_core = 0; task_core < num_devices_per_task; ++task_core) {
       for (int i = 0; i < topology_proto.mesh_shape_size(); ++i) {
         topology_proto.add_device_coordinates(0 /*task*/);
         topology_proto.add_device_coordinates(0/*task_core*/);
         topology_proto.add_device_coordinates(0/*core_nr++*/);
-        //topology_proto.add_device_coordinates(task/*core_nr++*/);
       }
     }
   }
-
-//  topology_proto.add_mesh_shape(wse_num_devices + cpu_num_devices);
-//  topology_proto.add_mesh_shape(1);
-//  topology_proto.add_mesh_shape(1);
 
   topology_proto.set_num_tasks(tasks.size());
 
   topology_proto.set_num_tpu_devices_per_task(1/*wse_num_devices ? */);
 
-//  topology_proto.add_device_coordinates(tasks.size());
-//  topology_proto.add_device_coordinates(num_devices_per_task);
-//  // Is this supposed to be the # elements or # shapes?
-//  topology_proto.add_device_coordinates(topology_proto.mesh_shape_size());
-
-//  std::cout << "Topology: " << topology_proto.DebugString()
-//            << std::endl << std::flush;
   return std::move(topology_proto);
 }
 
@@ -1648,30 +1616,6 @@ const std::string EnterLeave::library_ = "ptxla";
 const Color EnterLeave::library_color_ = Color::FG_BLUE;
 std::mutex EnterLeave::mtx_;
 //#endif
-
-//const char *prev_char(const char *original, const char *start, char c) {
-//  while(start > original && *start != c) {
-//    --start;
-//  }
-//  return start;
-//}
-//
-//std::string short_fn_name(const std::string &fn_name) {
-//  std::string result = fn_name;
-//  const char *start = fn_name.c_str();
-//  const char *s = strchr(start, '(');
-//  if (s && *s && s > start) {
-//    if (const char *s0 = prev_char(start, s - 1, ' ')) {
-//      if (*s0 == ' ') {
-//        ++s0;
-//      }
-//      const size_t sz = s - s0 + 1;
-//      result = std::string(s0, sz);
-//      result.append(")");
-//    }
-//  }
-//  return result;
-//}
 
 }  // namespace xla
 

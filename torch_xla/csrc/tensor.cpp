@@ -1482,7 +1482,7 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
   const std::vector<xla::ComputationClient::DataPtr>& parameters_data =
       lowering_ctx->GetParametersData();
 
-  std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT: " << indices.size() << ENDL;
+  //std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT: " << indices.size() << ENDL;
 
   std::vector<ssize_t> alias_map(indices.size(), -1);
   for (size_t i = 0; i < parameters_data.size(); ++i) {

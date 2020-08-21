@@ -31,13 +31,13 @@ namespace torch_xla {
 bool verbose = VERBOSE_FILE(false);
 bool verbose_tensor_sync = verbose;
 bool verbose_output_control = verbose || false;
-bool verbose_mp = true;
-bool verbose_hash = true;
-bool verbose_notify_compile = true;
-bool verbose_notify_execute = true;
+bool verbose_mp = false;
+bool verbose_hash = false;
+bool verbose_notify_compile = false;
+bool verbose_notify_execute = false;
 bool verbose_remove_tensors = false;
 bool verbose_non_fabric = false;
-bool verbose_mark_step = true;
+bool verbose_mark_step = false;
 bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
