@@ -48,7 +48,7 @@ include_directories(${TORCH_PATH}/torch/csrc)
 include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
 include_directories(${TORCH_PATH}/torch/include)
 include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
-include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/toolchain/rootfs-x86_64/usr/include)
+#include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/toolchain/rootfs-x86_64/usr/include)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -63,6 +63,8 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow/external/com_google_protobuf/src)
+
+#include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/sdk-x86_64/x86_64-buildroot-linux-gnu/sysroot/usr/include)
 
 #get_property(the_include_dirs DIRECTORY ptxla PROPERTY INCLUDE_DIRECTORIES)
 #message(WARNING "the_include_dirs=${the_include_dirs}")
