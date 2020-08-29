@@ -53,15 +53,19 @@ import torch
 from ._patched_functions import _apply_patches
 from .version import __version__
 
-# _use_rtld_global = hasattr(sys, 'getdlopenflags') and hasattr(sys, 'setdlopenflags')
-# if _use_rtld_global:
-#   _default_dlopen_flags = sys.getdlopenflags()
-#   RTLD_DEEPBIND = 0x8
-#   RTLD_NOW = 2
-#   sys.setdlopenflags(_default_dlopen_flags | RTLD_DEEPBIND)
+_use_rtld_global = hasattr(sys, 'getdlopenflags') and hasattr(sys, 'setdlopenflags')
+
+if _use_rtld_global:
+  print('Using DEEPBIND')
+  _default_dlopen_flags = sys.getdlopenflags()
+  RTLD_DEEPBIND = 0x8
+  RTLD_NOW = 2
+  sys.setdlopenflags(_default_dlopen_flags | RTLD_DEEPBIND)
+
 import _XLAC
-# if _use_rtld_global:
-#   sys.setdlopenflags(_default_dlopen_flags)
+
+if _use_rtld_global:
+  sys.setdlopenflags(_default_dlopen_flags)
 
 
 def _prepare_to_exit():
