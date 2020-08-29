@@ -413,6 +413,7 @@ std::mutex init_devices_mutex;
 bool __thread is_in_mark_step = false;
 bool __thread is_clean_step = false;
 //bool __thread is_qualifying_step = false;
+bool thread_local is_compile_only = false;
 
 }  // namespace
 
@@ -428,6 +429,14 @@ void XLASentinel::SetAllDevices(
       wse_devices_.push_back(device_str);
     }
   }
+}
+
+void XLASentinel::SetCompileOnly(bool compile_only) {
+  is_compile_only = compile_only;
+}
+
+bool XLASentinel::GetCompileOnly() {
+  return is_compile_only;
 }
 
 bool XLASentinel::PreProcessHlo(

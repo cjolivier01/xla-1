@@ -313,5 +313,10 @@ T* NodeCast(const Node* node, OpKind op) {
 void PythonPushScope(std::string scope);
 void PythonPopScope();
 
+void PythonAddFrontendAttribute(std::string key, std::string value);
+void PythonRemoveFrontendAttribute(const std::string& key);
+
+const std::unordered_map<std::string, std::string>& GetPythonFrontendAttributes();
+
 }  // namespace ir
 }  // namespace torch_xla

@@ -89,6 +89,12 @@ void EmitShortFrameInfo(std::ostream& stream,
   }
 }
 
+struct FrontendAttributeContext {
+  std::unordered_map<std::string, std::string> attributes;
+};
+
+thread_local FrontendAttributeContext g_frontend_attribute_context;
+
 }  // namespace
 
 bool Use::operator<(const Use& rhs) const {
@@ -301,6 +307,19 @@ std::string ScopePusher::CurrentScope() {
 
 void PythonPushScope(std::string scope) { return PushScope(std::move(scope)); }
 void PythonPopScope() { PopScope(); }
+
+void PythonAddFrontendAttribute(std::string key, std::string value) {
+  g_frontend_attribute_context.attributes.emplace(std::move(key), std::move(value));
+}
+
+void PythonRemoveFrontendAttribute(const std::string& key) {
+  g_frontend_attribute_context.attributes.erase(key);
+}
+
+const std::unordered_map<std::string, std::string>& GetPythonFrontendAttributes() {
+  return g_frontend_attribute_context.attributes;
+}
+
 
 }  // namespace ir
 }  // namespace torch_xla

@@ -957,6 +957,10 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
+  m.def("_xla_set_compile_only",
+        [](bool compile_only) {
+          XLASentinel::SetCompileOnly(compile_only);
+        });
   m.def("_xla_push_python_state",
       [](const int state) {
     PushPythonState((EPythonState)state);
@@ -972,6 +976,14 @@ void InitXlaModuleBindings(py::module m) {
   m.def("_xla_pop_ir_scope",
         []() {
           ir::PythonPopScope();
+        });
+  m.def("_xla_add_frontend_attribute",
+        [](std::string key, std::string value) {
+          ir::PythonAddFrontendAttribute(std::move(key), std::move(value));
+        });
+  m.def("_xla_remove_frontend_attribute",
+        [](const std::string& key) {
+          ir::PythonRemoveFrontendAttribute(key);
         });
   m.def("_xla_trap",
         []() {

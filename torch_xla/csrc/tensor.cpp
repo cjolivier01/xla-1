@@ -1656,6 +1656,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
       std::move(compile_result.computation));
   GetComputationCache()->Add(coll.hash, cached_computation);
 
+  if (XLASentinel::GetCompileOnly()) {
+    return nullptr;
+  }
   return ScheduleSyncTensorsGraph(
       tensors, &coll, std::move(compile_result.parameters_data),
       compile_result.device.ToString(), std::move(cached_computation));

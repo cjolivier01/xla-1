@@ -6,6 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
+#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
 #include "torch_xla/csrc/tensor_analyze.h"
 
@@ -72,6 +73,43 @@ class HloMetadataSetter {
   LoweringContext* loctx_ = nullptr;
 };
 
+class FrontendAttributeScope {
+ public:
+  FrontendAttributeScope(
+      xla::XlaBuilder* builder,
+      const std::unordered_map<std::string, std::string>& attributes)
+      : builder_(builder) {
+    if (!attributes.empty()) {
+      set_ = true;
+      xla::FrontendAttributes frontend_attributes;
+      frontend_attributes.CopyFrom(builder_->frontend_attributes());
+      for (const auto& item : attributes) {
+        //(*frontend_attributes.mutable_map())[item.first] = item.second;
+        frontend_attributes.mutable_map()->insert({item.first, item.second});
+      }
+      save_ = builder->SwapFrontendAttributes(frontend_attributes);
+    }
+  }
+  ~FrontendAttributeScope() {
+    if (set_) {
+      builder_->ClearOpMetadata();
+      builder_->SetFrontendAttributes(save_);
+    }
+  }
+  std::string Dump() {
+    std::stringstream ss;
+    for (const auto& item : builder_->frontend_attributes().map()) {
+      ss << item.first << " -> " << item.second << ", ";
+    }
+    return ss.str();
+  }
+
+ private:
+  xla::XlaBuilder* builder_;
+  xla::FrontendAttributes save_;
+  bool set_ = false;
+};
+
 }  // namespace
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
@@ -134,7 +172,13 @@ void LoweringContext::SetResult(size_t index, xla::XlaOp op) {
 
 xla::StatusOr<xla::XlaComputation> LoweringContext::Build() {
   if (!root_tuple_.empty()) {
-    xla::XlaOp root = xla::Tuple(builder(), root_tuple_);
+    xla::XlaOp root;
+    {
+      // Add the thread's frontend attrbutes to the root tuple
+      FrontendAttributeScope frontend_attribute_scope(
+          builder(), GetPythonFrontendAttributes());
+      root = xla::Tuple(builder(), root_tuple_);
+    }
     return builder()->Build(root);
   }
   return builder()->Build();
