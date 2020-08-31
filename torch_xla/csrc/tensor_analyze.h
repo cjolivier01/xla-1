@@ -289,7 +289,7 @@ class XLASentinel {
                               bool *is_restricting);
   static bool IsForcingCustomLowering();
   static void SetCompileOnly(bool compile_only);
-  static bool GetCompileOnly();
+  static bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
  private:
   static void NotifyStepMarkerBegin(const std::string& device_str,
                                     const std::vector<std::string>& devices);

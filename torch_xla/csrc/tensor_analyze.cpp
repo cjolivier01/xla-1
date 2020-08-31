@@ -435,8 +435,8 @@ void XLASentinel::SetCompileOnly(bool compile_only) {
   is_compile_only = compile_only;
 }
 
-bool XLASentinel::GetCompileOnly() {
-  return is_compile_only;
+bool XLASentinel::GetCompileOnly(XLATensor::SyncTensorCollection& coll) {
+  return is_in_mark_step && is_compile_only && IsQualifyingStep(coll.requesting_tid);
 }
 
 bool XLASentinel::PreProcessHlo(
