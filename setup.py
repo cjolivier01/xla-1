@@ -29,7 +29,7 @@ NO_BUILD = False
 #
 filtered_args = []
 for i, arg in enumerate(sys.argv):
-  if arg == '--no-build':
+  if arg in ['--no-build', '--no_build']:
     NO_BUILD = True
     continue
   filtered_args.append(arg)
