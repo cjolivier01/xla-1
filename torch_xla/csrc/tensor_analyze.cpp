@@ -410,10 +410,12 @@ int get_number_of_required_runs_since_reset() {
 
 std::mutex init_devices_mutex;
 
-bool __thread is_in_mark_step = false;
-bool __thread is_clean_step = false;
+bool thread_local is_in_mark_step = false;
+bool thread_local is_clean_step = false;
 //bool __thread is_qualifying_step = false;
 bool thread_local is_compile_only = false;
+
+std::size_t proxy_compile_count = 0;
 
 }  // namespace
 
@@ -842,6 +844,7 @@ void XLASentinel::NotifyCompile(
       }
     } else {
       XLA_COUNTER("SentinelProxyCompile", 1);
+      ++proxy_compile_count;
     }
   }
 }
@@ -854,6 +857,11 @@ void XLASentinel::NotifyExecute(
 ) {
   if (verbose) {
     HEREX();
+  }
+  static std::size_t proxy_compile_only_count = xla::sys_util::GetEnvInt("PROXY_COMPILE_ONLY_COUNT", 0);
+  if (proxy_compile_only_count && proxy_compile_count >= proxy_compile_only_count) {
+    std::cout << "Compile-only mode, exiting.";
+    exit(0);
   }
   if (verbose_notify_execute) {
     ColorScope clr(std::cout, {Color::FG_CYAN}, false);
