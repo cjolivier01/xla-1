@@ -63,7 +63,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_min',  # FIXME: XLA min/max ignores NaNs.
         'test_min_max_binary_op_nan',
         'test_minmax_illegal_dtype',  # Checking runtime error
-        'test_argminmax_multiple',  # FIXME: XLA argmin/argmax returns last index when there're multiple values.
+        'test_argminmax_multiple',  # FIXME: XLA argmin/argmax ignores NaNs.
         'test_mm_xla_bfloat16',  # FIXME: AssertionError: tensor(0.0625) not less than or equal to 0.001
         'test_lu_solve_batched_non_contiguous',
         'test_linspace_xla',  # Takes forever due to inlined sliced equality tests over 1M elements.
@@ -180,10 +180,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_index_mem_overlap',  # doesn't raise
         'test_maximum_minimum_complex',  # doesn't raise
         'test_maximum_minimum_float_xla_bfloat16',  # precision
-        'test_maximum_minimum_type_promotion_xla_bfloat16*',  # doesn't raise
-        'test_maximum_minimum_type_promotion_xla_float16*',  # doesn't raise
-        'test_maximum_minimum_type_promotion_xla_*_bfloat16',  # doesn't raise
-        'test_maximum_minimum_type_promotion_xla_*_float16',  # doesn't raise
+        'test_maximum_minimum_type_promotion_xla_.*bfloat16.*',  # doesn't raise
         'test_index_add_mem_overlap',  # doesn't raise
         'test_shift_mem_overlap',  # doesn't raise
     },
@@ -447,7 +444,9 @@ class XLATestBase(DeviceTypeTestBase):
                   TORCH_TEST_PRECIIONS,
                   [dtype_test_name, test_name, test.__name__],
                   DEFAULT_FLOATING_PRECISION)
-              test.precision_overrides[dtype] = floating_precision
+              if dtype not in test.precision_overrides or test.precision_overrides[
+                  dtype] < floating_precision:
+                test.precision_overrides[dtype] = floating_precision
 
           if match_name(dtype_test_name, disabled_torch_tests[class_name]):
             skipped = True

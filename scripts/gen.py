@@ -98,6 +98,7 @@ _FN_BLACKLIST_REGEX = [
 
 _FN_OUT = {
     'add_out': FuncOpts(),
+    'baddbmm_out': FuncOpts(),
     'binary_cross_entropy_out': FuncOpts(),
     'binary_cross_entropy_backward_out': FuncOpts(),
     'clamp_out': FuncOpts(),
@@ -1004,12 +1005,7 @@ def generate_unboxed(aten_sig, overload, override_fn):
 
 def generate_registrations(fgens, overrides):
   aten_code = 'TORCH_LIBRARY_IMPL(aten, XLA, m) {\n'
-  preautograd_code = """TORCH_LIBRARY_IMPL(_, AutogradXLA, m) {
-  m.fallback(torch::CppFunction::makeFallthrough());
-}
-
-TORCH_LIBRARY_IMPL(aten, AutogradXLA, m) {
-"""
+  preautograd_code = 'TORCH_LIBRARY_IMPL(aten, AutogradXLA, m) {\n'
   overridden = set()
   for fgen in fgens:
     if not is_overrideable(fgen):
