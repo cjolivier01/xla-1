@@ -56,7 +56,6 @@ from .version import __version__
 _use_rtld_global = hasattr(sys, 'getdlopenflags') and hasattr(sys, 'setdlopenflags')
 
 if _use_rtld_global:
-  print('Using DEEPBIND')
   _default_dlopen_flags = sys.getdlopenflags()
   RTLD_DEEPBIND = 0x8
   RTLD_NOW = 2
