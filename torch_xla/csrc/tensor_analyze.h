@@ -257,6 +257,7 @@ class XLASentinel {
                                     const std::string& proxy_address);
   static void SetOutputs(const std::vector<at::Tensor>& output_tensors,
                          bool append);
+  static bool IsInitialized();
 
   // Notification handlers
   static void NotifyCompile(

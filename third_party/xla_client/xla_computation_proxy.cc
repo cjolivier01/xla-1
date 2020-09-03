@@ -142,6 +142,8 @@ bool verbose_topology = false;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
+bool is_initialized = false;
+
 enum class ProxyableApi {
   PAPI_TRANSFER,
   PAPI_COMPILE,
@@ -529,6 +531,12 @@ XlaComputationProxy::XlaComputationProxy(
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)),
     data_mapper_(std::make_unique<GlobalDataHandleMapper>()) {
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
+  assert(!is_initialized);
+  is_initialized = true;
+}
+
+bool XlaComputationProxy::IsInitialized() {
+  return is_initialized;
 }
 
 bool XlaComputationProxy::IsEnabled() {

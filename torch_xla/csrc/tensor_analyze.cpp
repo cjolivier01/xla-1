@@ -389,22 +389,22 @@ std::shared_ptr<CompileInfo> GetCompileInfo(pid_t tid) {
 
 std::shared_ptr<ExecutableCache> ex_cache = std::make_shared<ExecutableCache>();
 
-std::size_t get_number_of_required_runs_since_reset() {
+int get_number_of_required_runs_since_reset() {
   if (disable_proxy) {
     static bool warned = false;
     if (!warned) {
       warned = true;
       std::cerr << "**** WARNING **** PROXY IS DISABLED" << ENDL;
     }
-    return std::numeric_limits<std::size_t>::max();
+    return std::numeric_limits<int>::max();
   }
   static bool trusted_model =
       xla::sys_util::GetEnvBool("XLA_TRUSTED_MODEL", false);
   if (trusted_model) {
     return 0;
   }
-  static std::size_t rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTIL_PROXY",
-                                                    DEFAULT_CLEAN_STEPS_UNTIL_PROXY);
+  static int rtc = xla::sys_util::GetEnvInt("XLA_CLEAN_STEPS_UNTIL_PROXY",
+                                            DEFAULT_CLEAN_STEPS_UNTIL_PROXY);
   return rtc;
 }
 
@@ -1014,13 +1014,22 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   const std::size_t mark_step_count_since_reset =
       compile_info->mark_step_count_since_last_reset_.load();
-  const std::size_t steps_required = get_number_of_required_runs_since_reset();
-  if (steps_required == std::numeric_limits<std::size_t>::max()) {
+  const int steps_required = get_number_of_required_runs_since_reset();
+  if (steps_required == std::numeric_limits<int>::max()) {
     // This is the case of simply being turned off/disabled
     return false;
   }
-  if (!steps_required && is_clean_step) {
-    return true;
+  if (is_clean_step) {
+    if (!steps_required) {
+      return true;
+    }
+    if (steps_required < 0) {
+      // force on step
+      const auto force_on_step = static_cast<std::size_t>(-steps_required);
+      if (force_on_step == mark_step_count_since_reset) {
+        return true;
+      }
+    }
   }
   if (!mark_step_count_since_reset) {
     // The first step is superfluous since it's the top of the dataset iterator
@@ -1054,6 +1063,10 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
     }
   }
   return ready;
+}
+
+bool XLASentinel::IsInitialized() {
+  return xla::XlaComputationProxy::IsInitialized();
 }
 
 void XLASentinel::SetOutputs(const std::vector<at::Tensor>& output_tensors,

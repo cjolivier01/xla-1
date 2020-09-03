@@ -69,6 +69,8 @@ public:
 
   static bool IsEnabled();
 
+  static bool IsInitialized();
+
 private:
   class GlobalDataHandleMapper;
 
