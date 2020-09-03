@@ -438,7 +438,14 @@ void XLASentinel::SetCompileOnly(bool compile_only) {
 }
 
 bool XLASentinel::GetCompileOnly(XLATensor::SyncTensorCollection& coll) {
-  return is_in_mark_step && is_compile_only && IsQualifyingStep(coll.requesting_tid);
+//  static std::size_t proxy_compile_only_count = xla::sys_util::GetEnvInt("PROXY_COMPILE_ONLY_COUNT", 0);
+//  if (proxy_compile_only_count && proxy_compile_count >= proxy_compile_only_count) {
+//    //if (IsQualifyingStep(coll.requesting_tid)) {
+//      return true;
+//    //}
+//  }
+  //return is_in_mark_step && is_compile_only && IsQualifyingStep(coll.requesting_tid);
+  return false;
 }
 
 bool XLASentinel::PreProcessHlo(
