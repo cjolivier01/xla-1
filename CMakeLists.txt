@@ -11,9 +11,13 @@ include_directories(${PYTHON_INCLUDE_DIR})
 message(STATUS "PYTHON_VERSION_STRING=${PYTHON_VERSION_STRING}")
 
 execute_process( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE )
-execute_process( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE KERNEL_NAME )
+execute_process( COMMAND uname -s COMMAND tr -d '\n' OUTPUT_VARIABLE KERNEL_NAME_MIXED_CASE )
+string(TOLOWER "${KERNEL_NAME_MIXED_CASE}" KERNEL_NAME)
 message( STATUS "Architecture: ${ARCHITECTURE}-${KERNEL_NAME}" )
-set(CPYTHON_STR "cpython-${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}m-${ARCHITECTURE}-linux-gnu")
+set(ARCH_BUILD_DIR_NAME "lib.${KERNEL_NAME}-${ARCHITECTURE}-${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+set(CPYTHON_STR "cpython-${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}m-${ARCHITECTURE}-${KERNEL_NAME}-gnu")
+
+#message(STATUS "ARCH_BUILD_DIR_NAME=${ARCH_BUILD_DIR_NAME}")
 message(STATUS "CPYTHON_STR=${CPYTHON_STR}")
 
 #if (NOT Torch_DIR)
@@ -151,13 +155,6 @@ target_link_libraries(
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
 
-add_custom_target(
-        xlac ALL
-        #COMMAND "ln" "-s" "-f" "$<TARGET_FILE:ptxla>" "${CMAKE_CURRENT_LIST_DIR}/_XLAC.${CPYTHON_STR}.so"
-        #DEPENDS ptxla xlac_link _C
-        COMMAND "echo" "build _XLAC extension"
-        DEPENDS ptxla ${XLAC_EXTENSION_TARGET}
-)
 # how to set RTLD_DEEPBIND# How to force RTLD_DEEPBIND?
 # -Wl,--copy-dt-needed-entries
 add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
@@ -165,6 +162,12 @@ set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTO
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES OUTPUT_NAME "${XLAC_EXTENSION_TARGET}")
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES PREFIX "")
 target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ptxla)
+
+add_custom_target(
+        xlac ALL
+        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:${XLAC_EXTENSION_TARGET}>" "${CMAKE_CURRENT_LIST_DIR}/build/${ARCH_BUILD_DIR_NAME}/${XLAC_EXTENSION_TARGET}.so"
+        DEPENDS ${XLAC_EXTENSION_TARGET}
+)
 
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="-Wl,--gdb-index" ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
 
