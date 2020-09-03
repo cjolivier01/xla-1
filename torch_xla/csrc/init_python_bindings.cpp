@@ -962,10 +962,10 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
-  m.def("_xla_set_compile_only",
-        [](bool compile_only) {
-          XLASentinel::SetCompileOnly(compile_only);
-        });
+//  m.def("_xla_set_compile_only",
+//        [](bool compile_only) {
+//          XLASentinel::SetCompileOnly(compile_only);
+//        });
   m.def("_xla_push_python_state",
       [](const int state) {
     PushPythonState((EPythonState)state);
