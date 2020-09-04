@@ -183,8 +183,6 @@ if (BUILD_TENSORFLOW)
     target_link_libraries(ptxla PRIVATE ${FRAMEWORK_LIBS})
 #    target_link_libraries(ptxla /spare/chriso/home/chriso/src/ml_frameworks/bazel-cache-gcc/49c12158c33905d57743a99d8036b9ee/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/compiler/xla/xla_client/libcomputation_client_impl.pic.lo)
 
-    add_dependencies(ptxla libxla_computation_client)
-
     set(TF_SOURCE_FILE "${TF_DIRECTORY}/bazel-bin/tensorflow/compiler/xla/xla_client/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     set(TF_DEST_FILE "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
 
@@ -192,7 +190,6 @@ if (BUILD_TENSORFLOW)
 
     add_custom_target(
             libxla_computation_client_mkdir
-            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
             COMMAND "mkdir" "-p"
             "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib"
             DEPENDS libxla_computation_client_build
@@ -200,25 +197,25 @@ if (BUILD_TENSORFLOW)
 
     add_custom_target(
             libxla_computation_client_make_writable
-            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
             COMMAND "chmod" "+w" "${TF_SOURCE_FILE}"
             DEPENDS libxla_computation_client_build
     )
     add_custom_target(
             libxla_computation_client_gdb_add_index
-            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
             COMMAND "gdb-add-index"
             "${TF_SOURCE_FILE}"
             DEPENDS libxla_computation_client_make_writable
     )
     add_custom_target(
             libxla_computation_client
-            BYPRODUCTS "${LIBXLA_COMPUTATION_CLIENT_LIB}"
+            BYPRODUCTS "${TF_DEST_FILE}"
             COMMAND "ln" "-s" "-f"
             "${TF_SOURCE_FILE}"
             "${TF_DEST_FILE}"
             DEPENDS libxla_computation_client_gdb_add_index libxla_computation_client_mkdir libxla_computation_client_build
     )
+
+    add_dependencies(ptxla libxla_computation_client)
 
 else()
     message(STATUS "Not building TensorFlow -- assuming the library exists: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
