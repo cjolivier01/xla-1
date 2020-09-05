@@ -44,13 +44,14 @@ def run(loader,
       graph_dict = torch_xla._XLAC._xla_compile_execute_graph(
           flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
       if graph_dict is None:
-        raise RuntimeError('Unable to accelarate graph execution')
+        raise RuntimeError('Unable to accelerate graph execution')
       chash = graph_dict['hash']
       if chash == prev_hash:
         print("STEADY GRAPH")
         steady_graph = graph_dict['graph']
         handle_map = None
       else:
+        print("UNSTEADY GRAPH")
         prev_hash = chash
         handle_map = graph_dict['handle_map']
       outputs = graph_dict['outputs']

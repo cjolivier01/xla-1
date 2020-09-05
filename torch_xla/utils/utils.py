@@ -12,10 +12,6 @@ import tempfile
 import time
 
 
-class Context(object):
-  pass
-
-
 class Cleaner(object):
 
   def __init__(self, func):

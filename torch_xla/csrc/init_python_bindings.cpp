@@ -24,7 +24,6 @@
 #include "torch/csrc/autograd/utils/wrap_outputs.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch/csrc/jit/python/pybind.h"
-//#include "torch/csrc/jit/pybind.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/aten_xla_type.h"
 #include "torch_xla/csrc/computation.h"
@@ -1107,7 +1106,9 @@ void InitXlaModuleBindings(py::module m) {
   });
   py::class_<XLATensor::CompiledGraph>(m, "CompiledGraph");
   py::class_<XLATensor::CompiledGraph::DataHandleMap>(m, "CompiledGraphDataHandleMap");
-  //py::class_<xla::hash_t>(m, "HashValue");
+  py::class_<xla::hash_t>(m, "HashValue")
+      .def(py::self == py::self)
+      .def(py::self != py::self);
   m.def("_xla_compile_execute_graph",
         [](const std::vector<at::Tensor>& input_tensors,
            const std::vector<at::Tensor>& output_tensors,
