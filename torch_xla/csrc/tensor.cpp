@@ -483,15 +483,16 @@ XLATensor::XLATensor(ir::Value ir_value, const Device& device,
                      c10::optional<at::ScalarType> logical_element_type)
     : data_(std::make_shared<Data>(std::move(ir_value), device,
                                    logical_element_type)) {
-//  if (data_.get()->tensor_data.has_value()) {
-//    const bool is_weight =
-//        data_.get()->tensor_data->is_leaf() && data_.get()->tensor_data->requires_grad();
-//    if (is_weight) {
-//      std::cout << "WEIGHT" << std::endl << std::flush;
-//    } else {
-//      std::cout << "NOT WEIGHT" << std::endl << std::flush;
-//    }
-//  }
+  //  if (data_.get()->tensor_data.has_value()) {
+  //    const bool is_weight =
+  //        data_.get()->tensor_data->is_leaf() &&
+  //        data_.get()->tensor_data->requires_grad();
+  //    if (is_weight) {
+  //      std::cout << "WEIGHT" << std::endl << std::flush;
+  //    } else {
+  //      std::cout << "NOT WEIGHT" << std::endl << std::flush;
+  //    }
+  //  }
   TryLimitGraphSize();
 }
 
@@ -1482,7 +1483,8 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
   const std::vector<xla::ComputationClient::DataPtr>& parameters_data =
       lowering_ctx->GetParametersData();
 
-  //std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT: " << indices.size() << ENDL;
+  // std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT:
+  // " << indices.size() << ENDL;
 
   std::vector<ssize_t> alias_map(indices.size(), -1);
   for (size_t i = 0; i < parameters_data.size(); ++i) {
@@ -1503,7 +1505,7 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
             reported = true;
             std::cout << "Alias not same shape..." << ENDL;
           }
-          //raise(SIGTRAP);
+          // raise(SIGTRAP);
         } else if (alias_map[output_index] >= 0) {
           std::cout << "Found another one..." << ENDL;
           raise(SIGTRAP);
@@ -1516,21 +1518,22 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
 
           TF_VLOG(6) << "Aliased parameter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
-//          std::cout << "Aliased parameter " << i
-//                    << " (id=" << data_info->tensor_id << ") "
-//                    << " with output index " << output_index << ": "
-//                    << parameters_data[i]->shape()
-//                    //<< " (id=" << tensor_id << ") "
-//                    << ENDL;
+          //          std::cout << "Aliased parameter " << i
+          //                    << " (id=" << data_info->tensor_id << ") "
+          //                    << " with output index " << output_index << ": "
+          //                    << parameters_data[i]->shape()
+          //                    //<< " (id=" << tensor_id << ") "
+          //                    << ENDL;
         } else {
           // TODO: need to put this in alias map as well
           std::cerr << "Aliased param wrong shape or more than one?" << ENDL;
         }
       } else {
-//        std::cout << "Input parameter " << i
-//                  << " (id=" << data_info->tensor_id << ") and shape: "
-//                  << parameters_data[i]->shape()
-//                  << ENDL;
+        //        std::cout << "Input parameter " << i
+        //                  << " (id=" << data_info->tensor_id << ") and shape:
+        //                  "
+        //                  << parameters_data[i]->shape()
+        //                  << ENDL;
       }
     }
   }
@@ -1543,10 +1546,9 @@ XLATensor::CompilationResult XLATensor::Compile(
     PostOrderData* po_data) {
   static const bool enable_aliasing =
       xla::sys_util::GetEnvBool("XLA_ENABLE_PARAM_ALIASING", true);
-  ir::LoweringContext lowering_ctx("SyncTensorsGraph", coll.device,
-                                   po_data->post_order,
-                                   std::move(po_data->emission_map),
-                                   coll.config.allow_custom_lowering);
+  ir::LoweringContext lowering_ctx(
+      "SyncTensorsGraph", coll.device, po_data->post_order,
+      std::move(po_data->emission_map), coll.config.allow_custom_lowering);
   for (auto index : coll.indices) {
     ir::Value ir_value = tensors[index].CurrentIrValue();
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);
@@ -1667,15 +1669,15 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 xla::int64 XLATensor::GetNextTensorId() {
   static std::atomic<xla::int64>* id_generator = new std::atomic<xla::int64>(1);
   xla::int64 id = id_generator->fetch_add(1);
-//  if (id < 100) {
-//    static std::mutex mtx;
-//    std::lock_guard<std::mutex> lk(mtx);
-//    std::cout << "Creating tensor id: " << id << std::endl;
-//    if (id == 28) {
-//      //raise(SIGTRAP);
-//      std::cout << "Creating # 28" << std::endl << std::flush;
-//    }
-//  }
+  //  if (id < 100) {
+  //    static std::mutex mtx;
+  //    std::lock_guard<std::mutex> lk(mtx);
+  //    std::cout << "Creating tensor id: " << id << std::endl;
+  //    if (id == 28) {
+  //      //raise(SIGTRAP);
+  //      std::cout << "Creating # 28" << std::endl << std::flush;
+  //    }
+  //  }
   return id;
 }
 
@@ -1683,8 +1685,7 @@ ir::Value XLATensor::GetRngSeed(const Device& device) {
   if (AllNumbersSpecialScalar()) {
     at::Scalar value = static_cast<int64_t>(GetRunningSeed(device));
     return ir::ops::ScalarOp(
-        std::move(value),
-        MakeXlaPrimitiveType(at::ScalarType::Long, &device));
+        std::move(value), MakeXlaPrimitiveType(at::ScalarType::Long, &device));
   }
   return DeviceContextArena::Get()->GetRngSeed(device);
 }

@@ -157,9 +157,9 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       node_hash_(xla::util::HashCombine(op_.hash(), hash_seed)),
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
-//  if (is_autograd_) {
-//    std::cout << "creating autograd node" << std::endl;
-//  }
+  //  if (is_autograd_) {
+  //    std::cout << "creating autograd node" << std::endl;
+  //  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   for (auto& operand : operands) {
@@ -185,9 +185,9 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       node_hash_(GetOpHash(op_, shape_, hash_seed)),
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
-//  if (is_autograd_) {
-//    std::cout << "creating autograd node" << std::endl;
-//  }
+  //  if (is_autograd_) {
+  //    std::cout << "creating autograd node" << std::endl;
+  //  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
 }
@@ -301,25 +301,24 @@ void ScopePusher::ResetScopes() { ResetScopeContext(); }
 
 std::size_t ScopePusher::Depth() { return ScopeDepth(); }
 
-std::string ScopePusher::CurrentScope() {
-  return GetCurrentScope();
-}
+std::string ScopePusher::CurrentScope() { return GetCurrentScope(); }
 
 void PythonPushScope(std::string scope) { return PushScope(std::move(scope)); }
 void PythonPopScope() { PopScope(); }
 
 void PythonAddFrontendAttribute(std::string key, std::string value) {
-  g_frontend_attribute_context.attributes.emplace(std::move(key), std::move(value));
+  g_frontend_attribute_context.attributes.emplace(std::move(key),
+                                                  std::move(value));
 }
 
 void PythonRemoveFrontendAttribute(const std::string& key) {
   g_frontend_attribute_context.attributes.erase(key);
 }
 
-const std::unordered_map<std::string, std::string>& GetPythonFrontendAttributes() {
+const std::unordered_map<std::string, std::string>&
+GetPythonFrontendAttributes() {
   return g_frontend_attribute_context.attributes;
 }
-
 
 }  // namespace ir
 }  // namespace torch_xla

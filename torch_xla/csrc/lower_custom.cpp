@@ -9,10 +9,12 @@ namespace ir {
 namespace {
 
 class FrontendAttributeScope {
-public:
-  FrontendAttributeScope(xla::XlaBuilder *builder,
-                         const std::string& op_name, const std::string op_type,
-                         const std::unordered_map<std::string, std::string>& attributes): builder_(builder) {
+ public:
+  FrontendAttributeScope(
+      xla::XlaBuilder* builder, const std::string& op_name,
+      const std::string op_type,
+      const std::unordered_map<std::string, std::string>& attributes)
+      : builder_(builder) {
     if (!attributes.empty()) {
       set_ = true;
       xla::FrontendAttributes frontend_attributes;
@@ -21,7 +23,7 @@ public:
         (*frontend_attributes.mutable_map())[item.first] = item.second;
       }
       save_ = builder->SwapFrontendAttributes(frontend_attributes);
-      //metadata_ = std::move(builder->metadata_);
+      // metadata_ = std::move(builder->metadata_);
       xla::OpMetadata metadata = metadata_;
       metadata.set_op_name(op_name);
       metadata.set_op_type(op_type);
@@ -42,8 +44,10 @@ public:
     }
     return ss.str();
   }
-private:
-  static std::string as_tf1_source_string(const std::unordered_map<std::string, std::string>& attributes) {
+
+ private:
+  static std::string as_tf1_source_string(
+      const std::unordered_map<std::string, std::string>& attributes) {
     std::stringstream ss;
     std::size_t x = 0;
     for (const auto& item : attributes) {
@@ -52,7 +56,7 @@ private:
     }
     return std::move(ss.str());
   }
-  xla::XlaBuilder *builder_;
+  xla::XlaBuilder* builder_;
   xla::FrontendAttributes save_;
   xla::OpMetadata metadata_;
   bool set_ = false;
@@ -60,13 +64,11 @@ private:
 
 }  // anonymous namespace
 
-xla::XlaOp CustomLowerOp(const std::string& name,
-                         const ir::Node *node,
+xla::XlaOp CustomLowerOp(const std::string& name, const ir::Node* node,
                          const std::string& quark_type,
                          const std::string& quark_flavor,
                          std::unordered_map<std::string, std::string> config,
                          LoweringContext* loctx) {
-
   const std::vector<Output>& operands = node->operands();
   std::vector<xla::XlaOp> input_ops;
   input_ops.reserve(operands.size());
@@ -104,11 +106,11 @@ xla::XlaOp CustomLowerOp(const std::string& name,
   assert(config.count("quark_flavor") == 0);
   config["quark_type"] = quark_type;
   config["quark_flavor"] = quark_flavor;
-  const ir::FrontendAttributeScope fa(loctx->builder(), name, quark_type, std::move(config));
-  return loctx->builder()->AddInstructionEx(
-      std::move(instr),
-      opcode,
-      input_ops).ValueOrDie();
+  const ir::FrontendAttributeScope fa(loctx->builder(), name, quark_type,
+                                      std::move(config));
+  return loctx->builder()
+      ->AddInstructionEx(std::move(instr), opcode, input_ops)
+      .ValueOrDie();
 }
 
 }  // namespace ir

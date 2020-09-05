@@ -25,7 +25,7 @@ class DumpUtil {
                            const Device& device);
 
   static std::string ToJson(absl::Span<const Value> values,
-                           const Device& device);
+                            const Device& device);
 };
 
 }  // namespace ir

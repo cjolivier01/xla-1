@@ -1,16 +1,15 @@
 #pragma once
 
-#include "tensorflow/compiler/xla/xla_client/types.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
-
 #include <sys/syscall.h>
 
-#include <stack>
 #include <map>
 #include <mutex>
 #include <ostream>
 #include <sstream>
+#include <stack>
 
+#include "tensorflow/compiler/xla/xla_client/types.h"
+#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
 
@@ -21,12 +20,11 @@
 using rw_mutex = std::shared_mutex;
 
 class read_lock {
-public:
-  explicit read_lock(rw_mutex& mtx): mtx_(&mtx)  {
-    mtx_->lock_shared();
-  }
+ public:
+  explicit read_lock(rw_mutex& mtx) : mtx_(&mtx) { mtx_->lock_shared(); }
   ~read_lock() { mtx_->unlock_shared(); }
-private:
+
+ private:
   rw_mutex* mtx_;
 };
 using write_lock = std::lock_guard<rw_mutex>;
@@ -53,49 +51,39 @@ EPythonState GetPythonState(pid_t tid);
 void PushPythonState(EPythonState state);
 void PopPythonState();
 
-class MsgException : public std::exception
-{
-public:
-  MsgException() :
-      std::exception() {}
-  MsgException( const char* msg ) :
-      std::exception(),
-      m_msg( msg ) {}
-  MsgException( const std::string& msg ) :
-      std::exception(),
-      m_msg( msg ) {}
-  MsgException( const MsgException& obj ) :
-      std::exception( obj ),
-      m_msg( obj.m_msg ) {}
-  MsgException( MsgException &&rval ) :
-      std::exception( std::move( rval ) ),
-      m_msg( std::move( rval.m_msg ) ) {}
-  MsgException &operator=( const MsgException& rhs ) {
-    std::exception::operator=( rhs );
+class MsgException : public std::exception {
+ public:
+  MsgException() : std::exception() {}
+  MsgException(const char* msg) : std::exception(), m_msg(msg) {}
+  MsgException(const std::string& msg) : std::exception(), m_msg(msg) {}
+  MsgException(const MsgException& obj)
+      : std::exception(obj), m_msg(obj.m_msg) {}
+  MsgException(MsgException&& rval)
+      : std::exception(std::move(rval)), m_msg(std::move(rval.m_msg)) {}
+  MsgException& operator=(const MsgException& rhs) {
+    std::exception::operator=(rhs);
     m_msg = rhs.m_msg;
     return *this;
   }
   ~MsgException() noexcept {}
 
-  static std::ostream& next( std::ostream& os ) {
+  static std::ostream& next(std::ostream& os) {
     os.put('\n');
     return os;
   }
-  virtual const char* what() const noexcept override {
-    return m_msg.c_str();
-  }
+  virtual const char* what() const noexcept override { return m_msg.c_str(); }
 
-  template<typename T>
-  MsgException& operator<<( const T &v ) {
+  template <typename T>
+  MsgException& operator<<(const T& v) {
     // TODO: is there a more elegant way to do this?
     std::ostringstream oss;
     oss << v;
-    m_msg.append( oss.str() );
+    m_msg.append(oss.str());
     return *this;
   }
 
-protected:
-private:
+ protected:
+ private:
   std::string m_msg;
 };
 
@@ -108,19 +96,19 @@ struct MarkStepScope {
   std::unique_ptr<xla::EnterLeave> el_;
 };
 
-
 struct HashingState {
   explicit HashingState(const xla::hash_t& start_hash)
-  : start_hash_(start_hash),
-    //non_proxy_hash_{0},
-    pass_(0) {};
+      : start_hash_(start_hash),
+        // non_proxy_hash_{0},
+        pass_(0){};
   //~HashingState() = default;
   const xla::hash_t start_hash_;
   xla::hash_t pre_prune_hash_{0};
-  //xla::hash_t non_proxy_hash_;
+  // xla::hash_t non_proxy_hash_;
   std::size_t pass_;
   bool fabric_run_ = false;
-  bool known_executable_ = false;  // optimization when we know this executable already exists
+  bool known_executable_ =
+      false;  // optimization when we know this executable already exists
 };
 
 template <typename CB>
@@ -146,17 +134,17 @@ class EnvFileMacro {
   }
 
   static bool get_env_bool(const std::string& name, bool default_value) {
-    const char *s = getenv(name.c_str());
+    const char* s = getenv(name.c_str());
     if (!s || !*s) return default_value;
     return is_true(s);
   }
 
-  template<class T>
-  static T base_name(T const & path, T const & delims = "/\\") {
+  template <class T>
+  static T base_name(T const& path, T const& delims = "/\\") {
     return path.substr(path.find_last_of(delims) + 1);
   }
-  template<class T>
-  static T remove_extension(T const & filename) {
+  template <class T>
+  static T remove_extension(T const& filename) {
     typename T::size_type const p(filename.find_last_of('.'));
     return p > 0 && p != T::npos ? filename.substr(0, p) : filename;
   }
@@ -166,7 +154,8 @@ class EnvFileMacro {
    * @param file
    * @return std::string
    */
-  static std::string file_to_macro_name(const std::string& file_name, const std::string& prefix) {
+  static std::string file_to_macro_name(const std::string& file_name,
+                                        const std::string& prefix) {
     std::stringstream ss;
     if (!prefix.empty()) {
       ss << prefix << "_";
@@ -176,26 +165,28 @@ class EnvFileMacro {
     ss << result;
     return ss.str();
   }
-public:
+
+ public:
   /**
    * @brief Get a boolean from the environment variable based on a file name
-   *        i.e. /usr/local/lib/my_file.hh -> VERBOSE_MY_FILE environment variable
+   *        i.e. /usr/local/lib/my_file.hh -> VERBOSE_MY_FILE environment
+   * variable
    *
    * @param file_name
    * @param default_value
    * @return true
    * @return false
    */
-  static bool get_file_env_bool(const std::string& file_name, bool default_value=false, const std::string& prefix="") {
+  static bool get_file_env_bool(const std::string& file_name,
+                                bool default_value = false,
+                                const std::string& prefix = "") {
     return get_env_bool(file_to_macro_name(file_name, prefix), default_value);
   }
 };
 
 /**
- * @brief Return a boolean value based upon whether the source file should produce
- *        verbose output.
- *        Usage example:
- *          bool verbose = VERBOSE_FILE(false);
+ * @brief Return a boolean value based upon whether the source file should
+ * produce verbose output. Usage example: bool verbose = VERBOSE_FILE(false);
  *
  *        Then within the file's code, check the 'verbose' variable as needed.
  *        To set a file as verbose, set the environment variable formed from
@@ -205,7 +196,8 @@ public:
  *
  *        So, in this case:  'export VERBOSE_MY_FILE=1' causes verbose output
  */
-#define VERBOSE_FILE(__dflt) EnvFileMacro::get_file_env_bool(__FILE__, __dflt, "VERBOSE")
+#define VERBOSE_FILE(__dflt) \
+  EnvFileMacro::get_file_env_bool(__FILE__, __dflt, "VERBOSE")
 
 class THelper {
  public:
@@ -263,7 +255,8 @@ class XLASentinel {
   static void NotifyCompile(
       std::vector<xla::ComputationClient::CompileInstance>& instances,
       hash_t hash, pid_t tid);
-  static void NotifyExecute(const xla::ComputationClient::Computation& computation,
+  static void NotifyExecute(
+      const xla::ComputationClient::Computation& computation,
       const std::string& device, hash_t hash, pid_t tid);
   static std::vector<xla::ComputationClient::DataPtr>
   NotifyScheduleSyncTensorsGraph(
@@ -273,10 +266,11 @@ class XLASentinel {
       std::shared_ptr<xla::ComputationClient::Computation>& computation);
 
   // Interception and external mapping
-  static void PostmarkHash(HashingState& state,
-      std::vector<XLATensor>* tensors,
-      XLATensor::SyncTensorCollection& coll);
-  static bool OnHashingComplete(HashingState& state, std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll);
+  static void PostmarkHash(HashingState& state, std::vector<XLATensor>* tensors,
+                           XLATensor::SyncTensorCollection& coll);
+  static bool OnHashingComplete(HashingState& state,
+                                std::vector<XLATensor>* tensors,
+                                XLATensor::SyncTensorCollection& coll);
 
   static bool PreProcessHlo(xla::XlaBuilder* builder,
                             const XLATensor::SyncTensorCollection& coll);
@@ -287,10 +281,11 @@ class XLASentinel {
 
   static bool IsAllowedOutput(const XLATensor& tensor,
                               XLATensor::SyncTensorCollection& coll,
-                              bool *is_restricting);
+                              bool* is_restricting);
   static bool IsForcingCustomLowering();
   static void SetCompileOnly(bool compile_only);
   static bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
+
  private:
   static void NotifyStepMarkerBegin(const std::string& device_str,
                                     const std::vector<std::string>& devices);
@@ -300,7 +295,8 @@ class XLASentinel {
   static bool IsQualifyingStep(pid_t tid /*, bool or_higher = false*/);
   static void SetAllDevices(const std::vector<std::string>& all_devices);
   static bool HasWseDevices();
-  static bool PruneTensors(std::vector<XLATensor>* tensors, XLATensor::SyncTensorCollection& coll);
+  static bool PruneTensors(std::vector<XLATensor>* tensors,
+                           XLATensor::SyncTensorCollection& coll);
 
   //
   // Data

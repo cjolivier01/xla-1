@@ -1,11 +1,11 @@
 #pragma once
 
+#include <sys/syscall.h>
+
 #include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include "torch/csrc/autograd/variable.h"
 
 #include "tensorflow/compiler/xla/client/xla_builder.h"
 #include "tensorflow/compiler/xla/status.h"
@@ -15,6 +15,7 @@
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
+#include "torch/csrc/autograd/variable.h"
 #include "torch_xla/csrc/computation.h"
 #include "torch_xla/csrc/cross_replica_reduces.h"
 #include "torch_xla/csrc/device.h"
@@ -23,8 +24,6 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
 
-#include <sys/syscall.h>
-
 namespace torch_xla {
 
 class XLATensor {
@@ -32,6 +31,7 @@ class XLATensor {
   struct Data;
   friend class THelper;
   friend class XLASentinel;
+
  public:
   static XLATensor Create(const at::Tensor& tensor, const Device& device);
   static XLATensor Create(
@@ -141,7 +141,8 @@ class XLATensor {
 
   // Dumps the XLA HLO text of the computation accumulated in the graph which is
   // attached the tensors.
-  static std::string DumpHloComputation(const std::vector<XLATensor>& tensors, bool json = false);
+  static std::string DumpHloComputation(const std::vector<XLATensor>& tensors,
+                                        bool json = false);
 
   // Retrieves the set of XLA tensors which are currently live in the system,
   // for the given device. If device is nullptr, the live tensors for all
@@ -184,15 +185,22 @@ class XLATensor {
       const std::vector<std::string>& devices);
 
   static void print_tensor(const std::string& label, const XLATensor& tensor);
-  static void print_tensor(const std::string& label, const XLATensor::Data* data, bool assert, ptrdiff_t alias_id);
+  static void print_tensor(const std::string& label,
+                           const XLATensor::Data* data, bool assert,
+                           ptrdiff_t alias_id);
 
-  static void print_tensor_ex(const std::string& label, const XLATensor& tensor);
-  static void print_tensor_ex(const std::string& label, const XLATensor::Data* data, bool assert, ptrdiff_t alias_id);
+  static void print_tensor_ex(const std::string& label,
+                              const XLATensor& tensor);
+  static void print_tensor_ex(const std::string& label,
+                              const XLATensor::Data* data, bool assert,
+                              ptrdiff_t alias_id);
 
-  static void print_all_tensors(const std::string& label, const std::vector<XLATensor>& tensors);
+  static void print_all_tensors(const std::string& label,
+                                const std::vector<XLATensor>& tensors);
 
-  template<typename CB>
-  static void print_tensors(const std::string& label, const std::vector<XLATensor>& tensors, CB cb);
+  template <typename CB>
+  static void print_tensors(const std::string& label,
+                            const std::vector<XLATensor>& tensors, CB cb);
 
   static int get_rank(const XLATensor::Data* data);
 

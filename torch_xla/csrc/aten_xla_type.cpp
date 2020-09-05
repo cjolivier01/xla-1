@@ -16,6 +16,7 @@
 #include "torch_xla/csrc/debug_util.h"
 #include "torch_xla/csrc/device.h"
 #include "torch_xla/csrc/helpers.h"
+#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/ops/as_strided.h"
 #include "torch_xla/csrc/ops/index_ops.h"
 #include "torch_xla/csrc/pooling.h"
@@ -23,7 +24,6 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
-#include "torch_xla/csrc/ir.h"
 
 // [Implementation Guidelines]
 // - If you want to call a at::func which doesn't exist in AtenXlaType,
@@ -32,7 +32,7 @@
 //   at::is_floating_point(tensor), use at::native::is_floating_point(tensor).
 
 #undef XLA_FN_COUNTER
-#define XLA_FN_COUNTER(ns) \
+#define XLA_FN_COUNTER(ns)                        \
   XLA_COUNTER(absl::StrCat(ns, __FUNCTION__), 1); \
   torch_xla::ir::ScopePusher _scope_push(absl::StrCat(ns, __FUNCTION__))
 

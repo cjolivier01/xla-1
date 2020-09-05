@@ -235,7 +235,7 @@ class Node {
 
   bool IsAutograd() const { return is_autograd_; }
 
-private:
+ private:
   // Adds node's index output number as operand.
   void AddOperand(NodePtr node, size_t index = 0);
 
@@ -316,7 +316,8 @@ void PythonPopScope();
 void PythonAddFrontendAttribute(std::string key, std::string value);
 void PythonRemoveFrontendAttribute(const std::string& key);
 
-const std::unordered_map<std::string, std::string>& GetPythonFrontendAttributes();
+const std::unordered_map<std::string, std::string>&
+GetPythonFrontendAttributes();
 
 }  // namespace ir
 }  // namespace torch_xla

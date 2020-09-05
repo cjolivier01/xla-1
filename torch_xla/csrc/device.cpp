@@ -52,7 +52,7 @@ void ParseDevice(const std::string& device_spec, Device* device) {
   } else if (device_spec_parts[0] == "GPU") {
     device->hw_type = DeviceType::GPU;
   } else if (device_spec_parts[0] == "WSE") {
-      device->hw_type = DeviceType::WSE;
+    device->hw_type = DeviceType::WSE;
   } else {
     XLA_ERROR() << "Invalid device specification: " << device_spec;
   }

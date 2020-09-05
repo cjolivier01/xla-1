@@ -23,8 +23,7 @@ class LoweringContext {
   explicit LoweringContext(const std::string& name, Device device);
   LoweringContext(const std::string& name, Device device,
                   absl::Span<const Node* const> post_order,
-                  Util::EmissionMap emit_status,
-                  bool allow_custom_lowering);
+                  Util::EmissionMap emit_status, bool allow_custom_lowering);
 
   xla::XlaBuilder* builder() { return &builder_; }
 

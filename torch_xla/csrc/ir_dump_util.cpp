@@ -249,7 +249,7 @@ std::string DumpUtil::ToHlo(absl::Span<const Value> values,
 }
 
 std::string DumpUtil::ToJson(absl::Span<const Value> values,
-                            const Device& device) {
+                             const Device& device) {
   ir::LoweringContext lowering_ctx("IrToJson", device);
   for (auto& ir_value : values) {
     xla::XlaOp root = lowering_ctx.GetOutputOp(ir_value);

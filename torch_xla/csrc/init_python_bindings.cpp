@@ -3,10 +3,10 @@
 
 #include <cstring>
 #include <sstream>
+#include <stack>
 #include <string>
 #include <thread>
 #include <vector>
-#include <stack>
 
 #include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
@@ -29,15 +29,15 @@
 #include "torch_xla/csrc/computation.h"
 #include "torch_xla/csrc/device.h"
 #include "torch_xla/csrc/helpers.h"
+#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/ir_dump_util.h"
 #include "torch_xla/csrc/ir_util.h"
-#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
+#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/tensor_impl.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
-#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/xla_op_builder.h"
 
 namespace torch_xla {
@@ -262,7 +262,8 @@ void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
   XLASentinel::SetOutputs(output_tensors, append);
 }
 
-void SetDeviceAddress(const std::string& device, const std::string& proxy_address) {
+void SetDeviceAddress(const std::string& device,
+                      const std::string& proxy_address) {
   XLASentinel::SetDeviceProxyAddress(device, proxy_address);
 }
 
@@ -673,12 +674,12 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::vector<at::Tensor>& tensors) -> std::string {
           return GetTensorsJsonGraph(tensors);
         });
-  m.def("_xla_set_outputs",
-        [](const std::vector<at::Tensor>& output_tensors, bool append) {
-          SetOutputs(output_tensors, append);
-        },
-        py::arg("output_tensors"),
-        py::arg("append") = false);
+  m.def(
+      "_xla_set_outputs",
+      [](const std::vector<at::Tensor>& output_tensors, bool append) {
+        SetOutputs(output_tensors, append);
+      },
+      py::arg("output_tensors"), py::arg("append") = false);
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;
@@ -826,48 +827,53 @@ void InitXlaModuleBindings(py::module m) {
     return SetCurrentThreadDevice(device);
   });
   m.def("_xla_get_default_device", []() { return GetCurrentThreadDevice(); });
-  m.def("_xla_set_rng_seed",
-        [](xla::uint64 seed, const std::string& device) {
-          SetRngSeed(seed, device);
-        },
-        py::arg("seed") = 101, py::arg("device") = "");
-  m.def("_xla_get_rng_seed",
-        [](const std::string& device) { return GetRngSeed(device); },
-        py::arg("device") = "");
-  m.def("_xla_sync_multi",
-        [](const std::vector<at::Tensor>& tensors,
-           const std::vector<std::string>& devices, bool wait,
-           bool sync_xla_data) {
-          NoGilSection nogil;
-          SyncTensors(tensors, devices, wait, sync_xla_data);
-        },
-        py::arg("tensors"), py::arg("devices"), py::arg("wait") = true,
-        py::arg("sync_xla_data") = true);
-  m.def("_xla_sync_live_tensors",
-        [](const std::string& device, const std::vector<std::string>& devices,
-           bool wait) {
-          NoGilSection nogil;
-          SyncLiveTensors(device, devices, wait);
-        },
-        py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
-  m.def("_xla_is_initialized",
-        []() {
-          NoGilSection nogil;
-          return XLASentinel::IsInitialized();
-        });
-  m.def("_xla_step_marker",
-        [](const std::string& device, const std::vector<std::string>& devices,
-           bool wait) {
-          NoGilSection nogil;
-          StepMarker(device, devices, wait);
-        },
-        py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
-  m.def("_xla_wait_device_ops",
-        [](const std::vector<std::string>& devices) {
-          NoGilSection nogil;
-          XLATensor::WaitDeviceOps(devices);
-        },
-        py::arg("devices"));
+  m.def(
+      "_xla_set_rng_seed",
+      [](xla::uint64 seed, const std::string& device) {
+        SetRngSeed(seed, device);
+      },
+      py::arg("seed") = 101, py::arg("device") = "");
+  m.def(
+      "_xla_get_rng_seed",
+      [](const std::string& device) { return GetRngSeed(device); },
+      py::arg("device") = "");
+  m.def(
+      "_xla_sync_multi",
+      [](const std::vector<at::Tensor>& tensors,
+         const std::vector<std::string>& devices, bool wait,
+         bool sync_xla_data) {
+        NoGilSection nogil;
+        SyncTensors(tensors, devices, wait, sync_xla_data);
+      },
+      py::arg("tensors"), py::arg("devices"), py::arg("wait") = true,
+      py::arg("sync_xla_data") = true);
+  m.def(
+      "_xla_sync_live_tensors",
+      [](const std::string& device, const std::vector<std::string>& devices,
+         bool wait) {
+        NoGilSection nogil;
+        SyncLiveTensors(device, devices, wait);
+      },
+      py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
+  m.def("_xla_is_initialized", []() {
+    NoGilSection nogil;
+    return XLASentinel::IsInitialized();
+  });
+  m.def(
+      "_xla_step_marker",
+      [](const std::string& device, const std::vector<std::string>& devices,
+         bool wait) {
+        NoGilSection nogil;
+        StepMarker(device, devices, wait);
+      },
+      py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
+  m.def(
+      "_xla_wait_device_ops",
+      [](const std::vector<std::string>& devices) {
+        NoGilSection nogil;
+        XLATensor::WaitDeviceOps(devices);
+      },
+      py::arg("devices"));
   m.def("_xla_counter_names", []() { return xla::metrics::GetCounterNames(); });
   m.def("_xla_counter_value", [](const std::string& name) -> py::object {
     xla::metrics::CounterData* data = xla::metrics::GetCounter(name);
@@ -879,32 +885,35 @@ void InitXlaModuleBindings(py::module m) {
   });
   m.def("_xla_metrics_report",
         []() { return xla::metrics_reader::CreateMetricReport(); });
-  m.def("_xla_tensors_report",
-        [](size_t nodes_threshold, const std::string& device) {
-          return GetLiveTensorsReport(nodes_threshold, device);
-        },
-        py::arg("nodes_threshold") = 100, py::arg("device") = "");
+  m.def(
+      "_xla_tensors_report",
+      [](size_t nodes_threshold, const std::string& device) {
+        return GetLiveTensorsReport(nodes_threshold, device);
+      },
+      py::arg("nodes_threshold") = 100, py::arg("device") = "");
   m.def("_xla_memory_info", [](const std::string& device) -> py::object {
     return GetMemoryInfo(device);
   });
-  m.def("_xla_set_use_full_mat_mul_precision",
-        [](bool use_full_mat_mul_precision) {
-          XlaHelpers::set_mat_mul_precision(
-              use_full_mat_mul_precision ? xla::PrecisionConfig::HIGHEST
-                                         : xla::PrecisionConfig::DEFAULT);
-        },
-        py::arg("use_full_mat_mul_precision") = true);
+  m.def(
+      "_xla_set_use_full_mat_mul_precision",
+      [](bool use_full_mat_mul_precision) {
+        XlaHelpers::set_mat_mul_precision(use_full_mat_mul_precision
+                                              ? xla::PrecisionConfig::HIGHEST
+                                              : xla::PrecisionConfig::DEFAULT);
+      },
+      py::arg("use_full_mat_mul_precision") = true);
 
   py::class_<xla::util::RecordReader, std::shared_ptr<xla::util::RecordReader>>(
       m, "RecordReader");
-  m.def("_xla_create_tfrecord_reader",
-        [](const std::string& path, const std::string& compression,
-           xla::int64 buffer_size) {
-          NoGilSection nogil;
-          return CreateRecordReader(path, compression, buffer_size);
-        },
-        py::arg("path"), py::arg("compression") = "",
-        py::arg("buffer_size") = 16 * 1024 * 1024);
+  m.def(
+      "_xla_create_tfrecord_reader",
+      [](const std::string& path, const std::string& compression,
+         xla::int64 buffer_size) {
+        NoGilSection nogil;
+        return CreateRecordReader(path, compression, buffer_size);
+      },
+      py::arg("path"), py::arg("compression") = "",
+      py::arg("buffer_size") = 16 * 1024 * 1024);
   m.def(
       "_xla_tfrecord_read",
       [](const std::shared_ptr<xla::util::RecordReader>& reader) -> py::object {
@@ -962,38 +971,22 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
-//  m.def("_xla_set_compile_only",
-//        [](bool compile_only) {
-//          XLASentinel::SetCompileOnly(compile_only);
-//        });
+  //  m.def("_xla_set_compile_only",
+  //        [](bool compile_only) {
+  //          XLASentinel::SetCompileOnly(compile_only);
+  //        });
   m.def("_xla_push_python_state",
-      [](const int state) {
-    PushPythonState((EPythonState)state);
-  });
-  m.def("_xla_pop_python_state",
-        []() {
-    PopPythonState();
-  });
+        [](const int state) { PushPythonState((EPythonState)state); });
+  m.def("_xla_pop_python_state", []() { PopPythonState(); });
   m.def("_xla_push_ir_scope",
-        [](std::string scope) {
-          ir::PythonPushScope(std::move(scope));
-        });
-  m.def("_xla_pop_ir_scope",
-        []() {
-          ir::PythonPopScope();
-        });
-  m.def("_xla_add_frontend_attribute",
-        [](std::string key, std::string value) {
-          ir::PythonAddFrontendAttribute(std::move(key), std::move(value));
-        });
+        [](std::string scope) { ir::PythonPushScope(std::move(scope)); });
+  m.def("_xla_pop_ir_scope", []() { ir::PythonPopScope(); });
+  m.def("_xla_add_frontend_attribute", [](std::string key, std::string value) {
+    ir::PythonAddFrontendAttribute(std::move(key), std::move(value));
+  });
   m.def("_xla_remove_frontend_attribute",
-        [](const std::string& key) {
-          ir::PythonRemoveFrontendAttribute(key);
-        });
-  m.def("_xla_trap",
-        []() {
-          raise(SIGTRAP);
-        });
+        [](const std::string& key) { ir::PythonRemoveFrontendAttribute(key); });
+  m.def("_xla_trap", []() { raise(SIGTRAP); });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");
   py::class_<Computation, ComputationPtr>(m, "XlaComputation");
@@ -1049,11 +1042,13 @@ void InitXlaModuleBindings(py::module m) {
            const std::vector<op_builder::OpPtr>& operands, py::dict args) {
           return op_builder::CreateOp(builder, opname, operands, args);
         });
-  m.def("_xla_device_proxy_interface",
-  [](const std::string& device, const std::string& proxy_address) {
-    NoGilSection nogil;
-    SetDeviceAddress(device, proxy_address);
-  }, py::arg("device"), py::arg("proxy_address"));
+  m.def(
+      "_xla_device_proxy_interface",
+      [](const std::string& device, const std::string& proxy_address) {
+        NoGilSection nogil;
+        SetDeviceAddress(device, proxy_address);
+      },
+      py::arg("device"), py::arg("proxy_address"));
 }
 
 }  // namespace
