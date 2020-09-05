@@ -1443,6 +1443,9 @@ class XLATensor {
   static PostOrderData RunPostOrder(const std::vector<XLATensor>& tensors,
                                     absl::Span<const size_t> indices);
 
+  static PostOrderData GetPostOrderData(std::vector<XLATensor>* tensors,
+                                        SyncTensorCollection& coll);
+
   static ComputationCache::TypePtr LookupCachedCompile(
       const std::vector<XLATensor>& tensors, const xla::hash_t& hash);
 
@@ -1473,10 +1476,10 @@ class XLATensor {
                                    const SyncTensorCollection& coll,
                                    PostOrderData* po_data);
 
-  static CompilationResult Compile(
-      const std::vector<XLATensor>& tensors,
-      absl::Span<const std::string> devices,
-      const SyncTensorCollection& coll);
+//  static CompilationResult Compile(
+//      const std::vector<XLATensor>& tensors,
+//      absl::Span<const std::string> devices,
+//      const SyncTensorCollection& coll);
 
   static std::shared_ptr<Async> SyncTensorsGraphInternal(
       std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,

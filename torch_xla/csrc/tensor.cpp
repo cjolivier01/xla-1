@@ -1711,14 +1711,8 @@ XLATensor::CompilationResult XLATensor::Compile(
 //          /*parameters_data=*/std::move(parameters_data)};
 //}
 
-std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
-    std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
-    const SyncTensorsConfig& config) {
-  SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
-  if (coll.indices.empty()) {
-    return nullptr;
-  }
-
+XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* tensors,
+                                                     SyncTensorCollection& coll) {
   HashingState state(coll.hash);
 
   PostOrderData po_data;
@@ -1733,6 +1727,33 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
 
   } while (XLASentinel::OnHashingComplete(state, tensors, coll));
+  return std::move(po_data);
+}
+
+std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
+    std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
+    const SyncTensorsConfig& config) {
+  SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
+  if (coll.indices.empty()) {
+    return nullptr;
+  }
+
+  PostOrderData po_data = GetPostOrderData(tensors, coll);
+
+//  HashingState state(coll.hash);
+//
+//  PostOrderData po_data;
+//  do {
+//    XLASentinel::PostmarkHash(state, tensors, coll);
+//
+//    DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
+//                                    &coll.indices);
+//
+//    po_data = std::move(RunPostOrder(*tensors, coll.indices));
+//    coll.hash = xla::util::HashCombine(
+//        coll.hash, xla::util::Hash(po_data.parameter_sequence));
+//
+//  } while (XLASentinel::OnHashingComplete(state, tensors, coll));
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
@@ -1806,7 +1827,8 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
   ComputationCache::TypePtr cached_computation =
       LookupCachedCompile(*tensors, coll.hash);  /* WARNING: this may need the parameter hashing and postorder added later */
   if (cached_computation == nullptr) {
-    CompilationResult compile_result = Compile(*tensors, devices, coll);
+    PostOrderData po_data = GetPostOrderData(tensors, coll);
+    CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
 
     cached_computation = std::make_shared<CachedComputation>(
         std::move(compile_result.computation)/*,
