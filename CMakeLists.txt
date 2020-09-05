@@ -177,7 +177,6 @@ if (BUILD_TENSORFLOW)
 
     target_link_libraries(ptxla PRIVATE ${LIBXLA_COMPUTATION_CLIENT_LIB})
     target_link_libraries(ptxla PRIVATE ${FRAMEWORK_LIBS})
-#    target_link_libraries(ptxla /spare/chriso/home/chriso/src/ml_frameworks/bazel-cache-gcc/49c12158c33905d57743a99d8036b9ee/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/compiler/xla/xla_client/libcomputation_client_impl.pic.lo)
 
     set(TF_SOURCE_FILE "${TF_DIRECTORY}/bazel-bin/tensorflow/compiler/xla/xla_client/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     set(TF_DEST_FILE "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")

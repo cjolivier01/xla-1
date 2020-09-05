@@ -39,8 +39,6 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 
-// run w/out execute python: https://github.com/pytorch/xla/commit/5fb44ce78a67ee66ec47b2c9b65dc61968966e40
-
 extern "C" {
 extern int is_autograd_thread();
 }
@@ -1245,17 +1243,6 @@ std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
   }
   return parameters_data;
 }
-
-//std::vector<ir::Value> XLATensor::CollectRoots(
-//    const std::vector<XLATensor>& tensors,
-//    absl::Span<const size_t> indices) {
-//  std::vector<ir::Value> roots;
-//  roots.reserve(indices.size());
-//  for (auto index : indices) {
-//    roots.push_back(tensors.at(index).CurrentIrValue());
-//  }
-//  return roots;
-//}
 
 XLATensor::PostOrderData XLATensor::RunPostOrder(
     const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices) {
