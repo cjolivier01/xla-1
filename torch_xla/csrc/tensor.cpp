@@ -39,6 +39,8 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 
+// run w/out execute python: https://github.com/pytorch/xla/commit/5fb44ce78a67ee66ec47b2c9b65dc61968966e40
+
 extern "C" {
 extern int is_autograd_thread();
 }
@@ -1177,35 +1179,9 @@ XLATensor::SyncTensorCollection XLATensor::CollectSyncTensors(
 }
 
 XLATensor::ComputationCache::TypePtr XLATensor::LookupCachedCompile(
-    const std::vector<XLATensor>& tensors, size_t hash,
-    tensorflow::gtl::ArraySlice<const size_t> indices,
-    std::vector<xla::ComputationClient::DataPtr>* parameters_data) {
+    const std::vector<XLATensor>& tensors, const xla::hash_t& hash) {
   ComputationCache::TypePtr cached_computation =
       GetComputationCache()->Get(hash);
-  if (cached_computation == nullptr) {
-    XLA_COUNTER("UncachedCompile", 1);
-    return nullptr;
-  }
-  size_t graph_size;
-  *parameters_data = FetchParameters(tensors, indices, &graph_size);
-  if (cached_computation->num_parameters != parameters_data->size()) {
-    XLA_COUNTER("CachedCompileParamMismatch", 1);
-    GetComputationCache()->Erase(hash);
-    return nullptr;
-  }
-  XLA_VALUE_METRIC("TensorsGraphSize", graph_size);
-  TF_VLOG(5) << "TensorsGraphSize=" << graph_size;
-
-  XLA_COUNTER("CachedCompile", 1);
-  return cached_computation;
-}
-
-std::shared_ptr<XLATensor::Async> XLATensor::TryRunCachedSync(
-    std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
-    SyncTensorCollection* coll) {
-  std::vector<xla::ComputationClient::DataPtr> parameters_data;
-  ComputationCache::TypePtr cached_computation = LookupCachedCompile(
-      *tensors, coll->hash, coll->indices, &parameters_data);
   if (cached_computation == nullptr) {
     XLA_COUNTER("UncachedCompile", 1);
     return nullptr;
@@ -1245,7 +1221,7 @@ XLATensor::ComputationCache* XLATensor::GetComputationCache() {
 
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
     const std::vector<XLATensor>& tensors,
-    tensorflow::gtl::ArraySlice<const size_t> indices, size_t* graph_size) {
+    absl::Span<const size_t> indices, size_t* graph_size) {
   std::vector<const ir::Node*> roots;
   roots.reserve(indices.size());
   for (auto index : indices) {
@@ -1270,16 +1246,16 @@ std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
   return parameters_data;
 }
 
-std::vector<ir::Value> XLATensor::CollectRoots(
-    const std::vector<XLATensor>& tensors,
-    tensorflow::gtl::ArraySlice<const size_t> indices) {
-  std::vector<ir::Value> roots;
-  roots.reserve(indices.size());
-  for (auto index : indices) {
-    roots.push_back(tensors.at(index).CurrentIrValue());
-  }
-  return roots;
-}
+//std::vector<ir::Value> XLATensor::CollectRoots(
+//    const std::vector<XLATensor>& tensors,
+//    absl::Span<const size_t> indices) {
+//  std::vector<ir::Value> roots;
+//  roots.reserve(indices.size());
+//  for (auto index : indices) {
+//    roots.push_back(tensors.at(index).CurrentIrValue());
+//  }
+//  return roots;
+//}
 
 XLATensor::PostOrderData XLATensor::RunPostOrder(
     const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices) {
@@ -1323,7 +1299,9 @@ std::vector<ir::Value> XLATensor::CollectRoots(
 
 std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchTensorData(
     std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
-    absl::Span<const size_t> indices) {
+    absl::Span<const size_t> indices,
+    const std::unordered_map<xla::int64, xla::ComputationClient::DataPtr>*
+    uid_data_map) {
   std::vector<xla::ComputationClient::DataPtr> tensors_data;
   tensors_data.reserve(indices.size());
   for (auto index : indices) {
@@ -1692,6 +1670,47 @@ XLATensor::CompilationResult XLATensor::Compile(
           /*parameters_data=*/std::move(po_data->parameters_data)};
 }
 
+//std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
+//    std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
+//    const SyncTensorsConfig& config) {
+//  SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
+//  if (coll.indices.empty()) {
+//    return nullptr;
+//  }
+//
+//  HashingState state(coll.hash);
+//
+//  PostOrderData po_data;
+//  do {
+//    XLASentinel::PostmarkHash(state, tensors, coll);
+//
+//    DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
+//                                    &coll.indices);
+//
+//    po_data = std::move(RunPostOrder(*tensors, coll.indices));
+//    coll.hash = xla::util::HashCombine(
+//        coll.hash, xla::util::Hash(po_data.parameter_sequence));
+//
+//  } while (XLASentinel::OnHashingComplete(state, tensors, coll));
+//
+//  TF_VLOG(4) << "Parameter sequence graph hash "
+//             << xla::util::HexHash(coll.hash);
+//  std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
+//  if (async != nullptr) {
+//    return async;
+//  }
+//
+//  CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
+//
+//  XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
+//  TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;
+//
+//  return {/*device=*/*unique_device,
+//          /*emitted_nodes=*/lowering_ctx.GetEmittedNodeCount(),
+//          /*computation=*/std::move(computations.front()),
+//          /*parameters_data=*/std::move(parameters_data)};
+//}
+
 std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
     std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
     const SyncTensorsConfig& config) {
@@ -1726,30 +1745,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
   XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
   TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;
-
-  return {/*device=*/*unique_device,
-          /*emitted_nodes=*/lowering_ctx.GetEmittedNodeCount(),
-          /*computation=*/std::move(computations.front()),
-          /*parameters_data=*/std::move(parameters_data)};
-}
-
-std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
-    std::vector<XLATensor>* tensors,
-    tensorflow::gtl::ArraySlice<const std::string> devices,
-    const SyncTensorsConfig& config) {
-  SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
-  if (coll.indices.empty()) {
-    return nullptr;
-  }
-  std::shared_ptr<Async> async = TryRunCachedSync(tensors, config, &coll);
-  if (async != nullptr) {
-    return async;
-  }
-
-  CompilationResult compile_result = Compile(*tensors, devices, coll);
-
-  XLA_VALUE_METRIC("SyncTensorsGraphSize", compile_result.emitted_nodes);
-  TF_VLOG(5) << "SyncTensorsGraphSize=" << compile_result.emitted_nodes;
 
   auto cached_computation = std::make_shared<CachedComputation>(
       std::move(compile_result.computation));
@@ -1799,7 +1794,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     std::vector<XLATensor>* tensors,
     const std::vector<XLATensor>& input_tensors,
     const std::vector<XLATensor>& output_tensors,
-    tensorflow::gtl::ArraySlice<const std::string> devices,
+    absl::Span<const std::string> devices,
     const CompiledGraph::DataHandleMap* dhandle_map) {
   SyncTensorsConfig config;
   SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
@@ -1809,13 +1804,13 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
 
   std::vector<xla::ComputationClient::DataPtr> parameters_data;
   ComputationCache::TypePtr cached_computation =
-      LookupCachedCompile(*tensors, coll.hash, coll.indices, &parameters_data);
+      LookupCachedCompile(*tensors, coll.hash);  /* WARNING: this may need the parameter hashing and postorder added later */
   if (cached_computation == nullptr) {
     CompilationResult compile_result = Compile(*tensors, devices, coll);
 
     cached_computation = std::make_shared<CachedComputation>(
-        std::move(compile_result.computation),
-        compile_result.parameters_data.size());
+        std::move(compile_result.computation)/*,
+        compile_result.parameters_data.size()*/);
     GetComputationCache()->Add(coll.hash, cached_computation);
 
     parameters_data = std::move(compile_result.parameters_data);
@@ -1891,7 +1886,7 @@ void XLATensor::ExecuteCompiledGraph(
     const std::vector<XLATensor>& input_tensors,
     const CompiledGraph& compiled_graph, bool wait) {
   SyncTensorCollection coll;
-  coll.device = compiled_graph.device.ToString();
+  coll.device = compiled_graph.device;
   coll.hash = compiled_graph.hash;
   coll.indices = xla::util::Iota<size_t>(compiled_graph.tensors_data.size());
   TF_VLOG(4) << "Waiting on device barrier for device " << coll.device

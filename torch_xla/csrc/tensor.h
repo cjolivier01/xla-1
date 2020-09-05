@@ -31,18 +31,17 @@ class XLATensor {
   struct Data;
   friend class THelper;
   friend class XLASentinel;
-
+  struct CachedComputation;
  public:
-  struct CachedComputation {
-    CachedComputation(
-        std::shared_ptr<xla::ComputationClient::Computation> computation,
-        size_t num_parameters)
-        : computation(std::move(computation)), num_parameters(num_parameters) {}
-
-    std::shared_ptr<xla::ComputationClient::Computation> computation;
-    size_t num_parameters;
-  };
-
+//  struct CachedComputation {
+//    CachedComputation(
+//        std::shared_ptr<xla::ComputationClient::Computation> computation,
+//        size_t num_parameters)
+//        : computation(std::move(computation)), num_parameters(num_parameters) {}
+//
+//    std::shared_ptr<xla::ComputationClient::Computation> computation;
+//    size_t num_parameters;
+//  };
   struct CompiledGraph {
     enum MapLocation {
       kInvalid,
@@ -62,7 +61,7 @@ class XLATensor {
                            xla::int64>;
 
     Device device;
-    size_t hash = 0;
+    xla::hash_t hash = 0;
     std::shared_ptr<CachedComputation> computation;
     std::vector<ParameterMapping> parameters_mapping;
     std::vector<OutputMapping> outputs_mapping;
@@ -220,7 +219,7 @@ class XLATensor {
       std::vector<XLATensor>* tensors,
       const std::vector<XLATensor>& input_tensors,
       const std::vector<XLATensor>& output_tensors,
-      tensorflow::gtl::ArraySlice<const std::string> devices,
+      absl::Span<const std::string> devices,
       const CompiledGraph::DataHandleMap* dhandle_map);
 
   static void ExecuteCompiledGraph(const std::vector<XLATensor>& input_tensors,
@@ -1244,17 +1243,18 @@ class XLATensor {
 
   struct CachedComputation {
     CachedComputation(
-        std::shared_ptr<xla::ComputationClient::Computation> computation)
-        : computation(std::move(computation)) {}
+        std::shared_ptr<xla::ComputationClient::Computation> computation /*, size_t num_parameters*/)
+        : computation(std::move(computation)) /*, num_parameters(num_parameters)*/ {}
 
     std::shared_ptr<xla::ComputationClient::Computation> computation;
+    //std::size_t num_parameters;
   };
-  struct CompilationResult {
-    Device device;
-    size_t emitted_nodes = 0;
-    std::shared_ptr<xla::ComputationClient::Computation> computation;
-    std::vector<xla::ComputationClient::DataPtr> parameters_data;
-  };
+//  struct CompilationResult {
+//    Device device;
+//    size_t emitted_nodes = 0;
+//    std::shared_ptr<xla::ComputationClient::Computation> computation;
+//    std::vector<xla::ComputationClient::DataPtr> parameters_data;
+//  };
 
   using ComputationCache =
       xla::util::Cache<xla::hash_t, CachedComputation, xla::util::HashReducer>;
@@ -1411,17 +1411,18 @@ class XLATensor {
   static std::vector<ir::Value> CollectRoots(
       const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices);
 
+//  static std::vector<xla::ComputationClient::DataPtr> FetchTensorData(
+//      std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
+//      absl::Span<const size_t> indices,
+//      );
+
+//  static std::vector<ir::Value> CollectRoots(
+//      const std::vector<XLATensor>& tensors,
+//      absl::Span<const size_t> indices);
+
   static std::vector<xla::ComputationClient::DataPtr> FetchTensorData(
       std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
-      absl::Span<const size_t> indices);
-
-  static std::vector<ir::Value> CollectRoots(
-      const std::vector<XLATensor>& tensors,
-      tensorflow::gtl::ArraySlice<const size_t> indices);
-
-  static std::vector<xla::ComputationClient::DataPtr> FetchTensorData(
-      std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
-      tensorflow::gtl::ArraySlice<const size_t> indices,
+      absl::Span<const size_t> indices,
       const std::unordered_map<xla::int64, xla::ComputationClient::DataPtr>*
           uid_data_map = nullptr);
 
@@ -1444,13 +1445,19 @@ class XLATensor {
 
   static ComputationCache::TypePtr LookupCachedCompile(
       const std::vector<XLATensor>& tensors, const xla::hash_t& hash);
+
+//  static ComputationCache::TypePtr LookupCachedCompile(
+//      const std::vector<XLATensor>& tensors, size_t hash,
+//      absl::Span<const size_t> indices,
+//      std::vector<xla::ComputationClient::DataPtr>* parameters_data);
+
   static std::vector<xla::ComputationClient::DataPtr> FetchParameters(
       const std::vector<XLATensor>& tensors,
-      tensorflow::gtl::ArraySlice<const size_t> indices, size_t* graph_size);
+      absl::Span<const size_t> indices, size_t* graph_size);
 
   // static ComputationCache::TypePtr LookupCachedCompile(
   //     const std::vector<XLATensor>& tensors, size_t hash,
-  //     tensorflow::gtl::ArraySlice<const size_t> indices,
+  //     absl::Span<const size_t> indices,
   //     std::vector<xla::ComputationClient::DataPtr>* parameters_data);
 
   static std::shared_ptr<Async> TryRunCachedSync(
@@ -1468,7 +1475,7 @@ class XLATensor {
 
   static CompilationResult Compile(
       const std::vector<XLATensor>& tensors,
-      tensorflow::gtl::ArraySlice<const std::string> devices,
+      absl::Span<const std::string> devices,
       const SyncTensorCollection& coll);
 
   static std::shared_ptr<Async> SyncTensorsGraphInternal(
