@@ -1217,32 +1217,32 @@ XLATensor::ComputationCache* XLATensor::GetComputationCache() {
   return cache;
 }
 
-std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
-    const std::vector<XLATensor>& tensors,
-    absl::Span<const size_t> indices, size_t* graph_size) {
-  std::vector<const ir::Node*> roots;
-  roots.reserve(indices.size());
-  for (auto index : indices) {
-    ir::Value ir_value = tensors.at(index).CurrentIrValue();
-    roots.push_back(ir_value.node.get());
-  }
-  std::vector<xla::ComputationClient::DataPtr> parameters_data;
-  std::unordered_set<xla::ComputationClient::Data::OpaqueHandle> data_handles;
-  auto post_order = ir::Util::ComputePostOrder(roots);
-  for (auto node : post_order) {
-    const ir::ops::DeviceData* device_data =
-        dynamic_cast<const ir::ops::DeviceData*>(node);
-    if (device_data != nullptr) {
-      if (data_handles.insert(device_data->data()->GetOpaqueHandle()).second) {
-        parameters_data.push_back(device_data->data());
-      }
-    }
-  }
-  if (graph_size != nullptr) {
-    *graph_size = post_order.size();
-  }
-  return parameters_data;
-}
+//std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
+//    const std::vector<XLATensor>& tensors,
+//    absl::Span<const size_t> indices, size_t* graph_size) {
+//  std::vector<const ir::Node*> roots;
+//  roots.reserve(indices.size());
+//  for (auto index : indices) {
+//    ir::Value ir_value = tensors.at(index).CurrentIrValue();
+//    roots.push_back(ir_value.node.get());
+//  }
+//  std::vector<xla::ComputationClient::DataPtr> parameters_data;
+//  std::unordered_set<xla::ComputationClient::Data::OpaqueHandle> data_handles;
+//  auto post_order = ir::Util::ComputePostOrder(roots);
+//  for (auto node : post_order) {
+//    const ir::ops::DeviceData* device_data =
+//        dynamic_cast<const ir::ops::DeviceData*>(node);
+//    if (device_data != nullptr) {
+//      if (data_handles.insert(device_data->data()->GetOpaqueHandle()).second) {
+//        parameters_data.push_back(device_data->data());
+//      }
+//    }
+//  }
+//  if (graph_size != nullptr) {
+//    *graph_size = post_order.size();
+//  }
+//  return parameters_data;
+//}
 
 XLATensor::PostOrderData XLATensor::RunPostOrder(
     const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices) {
@@ -1706,9 +1706,6 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* ten
   do {
     XLASentinel::PostmarkHash(state, tensors, coll);
 
-    DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
-                                    &coll.indices);
-
     po_data = std::move(RunPostOrder(*tensors, coll.indices));
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
@@ -1725,22 +1722,10 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
     return nullptr;
   }
 
-  PostOrderData po_data = GetPostOrderData(tensors, coll);
+  DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
+                                  &coll.indices);
 
-//  HashingState state(coll.hash);
-//
-//  PostOrderData po_data;
-//  do {
-//    XLASentinel::PostmarkHash(state, tensors, coll);
-//
-//    DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
-//                                    &coll.indices);
-//
-//    po_data = std::move(RunPostOrder(*tensors, coll.indices));
-//    coll.hash = xla::util::HashCombine(
-//        coll.hash, xla::util::Hash(po_data.parameter_sequence));
-//
-//  } while (XLASentinel::OnHashingComplete(state, tensors, coll));
+  PostOrderData po_data = GetPostOrderData(tensors, coll);
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
@@ -1804,6 +1789,9 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     const std::vector<XLATensor>& output_tensors,
     absl::Span<const std::string> devices,
     const CompiledGraph::DataHandleMap* dhandle_map) {
+#if 0
+  return nullptr;
+#else
   SyncTensorsConfig config;
   SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
   if (coll.indices.empty()) {
@@ -1889,6 +1877,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
         (*tensors)[index].GetUniqueId());
   }
   return compiled_graph;
+#endif
 }
 
 void XLATensor::ExecuteCompiledGraph(

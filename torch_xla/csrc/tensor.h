@@ -1445,9 +1445,9 @@ class XLATensor {
 //      absl::Span<const size_t> indices,
 //      std::vector<xla::ComputationClient::DataPtr>* parameters_data);
 
-  static std::vector<xla::ComputationClient::DataPtr> FetchParameters(
-      const std::vector<XLATensor>& tensors,
-      absl::Span<const size_t> indices, size_t* graph_size);
+//  static std::vector<xla::ComputationClient::DataPtr> FetchParameters(
+//      const std::vector<XLATensor>& tensors,
+//      absl::Span<const size_t> indices, size_t* graph_size);
 
   // static ComputationCache::TypePtr LookupCachedCompile(
   //     const std::vector<XLATensor>& tensors, size_t hash,
