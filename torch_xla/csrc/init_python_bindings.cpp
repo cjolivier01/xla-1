@@ -286,7 +286,10 @@ py::object CompileExecuteGraph(
 
   auto compile_dict = py::dict();
   compile_dict["outputs"] = CreateOutputTensors(*compiled_graph);
-  compile_dict["hash"] = compiled_graph->hash;
+  //compile_dict["hash"] = compiled_graph->hash;
+  std::stringstream hash_string;
+  hash_string << compiled_graph->hash;
+  compile_dict["hash"] = hash_string.str();
   compile_dict["handle_map"] =
       py::cast(compiled_graph->data_handle_map.release(),
                pybind11::return_value_policy::take_ownership);
@@ -1104,6 +1107,7 @@ void InitXlaModuleBindings(py::module m) {
   });
   py::class_<XLATensor::CompiledGraph>(m, "CompiledGraph");
   py::class_<XLATensor::CompiledGraph::DataHandleMap>(m, "CompiledGraphDataHandleMap");
+  //py::class_<xla::hash_t>(m, "HashValue");
   m.def("_xla_compile_execute_graph",
         [](const std::vector<at::Tensor>& input_tensors,
            const std::vector<at::Tensor>& output_tensors,

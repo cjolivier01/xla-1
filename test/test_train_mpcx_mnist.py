@@ -8,6 +8,7 @@ FLAGS = args_parse.parse_common_options(
     target_accuracy=98.0,
     num_epochs=18)
 
+import ptwse
 import os
 import shutil
 import sys
@@ -167,7 +168,7 @@ def train_mnist():
     accuracy = 100.0 * ctx.correct / ctx.total_samples
     max_accuracy = max(accuracy, max_accuracy)
     test_utils.print_test_update(device, accuracy)
-    test_utils.add_scalar_to_summary(writer, 'Accuracy/test', accuracy, epoch)
+    #test_utils.add_scalar_to_summary(writer, 'Accuracy/test', accuracy, epoch)
     if FLAGS.metrics_debug:
       print(met.metrics_report())
 
@@ -190,4 +191,12 @@ def _mp_fn(index, flags):
 
 
 if __name__ == '__main__':
-  xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  #xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  import argparse
+  import ptwse.args
+  parser = argparse.ArgumentParser(description='Run PyTorch test')
+  parser = ptwse.args.add_all_arguments(parser)
+  args = parser.parse_args()
+  ptwse.initialize(args)
+  _mp_fn(0, FLAGS)
+

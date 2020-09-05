@@ -47,6 +47,7 @@ def run(loader,
         raise RuntimeError('Unable to accelarate graph execution')
       chash = graph_dict['hash']
       if chash == prev_hash:
+        print("STEADY GRAPH")
         steady_graph = graph_dict['graph']
         handle_map = None
       else:
