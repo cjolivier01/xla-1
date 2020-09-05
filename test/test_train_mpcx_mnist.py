@@ -144,7 +144,7 @@ def train_mnist():
   max_accuracy = 0.0
   for epoch in range(1, FLAGS.num_epochs + 1):
     # Train
-    ctx = xu.Context()
+    ctx = dp.Context(device=device)
     ctx.tracker = xm.RateTracker()
     ctx.step = 0
 
@@ -159,7 +159,7 @@ def train_mnist():
     xm.master_print('Finished training epoch {}'.format(epoch))
 
     # Eval
-    ctx = xu.Context()
+    ctx = xu.Context(device=device)
     ctx.total_samples = 0
     ctx.correct = 0
 

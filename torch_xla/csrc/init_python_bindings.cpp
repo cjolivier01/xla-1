@@ -24,6 +24,7 @@
 #include "torch/csrc/autograd/utils/wrap_outputs.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch/csrc/jit/python/pybind.h"
+#include "torch/include/pybind11/operators.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/aten_xla_type.h"
 #include "torch_xla/csrc/computation.h"
@@ -285,10 +286,10 @@ py::object CompileExecuteGraph(
 
   auto compile_dict = py::dict();
   compile_dict["outputs"] = CreateOutputTensors(*compiled_graph);
-  //compile_dict["hash"] = compiled_graph->hash;
-  std::stringstream hash_string;
-  hash_string << compiled_graph->hash;
-  compile_dict["hash"] = hash_string.str();
+  compile_dict["hash"] = compiled_graph->hash;
+//  std::stringstream hash_string;
+//  hash_string << compiled_graph->hash;
+//  compile_dict["hash"] = hash_string.str();
   compile_dict["handle_map"] =
       py::cast(compiled_graph->data_handle_map.release(),
                pybind11::return_value_policy::take_ownership);
@@ -1108,7 +1109,13 @@ void InitXlaModuleBindings(py::module m) {
   py::class_<XLATensor::CompiledGraph::DataHandleMap>(m, "CompiledGraphDataHandleMap");
   py::class_<xla::hash_t>(m, "HashValue")
       .def(py::self == py::self)
-      .def(py::self != py::self);
+      .def(py::self != py::self)
+      .def("__str__", [](const xla::hash_t& self){
+        std::stringstream ss;  ss << self; return ss.str();
+      })
+      .def("__repr__", [](const xla::hash_t& self){
+        std::stringstream ss;  ss << self; return ss.str();
+      });
   m.def("_xla_compile_execute_graph",
         [](const std::vector<at::Tensor>& input_tensors,
            const std::vector<at::Tensor>& output_tensors,
