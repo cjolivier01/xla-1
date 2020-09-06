@@ -286,7 +286,10 @@ py::object CompileExecuteGraph(
 
   auto compile_dict = py::dict();
   compile_dict["outputs"] = CreateOutputTensors(*compiled_graph);
-  compile_dict["hash"] = compiled_graph->hash;
+  std::stringstream ss;
+  ss << compiled_graph->hash;
+  compile_dict["hash"] = ss.str();
+  //compile_dict["hash"] = compiled_graph->hash;
   compile_dict["handle_map"] =
       py::cast(compiled_graph->data_handle_map.release(),
                pybind11::return_value_policy::take_ownership);

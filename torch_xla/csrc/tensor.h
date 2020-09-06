@@ -32,6 +32,7 @@ class XLATensor {
   friend class THelper;
   friend class XLASentinel;
   struct CachedComputation;
+
  public:
   struct CompiledGraph {
     enum MapLocation {
@@ -1233,19 +1234,20 @@ class XLATensor {
   };
 
   struct CachedComputation {
-    CachedComputation(
-        std::shared_ptr<xla::ComputationClient::Computation> computation /*, size_t num_parameters*/)
-        : computation(std::move(computation)) /*, num_parameters(num_parameters)*/ {}
+    CachedComputation(std::shared_ptr<xla::ComputationClient::Computation>
+                          computation /*, size_t num_parameters*/)
+        : computation(
+              std::move(computation)) /*, num_parameters(num_parameters)*/ {}
 
     std::shared_ptr<xla::ComputationClient::Computation> computation;
-    //std::size_t num_parameters;
+    // std::size_t num_parameters;
   };
-//  struct CompilationResult {
-//    Device device;
-//    size_t emitted_nodes = 0;
-//    std::shared_ptr<xla::ComputationClient::Computation> computation;
-//    std::vector<xla::ComputationClient::DataPtr> parameters_data;
-//  };
+  //  struct CompilationResult {
+  //    Device device;
+  //    size_t emitted_nodes = 0;
+  //    std::shared_ptr<xla::ComputationClient::Computation> computation;
+  //    std::vector<xla::ComputationClient::DataPtr> parameters_data;
+  //  };
 
   using ComputationCache =
       xla::util::Cache<xla::hash_t, CachedComputation, xla::util::HashReducer>;
@@ -1402,14 +1404,14 @@ class XLATensor {
   static std::vector<ir::Value> CollectRoots(
       const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices);
 
-//  static std::vector<xla::ComputationClient::DataPtr> FetchTensorData(
-//      std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
-//      absl::Span<const size_t> indices,
-//      );
+  //  static std::vector<xla::ComputationClient::DataPtr> FetchTensorData(
+  //      std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
+  //      absl::Span<const size_t> indices,
+  //      );
 
-//  static std::vector<ir::Value> CollectRoots(
-//      const std::vector<XLATensor>& tensors,
-//      absl::Span<const size_t> indices);
+  //  static std::vector<ir::Value> CollectRoots(
+  //      const std::vector<XLATensor>& tensors,
+  //      absl::Span<const size_t> indices);
 
   static std::vector<xla::ComputationClient::DataPtr> FetchTensorData(
       std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
@@ -1440,14 +1442,10 @@ class XLATensor {
   static ComputationCache::TypePtr LookupCachedCompile(
       const std::vector<XLATensor>& tensors, const xla::hash_t& hash);
 
-//  static ComputationCache::TypePtr LookupCachedCompile(
-//      const std::vector<XLATensor>& tensors, size_t hash,
-//      absl::Span<const size_t> indices,
-//      std::vector<xla::ComputationClient::DataPtr>* parameters_data);
-
-//  static std::vector<xla::ComputationClient::DataPtr> FetchParameters(
-//      const std::vector<XLATensor>& tensors,
-//      absl::Span<const size_t> indices, size_t* graph_size);
+  //  static ComputationCache::TypePtr LookupCachedCompile(
+  //      const std::vector<XLATensor>& tensors, size_t hash,
+  //      absl::Span<const size_t> indices,
+  //      std::vector<xla::ComputationClient::DataPtr>* parameters_data);
 
   // static ComputationCache::TypePtr LookupCachedCompile(
   //     const std::vector<XLATensor>& tensors, size_t hash,
@@ -1467,12 +1465,22 @@ class XLATensor {
                                    const SyncTensorCollection& coll,
                                    PostOrderData* po_data);
 
-//  static CompilationResult Compile(
-//      const std::vector<XLATensor>& tensors,
-//      absl::Span<const std::string> devices,
-//      const SyncTensorCollection& coll);
+  //  static CompilationResult Compile(
+  //      const std::vector<XLATensor>& tensors,
+  //      absl::Span<const std::string> devices,
+  //      const SyncTensorCollection& coll);
 
-  static std::shared_ptr<Async> SyncTensorsGraphInternal(
+  static std::unique_ptr<XLATensor::CompiledGraph> CreateCompiledGraph(
+      std::vector<XLATensor>* tensors,
+      const std::shared_ptr<CachedComputation>& cached_computation,
+      SyncTensorCollection& coll,
+      const SyncTensorsConfig& config,
+      const std::vector<XLATensor>& input_tensors,
+      const std::vector<XLATensor>& output_tensors,
+      const std::vector<xla::ComputationClient::DataPtr>& parameters_data,
+      const CompiledGraph::DataHandleMap* dhandle_map);
+
+    static std::shared_ptr<Async> SyncTensorsGraphInternal(
       std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
       const SyncTensorsConfig& config);
 

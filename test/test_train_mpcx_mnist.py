@@ -159,7 +159,7 @@ def train_mnist():
     xm.master_print('Finished training epoch {}'.format(epoch))
 
     # Eval
-    ctx = xu.Context(device=device)
+    ctx = dp.Context(device=device)
     ctx.total_samples = 0
     ctx.correct = 0
 

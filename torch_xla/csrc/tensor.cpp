@@ -1217,33 +1217,6 @@ XLATensor::ComputationCache* XLATensor::GetComputationCache() {
   return cache;
 }
 
-//std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchParameters(
-//    const std::vector<XLATensor>& tensors,
-//    absl::Span<const size_t> indices, size_t* graph_size) {
-//  std::vector<const ir::Node*> roots;
-//  roots.reserve(indices.size());
-//  for (auto index : indices) {
-//    ir::Value ir_value = tensors.at(index).CurrentIrValue();
-//    roots.push_back(ir_value.node.get());
-//  }
-//  std::vector<xla::ComputationClient::DataPtr> parameters_data;
-//  std::unordered_set<xla::ComputationClient::Data::OpaqueHandle> data_handles;
-//  auto post_order = ir::Util::ComputePostOrder(roots);
-//  for (auto node : post_order) {
-//    const ir::ops::DeviceData* device_data =
-//        dynamic_cast<const ir::ops::DeviceData*>(node);
-//    if (device_data != nullptr) {
-//      if (data_handles.insert(device_data->data()->GetOpaqueHandle()).second) {
-//        parameters_data.push_back(device_data->data());
-//      }
-//    }
-//  }
-//  if (graph_size != nullptr) {
-//    *graph_size = post_order.size();
-//  }
-//  return parameters_data;
-//}
-
 XLATensor::PostOrderData XLATensor::RunPostOrder(
     const std::vector<XLATensor>& tensors, absl::Span<const size_t> indices) {
   std::vector<const ir::Node*> roots;
@@ -1703,10 +1676,19 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* ten
   HashingState state(coll.hash);
 
   PostOrderData po_data;
+  std::size_t prev_indicess_size = 0;
   do {
     XLASentinel::PostmarkHash(state, tensors, coll);
 
     po_data = std::move(RunPostOrder(*tensors, coll.indices));
+
+    if (prev_indicess_size) {
+      // should have changed, right?  otherwise, what's the point?
+      TF_CHECK_NE(prev_indicess_size, coll.indices.size());
+    }
+    prev_indicess_size = coll.indices.size();
+    TF_CHECK_NE(coll.indices.size(), 0);
+
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
 
@@ -1729,9 +1711,17 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
-  std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
-  if (async != nullptr) {
-    return async;
+
+  static int hidden_step_count = 0;
+      //xla::sys_util::GetEnvInt("XLA_HIDDEN_STEP_COUNT", 0);
+
+  if (!hidden_step_count) {
+    std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
+    if (async != nullptr) {
+      return async;
+    }
+  } else {
+
   }
 
   CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
@@ -1783,26 +1773,105 @@ xla::uint64 XLATensor::GetRunningSeed(const Device& device) {
   return DeviceContextArena::Get()->GetRunningSeed(device);
 }
 
+std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CreateCompiledGraph(
+    std::vector<XLATensor>* tensors,
+    const std::shared_ptr<CachedComputation>& cached_computation,
+    SyncTensorCollection& coll,
+    const SyncTensorsConfig& config,
+    const std::vector<XLATensor>& input_tensors,
+    const std::vector<XLATensor>& output_tensors,
+    const std::vector<xla::ComputationClient::DataPtr>& parameters_data,
+    const CompiledGraph::DataHandleMap* dhandle_map) {
+
+  std::unordered_map<xla::ComputationClient::Data::OpaqueHandle, size_t>
+      input_map;
+  for (size_t i = 0; i < input_tensors.size(); ++i) {
+    xla::ComputationClient::DataPtr xla_data =
+        input_tensors[i].CurrentXlaData();
+    if (xla_data != nullptr) {
+      input_map.emplace(xla_data->GetOpaqueHandle(), i);
+    }
+  }
+  std::vector<CompiledGraph::ParameterMapping> parameters_mapping;
+  std::vector<xla::ComputationClient::DataPtr> extra_parameters_data;
+  std::unordered_map<xla::int64, xla::ComputationClient::DataPtr> uid_data_map;
+  for (size_t i = 0; i < parameters_data.size(); ++i) {
+    auto it = input_map.find(parameters_data[i]->GetOpaqueHandle());
+    if (it != input_map.end()) {
+      parameters_mapping.push_back(
+          {CompiledGraph::MapLocation::kInput, it->second});
+    } else {
+      parameters_mapping.push_back(
+          {CompiledGraph::MapLocation::kExtra, extra_parameters_data.size()});
+      extra_parameters_data.push_back(parameters_data[i]);
+      if (dhandle_map != nullptr) {
+        auto it = dhandle_map->find(parameters_data[i]->GetOpaqueHandle());
+        if (it != dhandle_map->end()) {
+          uid_data_map.emplace(it->second, parameters_data[i]);
+        }
+      }
+    }
+  }
+
+  std::unordered_map<xla::int64, size_t> tensors_map;
+  for (size_t i = 0; i < coll.indices.size(); ++i) {
+    size_t index = coll.indices[i];
+    tensors_map.emplace((*tensors)[index].GetUniqueId(), i);
+  }
+  std::vector<CompiledGraph::OutputMapping> outputs_mapping;
+  for (size_t i = 0; i < output_tensors.size(); ++i) {
+    auto it = tensors_map.find(output_tensors[i].GetUniqueId());
+    XLA_CHECK(it != tensors_map.end())
+      << "Unable to map output tensor " << i << " with UID "
+      << output_tensors[i].GetUniqueId() << " and shape "
+      << output_tensors[i].shape().get();
+    outputs_mapping.push_back(
+        {it->second, output_tensors[i].data()->logical_element_type});
+  }
+
+  auto tensors_data =
+      FetchTensorData(tensors, config, coll.indices, &uid_data_map);
+  auto compiled_graph = absl::make_unique<CompiledGraph>(
+      CompiledGraph{Device(coll.device), coll.hash, cached_computation,
+                    std::move(parameters_mapping), std::move(outputs_mapping),
+                    absl::make_unique<CompiledGraph::DataHandleMap>(),
+                    std::move(extra_parameters_data), std::move(tensors_data)});
+
+//  auto async = ScheduleSyncTensorsGraph(&coll, std::move(parameters_data),
+//                                        compiled_graph->tensors_data,
+//                                        std::move(cached_computation));
+//  // TODO: Can this be added to an async queue to resolve?
+//  async->Wait();
+//  for (size_t i = 0; i < async->indices.size(); ++i) {
+//    size_t index = async->indices[i];
+//    compiled_graph->data_handle_map->emplace(
+//        compiled_graph->tensors_data[i]->GetOpaqueHandle(),
+//        (*tensors)[index].GetUniqueId());
+//  }
+  return compiled_graph;
+}
+
 std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     std::vector<XLATensor>* tensors,
     const std::vector<XLATensor>& input_tensors,
     const std::vector<XLATensor>& output_tensors,
     absl::Span<const std::string> devices,
     const CompiledGraph::DataHandleMap* dhandle_map) {
-#if 0
-  return nullptr;
-#else
   SyncTensorsConfig config;
   SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
   if (coll.indices.empty()) {
     return nullptr;
   }
 
+  PostOrderData po_data = GetPostOrderData(tensors, coll);
+
   std::vector<xla::ComputationClient::DataPtr> parameters_data;
   ComputationCache::TypePtr cached_computation =
       LookupCachedCompile(*tensors, coll.hash);  /* WARNING: this may need the parameter hashing and postorder added later */
   if (cached_computation == nullptr) {
-    PostOrderData po_data = GetPostOrderData(tensors, coll);
+
+    //PostOrderData po_data = GetPostOrderData(tensors, coll);
+
     CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
 
     cached_computation = std::make_shared<CachedComputation>(
@@ -1811,8 +1880,35 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     GetComputationCache()->Add(coll.hash, cached_computation);
 
     parameters_data = std::move(compile_result.parameters_data);
+  } else {
+    parameters_data = std::move(po_data.parameters_data);
+  }
+#if 0
+  auto compiled_graph = CreateCompiledGraph(
+      tensors,
+      cached_computation,
+      coll,
+      config,
+      input_tensors,
+      output_tensors,
+      parameters_data,
+      dhandle_map);
+
+
+  auto async = ScheduleSyncTensorsGraph(&coll, parameters_data,
+                                        compiled_graph->tensors_data,
+                                        std::move(cached_computation));
+  // TODO: Can this be added to an async queue to resolve?
+  async->Wait();
+  for (size_t i = 0; i < async->indices.size(); ++i) {
+    size_t index = async->indices[i];
+    compiled_graph->data_handle_map->emplace(
+        compiled_graph->tensors_data[i]->GetOpaqueHandle(),
+        (*tensors)[index].GetUniqueId());
   }
 
+  return std::move(compiled_graph);
+#else
   std::unordered_map<xla::ComputationClient::Data::OpaqueHandle, size_t>
       input_map;
   for (size_t i = 0; i < input_tensors.size(); ++i) {
