@@ -123,7 +123,11 @@ def train_mnist():
     tracker = xm.RateTracker()
 
     model.train()
+    start_time = time.time()
     for x, (data, target) in enumerate(loader):
+      if x % 20 == 0:
+        print(f"time={time.time() - start_time} seconds")
+        start_time = time.time()
       optimizer.zero_grad()
       output = model(data)
       loss = loss_fn(output, target)
@@ -188,5 +192,8 @@ class TrainMnist(unittest.TestCase):
 
 # Run the tests.
 if __name__ == '__main__':
+  import ptwse
+  ptwse.quick_init()
   torch.set_default_tensor_type('torch.FloatTensor')
-  unittest.main()
+  train_mnist()
+#  unittest.main()
