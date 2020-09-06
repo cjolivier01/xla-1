@@ -3,19 +3,12 @@ cmake_minimum_required(VERSION 3.0)
 set(GTEST_DIR "${CMAKE_BINARY_DIR}/gtest")
 
 get_filename_component(PTXLA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
-message(STATUS "PTXLA_DIR: ${PTXLA_DIR}")
 get_filename_component(PT_DIR "${PTXLA_DIR}/.." ABSOLUTE)
 set(TFDIR "${PTXLA_DIR}/third_party/tensorflow")
 
 file(GLOB PTXLA_LIBDIRS "${PTXLA_DIR}/build/lib.*")
 list(GET PTXLA_LIBDIRS 0 PTXLA_LIBDIR)
 message("Selected PT/XLA library folder ${PTXLA_LIBDIR}")
-
-if (NOT "$ENV{Torch_DIR}" STREQUAL "")
-  set(PT_DIR "$ENV{Torch_DIR}")
-endif()
-
-message(STATUS "PT_DIR=${PT_DIR}")
 
 execute_process(COMMAND
   python -c "import torch; print(int(torch._C._GLIBCXX_USE_CXX11_ABI))"
@@ -26,10 +19,7 @@ execute_process(COMMAND
 project(ptxla_test)
 
 find_package(PythonLibs)
-if (NOT Torch_DIR OR Torch_DIR STREQUAL "")
-  set(Torch_DIR "${PT_DIR}/torch/share/cmake/Torch")
-endif()
-message(STATUS "Torch_DIR: ${Torch_DIR}")
+set(Torch_DIR "${PT_DIR}/torch/share/cmake/Torch")
 find_package(Torch REQUIRED)
 
 include(ExternalProject)
@@ -120,6 +110,8 @@ execute_process(COMMAND "ln" "-s" "-f"
 
 find_library(PTXLA_LIB "libptxla.so"
   HINTS "${PTXLA_LIBDIR}")
+find_library(PTPY_LIB "libtorch_python.so"
+  HINTS "${PT_DIR}/torch/lib")
 
 # Use --unresolved-symbols=ignore-all to get around the c10::Half::from_bits
 # undefined symbol error at link time. At runtime everything resolves correctly.

@@ -309,7 +309,7 @@ else:
 extra_link_args += ['-lxla_computation_client', '-latomic']
 
 setup(
-    name='torch_xla',
+    name=os.environ.get('TORCH_XLA_PACKAGE_NAME', 'torch_xla'),
     version=version,
     description='XLA bridge for PyTorch',
     url='https://github.com/pytorch/xla',
