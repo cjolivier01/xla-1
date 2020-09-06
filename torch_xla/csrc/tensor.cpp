@@ -1883,7 +1883,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
   } else {
     parameters_data = std::move(po_data.parameters_data);
   }
-#if 0
+#if 1
   auto compiled_graph = CreateCompiledGraph(
       tensors,
       cached_computation,
@@ -1894,8 +1894,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
       parameters_data,
       dhandle_map);
 
-
-  auto async = ScheduleSyncTensorsGraph(&coll, parameters_data,
+  auto async = ScheduleSyncTensorsGraph(&coll, std::move(parameters_data),
                                         compiled_graph->tensors_data,
                                         std::move(cached_computation));
   // TODO: Can this be added to an async queue to resolve?
