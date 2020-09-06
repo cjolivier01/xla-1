@@ -1,4 +1,24 @@
 #!/usr/bin/env python
+# Welcome to the PyTorch/XLA setup.py.
+#
+# Environment variables you are probably interested in:
+#
+#   DEBUG
+#     build with -O0 and -g (debug symbols)
+#
+#   TORCH_XLA_VERSION
+#     specify the version of PyTorch/XLA, rather than the hard-coded version
+#     in this file; used when we're building binaries for distribution
+#
+#   VERSIONED_XLA_BUILD
+#     creates a versioned build
+#
+#   COMPILE_PARALLEL=1
+#     enable parallel compile
+#
+#   BUILD_CPP_TESTS=1
+#     build the C++ tests
+#
 
 from __future__ import print_function
 
@@ -22,7 +42,6 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 third_party_path = os.path.join(base_dir, 'third_party')
 
 NO_BUILD = False
-
 
 #
 # Handle some pre-setup args
