@@ -220,3 +220,5 @@ if (BUILD_TENSORFLOW)
 else()
     message(STATUS "Not building TensorFlow -- assuming the library exists: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 endif()
+
+add_subdirectory(test/cpp)
