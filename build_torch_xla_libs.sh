@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-exit 0
+
 set -ex
 
 OPTS=()
@@ -49,15 +49,12 @@ if [[ "$XLA_CUDA" == "1" ]]; then
   OPTS+=(--config=cuda)
 fi
 
-OPTS+=(--copt="-Dtensorflow=ptxla_tf")
-OPTS+=(--cxxopt="-Dtensorflow=ptxla_tf")
-
 if [ "$CMD" == "clean" ]; then
   pushd $THIRD_PARTY_DIR/tensorflow
-  ~/bin/bazel clean
+  bazel clean
   popd
 else
-#  cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
+  #cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
 
   pushd $THIRD_PARTY_DIR/tensorflow
   bazel build $MAX_JOBS $VERBOSE --define framework_shared_object=false -c "$MODE" "${OPTS[@]}" \
