@@ -23,6 +23,7 @@
 #include "torch/csrc/autograd/utils/wrap_outputs.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch/csrc/jit/python/pybind.h"
+#include "torch/include/pybind11/operators.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/aten_xla_type.h"
 #include "torch_xla/csrc/computation.h"
@@ -242,6 +243,67 @@ void SetRngSeed(xla::uint64 seed, const std::string& device_str) {
 
 xla::uint64 GetRngSeed(const std::string& device_str) {
   return XLATensor::GetRunningSeed(GetDeviceOrCurrent(device_str));
+}
+
+py::object CreateOutputTensors(const XLATensor::CompiledGraph& compiled_graph) {
+  auto outputs = py::tuple(compiled_graph.outputs_mapping.size());
+  for (size_t i = 0; i < compiled_graph.outputs_mapping.size(); ++i) {
+    auto& output_mapping = compiled_graph.outputs_mapping[i];
+    xla::ComputationClient::DataPtr xla_data =
+        compiled_graph.tensors_data[output_mapping.index];
+    XLATensor xtensor = XLATensor::Create(std::move(xla_data),
+                                          output_mapping.logical_element_type);
+    outputs[i] = torch::autograd::make_variable(
+        bridge::AtenFromXlaTensor(std::move(xtensor)), /*requires_grad=*/false);
+  }
+  return outputs;
+}
+
+py::object CompileExecuteGraph(
+    const std::vector<at::Tensor>& input_tensors,
+    const std::vector<at::Tensor>& output_tensors,
+    const std::string& device_str, const std::vector<std::string>& devices,
+    const XLATensor::CompiledGraph::DataHandleMap* data_handle_map) {
+  std::unique_ptr<XLATensor::CompiledGraph> compiled_graph;
+  {
+    NoGilSection nogil;
+    Device device = bridge::AtenDeviceToXlaDevice(c10::Device(device_str));
+    std::vector<XLATensor> xtensors = XLATensor::GetLiveTensors(&device);
+    std::vector<XLATensor> xinput_tensors =
+        GetXlaTensors(input_tensors, /*want_all=*/true);
+    std::vector<XLATensor> xoutput_tensors =
+        GetXlaTensors(output_tensors, /*want_all=*/true);
+    compiled_graph = XLATensor::CompileExecuteGraph(
+        &xtensors, xinput_tensors, xoutput_tensors, devices, data_handle_map);
+  }
+  if (compiled_graph == nullptr) {
+    return py::none();
+  }
+
+  auto compile_dict = py::dict();
+  compile_dict["outputs"] = CreateOutputTensors(*compiled_graph);
+  std::stringstream ss;
+  ss << compiled_graph->hash;
+  compile_dict["hash"] = ss.str();
+  compile_dict["handle_map"] =
+      py::cast(compiled_graph->data_handle_map.release(),
+               pybind11::return_value_policy::take_ownership);
+  compile_dict["graph"] = py::cast(
+      compiled_graph.release(), pybind11::return_value_policy::take_ownership);
+  return compile_dict;
+}
+
+py::object ExecuteCompiledGraph(
+    const std::vector<at::Tensor>& input_tensors,
+    const XLATensor::CompiledGraph& compiled_graph) {
+  {
+    NoGilSection nogil;
+    std::vector<XLATensor> xinput_tensors =
+        GetXlaTensors(input_tensors, /*want_all=*/true);
+    XLATensor::ExecuteCompiledGraph(xinput_tensors, compiled_graph,
+                                    /*wait=*/true);
+  }
+  return CreateOutputTensors(compiled_graph);
 }
 
 std::string GetTensorsHloGraph(const std::vector<at::Tensor>& tensors) {
@@ -985,6 +1047,22 @@ void InitXlaModuleBindings(py::module m) {
         [](op_builder::BuilderPtr builder, const std::string& opname,
            const std::vector<op_builder::OpPtr>& operands, py::dict args) {
           return op_builder::CreateOp(builder, opname, operands, args);
+        });
+  py::class_<XLATensor::CompiledGraph>(m, "CompiledGraph");
+  py::class_<XLATensor::CompiledGraph::DataHandleMap>(
+      m, "CompiledGraphDataHandleMap");
+  m.def("_xla_compile_execute_graph",
+        [](const std::vector<at::Tensor>& input_tensors,
+           const std::vector<at::Tensor>& output_tensors,
+           const std::string& device, const std::vector<std::string>& devices,
+           const XLATensor::CompiledGraph::DataHandleMap* data_handle_map) {
+          return CompileExecuteGraph(input_tensors, output_tensors, device,
+                                     devices, data_handle_map);
+        });
+  m.def("_xla_execute_compiled_graph",
+        [](const std::vector<at::Tensor>& input_tensors,
+           const XLATensor::CompiledGraph& compiled_graph) {
+          return ExecuteCompiledGraph(input_tensors, compiled_graph);
         });
 }
 
