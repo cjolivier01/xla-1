@@ -1507,8 +1507,8 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
           }
           // raise(SIGTRAP);
         } else if (alias_map[output_index] >= 0) {
-          std::cout << "Found another one..." << ENDL;
-          raise(SIGTRAP);
++          std::cout << "Found duplicate aliases." << ENDL;
+          //raise(SIGTRAP);
         }
         if (parameters_data[i]->shape() == root_shape &&
             alias_map[output_index] < 0) {
