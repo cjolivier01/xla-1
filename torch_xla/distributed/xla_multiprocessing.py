@@ -516,7 +516,7 @@ def spawn(fn,
   """
   if not _is_xla_config():
     # If this is not an XLA setup, jump to normal multi-processing.
-    assert False  # chriso@ We don't want this version
+    #assert False  # chriso@ We don't want this version
     return _run_direct(fn, args, nprocs, join, daemon, start_method)
 
   pf_cfg = _pre_fork_setup(nprocs)
