@@ -228,6 +228,7 @@ constexpr std::size_t INVALID_COUNT = std::numeric_limits<std::size_t>::max();
 using Lock = std::lock_guard<std::recursive_mutex>;
 
 struct CompileInfo {
+  CompileInfo() : hash_(0U) {}
   std::atomic<std::size_t> sync_count_since_hash_change_{INVALID_COUNT};
   std::atomic<std::size_t> mark_step_count_since_last_reset_{INVALID_COUNT};
   std::unordered_set<size_t> output_ids_;
@@ -240,7 +241,7 @@ struct CompileInfo {
   XLASentinel::hash_t hash() const { return hash_; }
 
  private:
-  std::atomic<XLASentinel::hash_t> hash_{0};
+  std::atomic<XLASentinel::hash_t> hash_;
 };
 
 /**
@@ -770,6 +771,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
 
     ColorScope clr(Color::FG_GREEN);
     if (verbose || verbose_hash) {
+      ColorScope clr(Color::FG_GREEN);
       std::cout << mp()
                 << "SAME HASH AS LAST TIME OR TRUSTED: " << compile_info->hash()
                 << ENDL;
@@ -833,6 +835,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
     coll.config.allow_custom_lowering = true;
     return false;
   }
+  return false;
 }
 
 void XLASentinel::NotifyCompile(

@@ -98,14 +98,10 @@ struct MarkStepScope {
 
 struct HashingState {
   explicit HashingState(const xla::hash_t& start_hash)
-      : start_hash_(start_hash),
-        // non_proxy_hash_{0},
-        pass_(0){};
-  //~HashingState() = default;
+      : start_hash_(start_hash) {};
   const xla::hash_t start_hash_;
-  xla::hash_t pre_prune_hash_{0};
-  // xla::hash_t non_proxy_hash_;
-  std::size_t pass_;
+  xla::hash_t pre_prune_hash_ = 0;
+  std::size_t pass_ = 0;
   bool fabric_run_ = false;
   bool known_executable_ =
       false;  // optimization when we know this executable already exists

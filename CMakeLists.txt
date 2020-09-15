@@ -72,8 +72,9 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/ba
 
 message(STATUS "ptxla CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
-add_compile_options(-O0)
-add_compile_options(-UNDEBUG)
+#add_compile_options(-O0)
+#add_compile_options(-O1)
+#add_compile_options(-UNDEBUG)
 add_compile_options(-ggdb3)
 add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=1)
 add_compile_options(-DTORCH_API_INCLUDE_EXTENSION_H)
