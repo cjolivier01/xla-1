@@ -15,13 +15,23 @@
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
 
+#if 1
 #define __ASSERT_FUNCTION __extension__ __PRETTY_FUNCTION__
+
+void _my_assert_handler() {
+  raise(SIGTRAP);
+}
 
 #undef assert
 #define assert(expr)       \
   (static_cast<bool>(expr) \
        ? void(0)           \
-       : __assert_fail(#expr, __FILE__, __LINE__, __ASSERT_FUNCTION))
+       : _my_assert_handler() /*__assert_fail(#expr, __FILE__, __LINE__, __ASSERT_FUNCTION)*/)
+#endif
+
+#ifndef ABSL_HAVE_INTRINSIC_INT128
+#error oops
+#endif
 
 /**
  * Most of this can eventually move to monolith
@@ -247,132 +257,161 @@ struct CompileInfo {
 /**
  * @brief Valid proxy executable
  */
-class Executable {
-  // static constexpr uint64_t HASH_MARKER = 478925426;
+//class Executable {
+//  // static constexpr uint64_t HASH_MARKER = 478925426;
+//
+// public:
+//  explicit Executable(__int128 hash)
+//      : hash_(hash)
+//  // adjusted_hash_(xla::util::MHash(hash, HASH_MARKER))
+//  {}
+//  bool is_active() const { return active_; }
+//  // xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
+//  bool set_active(bool active) { active_ = active; }
+//
+// private:
+//  const __int128 hash_;
+//  // const xla::hash_t adjusted_hash_;
+//  // not actually sure if we need this
+//  // active anymore since transition is automatic downstream
+//  bool active_{false};
+//};
+//using ExecutablePtr = std::shared_ptr<Executable>;
 
- public:
-  explicit Executable(xla::hash_t hash)
-      : hash_(hash)
-  // adjusted_hash_(xla::util::MHash(hash, HASH_MARKER))
-  {}
-  bool is_active() const { return active_; }
-  // xla::hash_t get_adjusted_hash() const { return adjusted_hash_; }
-  bool set_active(bool active) { active_ = active; }
-
- private:
-  const xla::hash_t hash_;
-  // const xla::hash_t adjusted_hash_;
-  // not actually sure if we need this
-  // active anymore since transition is automatic downstream
-  bool active_{false};
-};
-using ExecutablePtr = std::shared_ptr<Executable>;
+inline __int128 H128(const xla::hash_t& h) {
+  __int128 hh = h.operator __int128();
+  return hh;
+}
 
 /**
  * @brief Class to keep track of known-good executables
  */
 class ExecutableCache {
-  ExecutablePtr add_executable(const XLASentinel::hash_t& hash) {
+  void add_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    assert(executables_.find(hash) == executables_.end());
-    auto exec = executables_.insert({hash, std::make_shared<Executable>(hash)})
-                    .first->second;
+    stats();
+    const __int128 hh = H128(hash);
+    assert(executables_.find(hh) == executables_.end());
+    stats();
+    auto exec = executables_.insert(hh);
+    stats();
     // adjusted_hash_map_.insert({exec->get_adjusted_hash(), exec});
-    return exec;
+    //return exec;
   }
 
  public:
-  ExecutablePtr get_executable(const XLASentinel::hash_t& hash) {
-    Lock lk(mtx_);
-    auto found = executables_.find(hash);
-    if (found != executables_.end()) {
-      return found->second;
-    }
-    return nullptr;
-  }
-  ExecutablePtr get_executable_by_adjusted_hash(
+//  bool has_executable(const XLASentinel::hash_t& hash) {
+//    Lock lk(mtx_);
+//    const __int128 hh = H128(hash);
+//    auto found = executables_.find(hh);
+//    if (found != executables_.end()) {
+//      return true;
+//    }
+//    return false;
+//  }
+  bool get_executable_by_adjusted_hash(
       const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    auto found = adjusted_hash_map_.find(hash);
+    const __int128 hh = H128(hash);
+    auto found = adjusted_hash_map_.find(hh);
     if (found != adjusted_hash_map_.end()) {
-      return found->second;
-    }
-    return nullptr;
-  }
-  bool has_executable(const XLASentinel::hash_t& hash) {
-    Lock lk(mtx_);
-    return executables_.count(hash) != 0;
-  }
-  bool has_executable_by_adjusted_hash(const XLASentinel::hash_t& hash) {
-    Lock lk(mtx_);
-    return adjusted_hash_map_.count(hash) != 0;
-  }
-  bool is_active_executable(const XLASentinel::hash_t& hash) {
-    Lock lk(mtx_);
-    auto exec = get_executable(hash);
-    if (exec) {
-      return exec->is_active();
+      return true;
     }
     return false;
   }
-  ExecutablePtr activate_hash(const XLASentinel::hash_t& hash) {
+  bool has_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    auto found = executables_.find(hash);
+    const __int128 hh = H128(hash);
+    return executables_.count(hh) != 0;
+  }
+  bool has_executable_by_adjusted_hash(const XLASentinel::hash_t& hash) {
+    Lock lk(mtx_);
+    const __int128 hh = H128(hash);
+    return adjusted_hash_map_.count(hh) != 0;
+  }
+  bool is_active_executable(const XLASentinel::hash_t& hash) {
+    Lock lk(mtx_);
+    const __int128 hh = H128(hash);
+    if (has_executable(hh)) {
+      return true;
+    }
+//    if (exec) {
+//      return exec->is_active();
+//    }
+    return false;
+  }
+  void activate_hash(const XLASentinel::hash_t& hash) {
+    Lock lk(mtx_);
+    stats();
+    const __int128 hh = H128(hash);
+    auto found = executables_.find(hh);
     if (found == executables_.end()) {
-      auto exec = add_executable(hash);
-      exec->set_active(true);
-      XLA_COUNTER("SentinelExecutableActivate", 1);
-      return std::move(exec);
+      add_executable(hh);
+//      assert(exec);
+//      exec->set_active(true);
+//      stats();
+//      XLA_COUNTER("SentinelExecutableActivate", 1);
+//      return std::move(exec);
     } else {
       // Track that we're doing this in a deterministic way and not
       // overlapping logic
-      const bool is_active = found->second->is_active();
-      if (!is_active) {
-        assert(!is_active);
-        found->second->set_active(true);
-        XLA_COUNTER("SentinelExecutableActivate", 1);
-      }
-      return found->second;
+//      const bool is_active = found->second->is_active();
+//      if (!is_active) {
+//        //assert(!is_active);
+//        found->second->set_active(true);
+//        XLA_COUNTER("SentinelExecutableActivate", 1);
+//      }
+//      return found->second;
     }
   }
-
+  void stats() {
+//    std::cout << "this->executables_.size()=" << this->executables_.size()
+//              << ENDL;
+  }
   void set_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
     Lock lk(mtx_);
     assert(h1 != h2);
-    auto found = executables_.find(h1);
+    const __int128 hh1 = H128(h1);
+    const __int128 hh2 = H128(h2);
+    auto found = executables_.find(hh1);
     if (found != executables_.end()) {
       // Should only set this once
-      auto found_adjusted = adjusted_hash_map_.find(h1);
+      auto found_adjusted = adjusted_hash_map_.find(hh1);
       if (found_adjusted != adjusted_hash_map_.end()) {
-        assert(found_adjusted->second == found->second);
+        //assert(found_adjusted->second == found->second);
+        assert(found_adjusted->second == hh1);
       } else {
-        adjusted_hash_map_[h2] = found->second;
+        adjusted_hash_map_[hh2] = hh1;
+        //adjusted_hash_map_.insert(hh2);
       }
     } else {
       assert(false);  // does this ever happen?
     }
   }
 
-  void deactivate_hash(const XLASentinel::hash_t&
-                           hash) {  // currently we don't need to track the
-                                    // "active" one, so this might be pointless
-    Lock lk(mtx_);
-    auto found = executables_.find(hash);
-    if (found != executables_.end()) {
-      // should we assert that its active?  probably not
-      // since deactivations acan come pretty randomly from any direction
-      if (found->second->is_active()) {
-        found->second->set_active(false);
-        XLA_COUNTER("SentinelExecutableDeactivate", 1);
-      }
-    }
-  }
+//  void deactivate_hash(const XLASentinel::hash_t&
+//                           hash) {  // currently we don't need to track the
+//                                    // "active" one, so this might be pointless
+//    Lock lk(mtx_);
+//    const __int128 hh = H128(hash);
+//    auto found = executables_.find(hh);
+//    if (found != executables_.end()) {
+//      // should we assert that its active?  probably not
+//      // since deactivations acan come pretty randomly from any direction
+//      if (found->second->is_active()) {
+//        found->second->set_active(false);
+//        XLA_COUNTER("SentinelExecutableDeactivate", 1);
+//      }
+//    }
+//  }
 
  private:
   mutable std::recursive_mutex mtx_;
-  absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr>
-      executables_;  // needs to be locked?
-  absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr> adjusted_hash_map_;
+  std::unordered_set<__int128> executables_;  // needs to be locked?
+  //absl::node_hash_map<__int128, ExecutablePtr> executables_;  // needs to be locked?
+  //absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr> adjusted_hash_map_;
+  //absl::node_hash_map<__int128, ExecutablePtr> adjusted_hash_map_;
+  std::unordered_map<__int128, __int128> adjusted_hash_map_;
 };
 
 std::mutex compile_info_map_mtx_;
@@ -457,9 +496,9 @@ bool XLASentinel::PreProcessHlo(xla::XlaBuilder* builder,
     if (verbose) {
       std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
     }
-    ExecutablePtr exe = ex_cache->get_executable_by_adjusted_hash(coll.hash);
-    if (exe) {
-      if (exe->is_active()) {
+    bool has_adjusted_exe = ex_cache->get_executable_by_adjusted_hash(coll.hash);
+    if (has_adjusted_exe) {
+      if (true /*exe->is_active()*/) {
         // Mark this for proxy
         xla::FrontendAttributes frontend_attributes;
         frontend_attributes.CopyFrom(builder->frontend_attributes());
@@ -711,6 +750,12 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       absl::MakeInt128(0xb8bc2f8ad48c431c, 0x872132d8a172a6d8);
 
   const std::size_t pass = state.pass_++;
+
+  //auto ci1 = GetCompileInfo(coll.requesting_tid);
+//  ex_cache->stats();
+//  ex_cache->activate_hash(coll.hash);
+//  ex_cache->stats();
+//  return false;
 
   if (!is_in_mark_step /*|| !is_clean_step*/) {
     std::shared_ptr<CompileInfo> compile_info =
