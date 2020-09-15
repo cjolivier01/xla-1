@@ -19,6 +19,7 @@ execute_process(COMMAND
 project(ptxla_test)
 
 find_package(PythonLibs)
+message(STATUS "PT_DIR=${PT_DIR}")
 set(Torch_DIR "${PT_DIR}/torch/share/cmake/Torch")
 find_package(Torch REQUIRED)
 

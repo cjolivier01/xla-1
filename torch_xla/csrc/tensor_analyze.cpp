@@ -1114,7 +1114,7 @@ bool XLASentinel::IsAllowedOutput(const XLATensor& tensor,
     return true;
   }
 
-  assert(HasWseDevices());  // why?
+  assert(HasWseDevices());  // whyxla?
   assert(is_in_mark_step);  // gets cleared at end of step
   assert(is_clean_step);    // otherwise, why are you asking?
   std::shared_ptr<CompileInfo> compile_info =

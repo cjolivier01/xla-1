@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 project(pytorch_xla CXX C)
 #set(CMAKE_CXX_STANDARD 17)
 
-#include(GNUInstallDirs)
-
 message(STATUS "PATH=$ENV{PATH}")
 
 include_directories(${PYTHON_INCLUDE_DIR})
@@ -20,7 +18,7 @@ set(CPYTHON_STR "cpython-${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}m-${ARCHI
 #message(STATUS "ARCH_BUILD_DIR_NAME=${ARCH_BUILD_DIR_NAME}")
 message(STATUS "CPYTHON_STR=${CPYTHON_STR}")
 
-#if (NOT Torch_DIR)
+#if (Torch_DIR STREQUAL "")
 #    set(Torch_DIR "${PYTORCH_DIR}/torch/share/cmake/Torch")
 #endif()
 
@@ -35,9 +33,6 @@ file(GLOB
         XLA_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/ops/*.h)
-
-#message(STATUS "XLA_SOURCES=${XLA_SOURCES}")
-#message(STATUS "XLA_HEADERS=${XLA_HEADERS}")
 
 if(NOT TORCH_PATH)
     #get_filename_component(TORCH_PATH "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
