@@ -65,11 +65,11 @@ def run(
         raise RuntimeError('Unable to accelerate graph execution')
       chash = graph_dict['hash']
       if chash == prev_hash and step != 3:
-        print("STEADY GRAPH")
+        xm.master_print("STEADY GRAPH")
         steady_graph = graph_dict['graph']
         handle_map = None
       else:
-        print("UNSTEADY GRAPH")
+        xm.master_print("UNSTEADY GRAPH")
         prev_hash = chash
         handle_map = graph_dict['handle_map']
       outputs = graph_dict['outputs']
@@ -86,17 +86,6 @@ def run(
         output_closure(outputs, *output_closure_args)
       outputs = torch_xla._XLAC._xla_execute_compiled_graph(
           flatten_xla_tensors(batch), steady_graph)
-      # if step > 0 and step % log_steps == 0:
-      #   now_time = time.time()
-      #   if start_time:
-      #     per_step_time = (now_time - start_time) / (step - last_step_timed)
-      #     steps_per_second = 1 / per_step_time
-      #     print(
-      #         f'Round-trip step time: {per_step_time} seconds, steps per second: {steps_per_second}'
-      #     )
-      #   print(f'BEGIN Train step {step}')
-      #   start_time = time.time()
-      #   last_step_timed = step
 
     xm.mark_step_trail()
   return step

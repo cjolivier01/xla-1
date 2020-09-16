@@ -34,6 +34,8 @@ namespace xla {
 namespace service {
 namespace {
 
+bool verbose = false;
+
 #define GRPC_CHECK_OK(expr)   \
   do {                        \
     auto s = expr;            \
@@ -318,7 +320,7 @@ MeshClient::MeshClient(const std::string& address) : impl_(new Impl(address)) {
       std::chrono::system_clock::now() +
       std::chrono::seconds(connect_wait_seconds)))
       << "Failed to connect to client mesh master: " << address;
-  std::cout << "Connected to mesh master" << std::endl << std::flush;
+  TF_LOG(INFO) << "Connected to mesh master" << std::endl << std::flush;
 }
 
 MeshClient::~MeshClient() {}

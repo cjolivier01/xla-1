@@ -294,8 +294,10 @@ private:
 };
 
 std::shared_ptr<ServiceInterface> CreateXlaClientInternal(const std::string& address) {
-  std::cout << "Creating XLA client for server at: " << address
-            << std::endl << std::flush;
+  if (verbose) {
+    std::cout << "Creating XLA client for server at: " << address
+              << std::endl << std::flush;
+  }
   std::shared_ptr<ServiceInterface> xla_service = std::move(std::make_shared<GRPCStubEx>(
     xla::grpc::XlaService::NewStub(::grpc::CreateChannel(address, ::grpc::InsecureChannelCredentials()))
   ));
@@ -534,6 +536,7 @@ XlaComputationProxy::XlaComputationProxy(
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
 ) : XrtComputationClient(std::move(options), std::move(topology_proto)),
     data_mapper_(std::make_unique<GlobalDataHandleMapper>()) {
+  verbose = xla::sys_util::GetEnvBool("XLA_VERBOSE", false);
   ::setenv("XRT_MASTER_ALLOW_SAME_TASKS", "1", true);
   assert(!is_initialized);
   is_initialized = true;
@@ -566,9 +569,11 @@ void XlaComputationProxy::SetDeviceProxyAddress(const std::string& device, const
   std::shared_ptr<xla::ServiceInterface> old_client;  // if exists, to be destroyed out of lock scope
   std::lock_guard<std::recursive_mutex> lk(xla_client_map_mtx_);
   assert(!ProxyName::is_proxy_device_name(device));
-  std::cout << "Setting device proxy: " << device << " -> " << proxy_address
-            << ", proxy will have device name: " << ProxyName::proxy_device_name(device)
-            << std::endl << std::flush;
+  if (verbose) {
+    std::cout << "Setting device proxy: " << device << " -> " << proxy_address
+              << ", proxy will have device name: " << ProxyName::proxy_device_name(device)
+              << std::endl << std::flush;
+  }
   const std::string proxy_device_name = ProxyName::proxy_device_name(device);
   if (proxy_address.empty()) {
     // remove it
@@ -1107,7 +1112,7 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
       } else if (!device1.empty() && device2.empty()) {
         compilation_device = device1;
       } else {
-        if (device1 != device2) {
+        if (verbose && device1 != device2) {
           std::cout << "SWITCHING DEVICES: " << device1 << " -> " << device2
                     << std::endl << std::flush;
         }
@@ -1189,7 +1194,9 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
               AddProxyExecutable(compile_response.handle().handle());
               handled = true;
             } else {
-              std::cout << "Compile error: " << status.error_message() << std::endl << std::flush;
+              if (verbose) {
+                std::cout << "Compile error: " << status.error_message() << std::endl << std::flush;
+              }
             }
           }
         }
