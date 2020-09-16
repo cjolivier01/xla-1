@@ -751,12 +751,6 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
 
   const std::size_t pass = state.pass_++;
 
-  //auto ci1 = GetCompileInfo(coll.requesting_tid);
-//  ex_cache->stats();
-//  ex_cache->activate_hash(coll.hash);
-//  ex_cache->stats();
-//  return false;
-
   if (!is_in_mark_step /*|| !is_clean_step*/) {
     std::shared_ptr<CompileInfo> compile_info =
         GetCompileInfo(coll.requesting_tid);
@@ -1077,6 +1071,9 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
   }
   if (!HasWseDevices()) {
     return false;
+  }
+  if (tid == gettid() && GetPythonState(tid) == EPS_FORCE_PROXY) {
+    return true;
   }
   const std::shared_ptr<CompileInfo> compile_info = GetCompileInfo(tid);
   const std::size_t mark_step_count_since_reset =

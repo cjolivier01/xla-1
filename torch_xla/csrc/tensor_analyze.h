@@ -43,6 +43,7 @@ enum EPythonState {
   EPS_IN_OPTIMIZER_STEP = 3,
   EPS_PROXY_DISABLED = 4,
   EPS_IN_DEBUG = 5,
+  EPS_FORCE_PROXY = 6,
 };
 
 // extern std::stack<int> python_state_;

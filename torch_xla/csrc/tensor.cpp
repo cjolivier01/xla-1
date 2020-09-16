@@ -1630,47 +1630,6 @@ XLATensor::CompilationResult XLATensor::Compile(
           /*parameters_data=*/std::move(po_data->parameters_data)};
 }
 
-//std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
-//    std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
-//    const SyncTensorsConfig& config) {
-//  SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
-//  if (coll.indices.empty()) {
-//    return nullptr;
-//  }
-//
-//  HashingState state(coll.hash);
-//
-//  PostOrderData po_data;
-//  do {
-//    XLASentinel::PostmarkHash(state, tensors, coll);
-//
-//    DebugUtil::SaveTensorsGraphInfo("ScheduleSyncTensorsGraph", *tensors,
-//                                    &coll.indices);
-//
-//    po_data = std::move(RunPostOrder(*tensors, coll.indices));
-//    coll.hash = xla::util::HashCombine(
-//        coll.hash, xla::util::Hash(po_data.parameter_sequence));
-//
-//  } while (XLASentinel::OnHashingComplete(state, tensors, coll));
-//
-//  TF_VLOG(4) << "Parameter sequence graph hash "
-//             << xla::util::HexHash(coll.hash);
-//  std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
-//  if (async != nullptr) {
-//    return async;
-//  }
-//
-//  CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
-//
-//  XLA_VALUE_METRIC("TensorsGraphSize", compile_result.emitted_nodes);
-//  TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;
-//
-//  return {/*device=*/*unique_device,
-//          /*emitted_nodes=*/lowering_ctx.GetEmittedNodeCount(),
-//          /*computation=*/std::move(computations.front()),
-//          /*parameters_data=*/std::move(parameters_data)};
-//}
-
 XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* tensors,
                                                      SyncTensorCollection& coll) {
   HashingState state(coll.hash);
@@ -1845,6 +1804,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     const std::vector<XLATensor>& output_tensors,
     absl::Span<const std::string> devices,
     const CompiledGraph::DataHandleMap* dhandle_map) {
+  MarkStepScope mark_step_scope("", {});
   SyncTensorsConfig config;
   SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
   if (coll.indices.empty()) {
@@ -1926,6 +1886,7 @@ void XLATensor::ExecuteCompiledGraph(
   auto async = ScheduleSyncTensorsGraph(&coll, std::move(parameters_data),
                                         compiled_graph.tensors_data,
                                         compiled_graph.computation);
+  //std::cout << "sync'd" << ENDL;
   if (wait) {
     async->mwait.Wait();
   }

@@ -20,9 +20,10 @@ class PerDeviceQueue(object):
 
 class PerDeviceLoader(object):
 
-  def __init__(self, loader, device):
+  def __init__(self, loader, device, disable_mark_step_after_first=None):
     self._loader = loader
     self._device = device
+    self._disable_mark_step_after_first = disable_mark_step_after_first
 
   def __iter__(self):
     return self
@@ -34,7 +35,12 @@ class PerDeviceLoader(object):
     return self._loader.per_device_samples()
 
   def next(self):
-    xm.mark_step()
+    if self._disable_mark_step_after_first is None:
+      xm.mark_step()
+    elif self._disable_mark_step_after_first:
+      xm.mark_step()
+      self._disable_mark_step_after_first = 0
+
     item = self._loader.next_item(self._device)
     if item is None:
       raise StopIteration
@@ -91,7 +97,7 @@ class ParallelLoader(object):
       thread.daemon = True
       thread.start()
 
-  def per_device_loader(self, device):
+  def per_device_loader(self, device, **kwargs):
     """Retrieves the loader iterator object for the given device.
 
     Args:
@@ -103,7 +109,7 @@ class ParallelLoader(object):
       returns the same tensor data structure as returned by the wrapped
       `torch.utils.data.DataLoader`, but residing on XLA devices.
     """
-    return PerDeviceLoader(self, torch.device(device))
+    return PerDeviceLoader(self, torch.device(device), **kwargs)
 
   def per_device_samples(self):
     return self._per_device_samples
