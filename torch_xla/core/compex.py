@@ -9,6 +9,7 @@ import torch_xla.utils.utils as xu
 import torch_xla.distributed.parallel_loader as pl
 import ptwse.scope as scope
 
+
 def flatten_xla_tensors(data):
   tensors = []
 
@@ -21,19 +22,26 @@ def flatten_xla_tensors(data):
   xu.for_each_instance(data, select_fn, collect_fn)
   return tensors
 
+
 FORCE_RUNONWSE = True
 
 
-def run(loader,
-        device,
-        closure,
-        closure_args=(),
-        output_closure=None,
-        output_closure_args=(),
-        pre_closure=None,
-        ):
-  para_loader = pl.ParallelLoader(loader, [device], fixed_batch_size=True, loader_prefetch_size=100, device_prefetch_size=100)
-  device_loader = para_loader.per_device_loader(device, disable_mark_step_after_first=True)
+def run(
+    loader,
+    device,
+    closure,
+    closure_args=(),
+    output_closure=None,
+    output_closure_args=(),
+    pre_closure=None,
+):
+  para_loader = pl.ParallelLoader(
+      loader, [device],
+      fixed_batch_size=True,
+      loader_prefetch_size=100,
+      device_prefetch_size=100)
+  device_loader = para_loader.per_device_loader(
+      device, disable_mark_step_after_first=True)
   prev_hash = None
   handle_map = dict()
   steady_graph = None
@@ -53,7 +61,7 @@ def run(loader,
         # Set outputs
         pre_closure(tensors)
       graph_dict = torch_xla._XLAC._xla_compile_execute_graph(
-        flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
+          flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
       if graph_dict is None:
         raise RuntimeError('Unable to accelerate graph execution')
       chash = graph_dict['hash']
@@ -78,13 +86,15 @@ def run(loader,
       if output_closure is not None and outputs is not None:
         output_closure(outputs, *output_closure_args)
       outputs = torch_xla._XLAC._xla_execute_compiled_graph(
-        flatten_xla_tensors(batch), steady_graph)
+          flatten_xla_tensors(batch), steady_graph)
       if step > 0 and step % log_steps == 0:
         now_time = time.time()
         if start_time:
-          per_step_time = (now_time - start_time)/(step - last_step_timed)
-          steps_per_second = 1/per_step_time
-          print(f'Round-trip step time: {per_step_time} seconds, steps per second: {steps_per_second}')
+          per_step_time = (now_time - start_time) / (step - last_step_timed)
+          steps_per_second = 1 / per_step_time
+          print(
+              f'Round-trip step time: {per_step_time} seconds, steps per second: {steps_per_second}'
+          )
         print(f'BEGIN Train step {step}')
         start_time = time.time()
         last_step_timed = step
@@ -93,11 +103,11 @@ def run(loader,
 
 
 def run_original(loader,
-        device,
-        closure,
-        closure_args=(),
-        output_closure=None,
-        output_closure_args=()):
+                 device,
+                 closure,
+                 closure_args=(),
+                 output_closure=None,
+                 output_closure_args=()):
   para_loader = pl.ParallelLoader(loader, [device], fixed_batch_size=True)
   device_loader = para_loader.per_device_loader(device)
   prev_hash = None
@@ -109,11 +119,11 @@ def run_original(loader,
       output_closure(outputs, *output_closure_args)
     if steady_graph:
       outputs = torch_xla._XLAC._xla_execute_compiled_graph(
-        flatten_xla_tensors(batch), steady_graph)
+          flatten_xla_tensors(batch), steady_graph)
     else:
       tensors = closure(batch, *closure_args)
       graph_dict = torch_xla._XLAC._xla_compile_execute_graph(
-        flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
+          flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
       if graph_dict is None:
         raise RuntimeError('Unable to accelerate graph execution')
       chash = graph_dict['hash']
