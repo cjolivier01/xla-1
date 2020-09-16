@@ -13,6 +13,8 @@
 namespace xla {
 namespace {
 
+const bool verbose = false;
+
 void FillServerDef(const std::string& cluster_spec, const std::string& job_name,
                    int task_index, tensorflow::ServerDef* options) {
   options->set_protocol("grpc");
@@ -51,10 +53,12 @@ void FillServerDef(const std::string& cluster_spec, const std::string& job_name,
 
 XrtLocalService::XrtLocalService(const std::string& cluster_spec,
                                  const std::string& job_name, int task_index) {
-  std::cout << "Starting Xrt local service on cluster spec: " << cluster_spec
-            << ", job=" << job_name
-            << ", task=" << task_index
-            << std::endl << std::flush;
+  if (verbose) {
+    std::cout << "Starting Xrt local service on cluster spec: " << cluster_spec
+              << ", job=" << job_name
+              << ", task=" << task_index
+              << std::endl << std::flush;
+  }
   tensorflow::ServerDef server_def;
   FillServerDef(cluster_spec, job_name, task_index, &server_def);
   TF_CHECK_OK(tensorflow::NewServer(server_def, &server_));

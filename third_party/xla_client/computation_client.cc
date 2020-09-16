@@ -253,24 +253,31 @@ bool ParseMeshConfig(
     XrtComputationClient::Worker worker(config_worker.name(),
                                         config_worker.task_no());
     options->workers_map.emplace(worker, config_worker.address());
-    std::cout << "Found worker in config: " << config_worker.name()
-              << ", task_no=" << config_worker.task_no()
-              << std::endl << std::flush;
-
+    if (verbose) {
+      std::cout << "Found worker in config: " << config_worker.name()
+                << ", task_no=" << config_worker.task_no()
+                << std::endl << std::flush;
+    }
     for (auto& device : config_worker.devices()) {
       XrtComputationClient::Device local_device(device.local_name());
-      std::cout << "\tFound worker's global device in config: " << device.global_name()
-                << std::endl << std::flush;
+      if (verbose) {
+        std::cout << "\tFound worker's global device in config: " << device.global_name()
+                  << std::endl << std::flush;
+      }
       options->global_device_map.emplace(
           device.global_name(),
           GetXrtDevicePath(worker.name, worker.task_no, local_device.kind,
                            local_device.ordinal));
       if (local_worker == worker &&
           (mp_device.empty() || device.global_name() == mp_device)) {
-        std::cout << "\t+Matched local worker device: " << device.global_name() << std::endl << std::flush;
+        if (verbose) {
+          std::cout << "\t+Matched local worker device: " << device.global_name() << std::endl << std::flush;
+          }
         options->devices.insert(device.global_name());
       } else {
-        std::cout << "\t-Discarded unmatched local worker device: " << device.global_name() << std::endl << std::flush;
+        if (verbose) {
+          std::cout << "\t-Discarded unmatched local worker device: " << device.global_name() << std::endl << std::flush;
+        }
       }
     }
   }

@@ -96,6 +96,10 @@ extern "C" {
 }
 
 void print_environment_config() {
+  static bool print_env_config = xla::sys_util::GetEnvBool("XLA_PRINT_CONFIG", false);
+  if (!print_env_config) {
+    return;
+  }
   std::stringstream ss;
   ss << "------------------"
      << getpid() << " PROCESS CONFIG"

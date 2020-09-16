@@ -818,7 +818,9 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
     assert(compile_info->mark_step_count_since_last_reset_ != INVALID_COUNT);
     ++compile_info->mark_step_count_since_last_reset_;
     if (IsQualifyingStep(coll.requesting_tid)) {
-      std::cout << mp() << "**** QUALIFYING: " << coll.hash << ENDL;
+      if (coll.device.ordinal == 0) {
+        std::cout << mp() << "**** QUALIFYING: " << coll.hash << ENDL;
+      }
       ex_cache->activate_hash(coll.hash);
       if (PruneTensors(tensors, coll)) {
         state.fabric_run_ = true;
