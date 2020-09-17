@@ -41,10 +41,11 @@ def run(
       fixed_batch_size=True,
       **kwargs)
 
-  # IS THIS STILL NECESSARY?? (disable_mark_step_after_first)
-  # yeah, probably...
+  # Disabling the mark step is necessary because otherwise it
+  # will try to sync the outputs that we pruned
   device_loader = para_loader.per_device_loader(
-      device, disable_mark_step_after_first=True)
+      device, disable_mark_step_after_first=True
+  )
 
   prev_hash = None
   handle_map = dict()
