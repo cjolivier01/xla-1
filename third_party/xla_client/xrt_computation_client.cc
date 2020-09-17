@@ -34,7 +34,7 @@ namespace xla {
 namespace {
 
 bool verbose = false;
-bool verbose_mp = true;
+bool verbose_mp = false;
 bool verbose_transfers = false;
 bool verbose_pull = false;
 bool all_devices_meshable = false;

@@ -176,7 +176,9 @@ public:
     os_ << ColorModifier(pCode, bright) << std::flush;
   }
   ~ColorScope() {
-    os_ << ColorModifier(Color::FG_DEFAULT) << ColorModifier(Color::BG_DEFAULT) << std::flush;
+    os_ << ColorModifier(Color::FG_DEFAULT)
+        << ColorModifier(Color::FG_DEFAULT)
+        << ColorModifier(Color::BG_DEFAULT);
   }
 };
 

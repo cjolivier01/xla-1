@@ -808,7 +808,6 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       }
     }
 
-    ColorScope clr(Color::FG_GREEN);
     if (verbose || verbose_hash) {
       ColorScope clr(Color::FG_GREEN);
       std::cout << mp()
@@ -819,7 +818,12 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
     ++compile_info->mark_step_count_since_last_reset_;
     if (IsQualifyingStep(coll.requesting_tid)) {
       if (coll.device.ordinal == 0) {
-        std::cout << mp() << "**** QUALIFYING: " << coll.hash << ENDL;
+        if (verbose) {
+          ColorScope clr(Color::FG_GREEN);
+          std::cout << mp() << "**** QUALIFYING: " << coll.hash << ENDL;
+        } else {
+          std::cout << mp() << "**** Stable graph found" << ENDL;
+        }
       }
       ex_cache->activate_hash(coll.hash);
       if (PruneTensors(tensors, coll)) {
