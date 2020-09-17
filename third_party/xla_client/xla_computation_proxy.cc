@@ -1194,10 +1194,18 @@ std::vector<ComputationClient::ComputationPtr> XlaComputationProxy::Compile(
               AddProxyExecutable(compile_response.handle().handle());
               handled = true;
             } else {
-              if (verbose) {
-                std::cout << "Compile error: " << status.error_message() << std::endl << std::flush;
-              }
+              std::stringstream ss;
+              ss << "The compile failed on the proxy device: "
+                 << compilation_device
+                 << "Reason: " << status.error_message();
+              std::cout << "Compile error: " << status.error_message() << std::endl << std::flush;
+              throw std::runtime_error(ss.str());
             }
+          } else {
+            std::stringstream ss;
+            ss << "The compile was not successfully handled on device: "
+               << compilation_device;
+            throw std::runtime_error(ss.str());
           }
         }
         if (!handled) {
