@@ -34,24 +34,33 @@ def run(
     output_closure=None,
     output_closure_args=(),
     pre_closure=None,
+    **kwargs,
 ):
   para_loader = pl.ParallelLoader(
       loader, [device],
       fixed_batch_size=True,
-      loader_prefetch_size=100,
-      device_prefetch_size=100)
+      **kwargs)
+
+  # IS THIS STILL NECESSARY?? (disable_mark_step_after_first)
+  # yeah, probably...
   device_loader = para_loader.per_device_loader(
       device, disable_mark_step_after_first=True)
+
   prev_hash = None
   handle_map = dict()
   steady_graph = None
   outputs = None
+  megabatch = None
 
-  start_time = None
-  last_step_timed = 0
+  megabatch_size = kwargs.get('megabatch_size', 0)
+
   step = 0
-  wse_comp = False
+  batch_count = 0
+
+  # TODO: if not steady_graph, can next() return us a batch-sized view of the megabatch?
   for batch in device_loader:
+    if megabatch_size:
+      megabatch = device_loader.next_megabatch_item()
     step += 1
     #if step == 1 or step == 2 or step == 3 or step == 4 or step == 5:
     if not steady_graph:
@@ -61,6 +70,7 @@ def run(
         pre_closure(tensors)
       graph_dict = torch_xla._XLAC._xla_compile_execute_graph(
           flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
+      batch_count += 1
       if graph_dict is None:
         raise RuntimeError('Unable to accelerate graph execution')
       chash = graph_dict['hash']
@@ -86,6 +96,11 @@ def run(
         output_closure(outputs, *output_closure_args)
       outputs = torch_xla._XLAC._xla_execute_compiled_graph(
           flatten_xla_tensors(batch), steady_graph)
+      batch_count += 1
+      if megabatch:
+        torch_xla._XLAC._xla_execute_compiled_graph(
+          flatten_xla_tensors(megabatch), steady_graph)
+        batch_count += megabatch_size
 
     xm.mark_step_trail()
   return step
