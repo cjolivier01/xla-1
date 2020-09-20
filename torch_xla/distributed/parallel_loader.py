@@ -35,19 +35,28 @@ class PerDeviceLoader(object):
     return self._loader.per_device_samples()
 
   def next(self):
+    #xm.mark_step()
     if self._disable_mark_step_after_first is None:
       xm.mark_step()
+      self._marked_step_on_proxy = torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
     elif self._disable_mark_step_after_first:
       xm.mark_step()
       self._disable_mark_step_after_first = 0
+      self._marked_step_on_proxy = torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
+
+    # if self._marked_step_on_proxy changed, we may want to slice up
+    # the remaining minibatches and distribute them in the other queue
+    # in the proper order
 
     item = self._loader.next_item(self._device)
     if item is None:
       raise StopIteration
     return item
 
-  def next_megabatch_item(self):
-    return self._loader.next_megabatch_item(self._device)
+  def next_mini_batch_item(self):
+    if not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
+      print(f'Warning: fetching minibatch, but last step was not on the proxy device')
+    return self._loader.next_mini_batch_item(self._device)
 
 
 class ParallelLoader(object):
@@ -135,7 +144,7 @@ class ParallelLoader(object):
     dqueue = self._queues[device]
     return dqueue.queue.get()
 
-  def next_megabatch_item(self, device):
+  def next_mini_batch_item(self, device):
     dqueue = self._mgb_queues[device]
     if dqueue is not None:
       return dqueue.queue.get()

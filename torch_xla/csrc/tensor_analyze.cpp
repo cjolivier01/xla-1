@@ -18,12 +18,10 @@
 #if 1
 #define __ASSERT_FUNCTION __extension__ __PRETTY_FUNCTION__
 
-void _my_assert_handler() {
-  raise(SIGTRAP);
-}
+void _my_assert_handler() { raise(SIGTRAP); }
 
 #undef assert
-#define assert(expr)       \
+#define assert(expr) \
   (static_cast<bool>(expr) \
        ? void(0)           \
        : _my_assert_handler() /*__assert_fail(#expr, __FILE__, __LINE__, __ASSERT_FUNCTION)*/)
@@ -257,7 +255,7 @@ struct CompileInfo {
 /**
  * @brief Valid proxy executable
  */
-//class Executable {
+// class Executable {
 //  // static constexpr uint64_t HASH_MARKER = 478925426;
 //
 // public:
@@ -276,7 +274,7 @@ struct CompileInfo {
 //  // active anymore since transition is automatic downstream
 //  bool active_{false};
 //};
-//using ExecutablePtr = std::shared_ptr<Executable>;
+// using ExecutablePtr = std::shared_ptr<Executable>;
 
 inline __int128 H128(const xla::hash_t& h) {
   __int128 hh = h.operator __int128();
@@ -296,21 +294,20 @@ class ExecutableCache {
     auto exec = executables_.insert(hh);
     stats();
     // adjusted_hash_map_.insert({exec->get_adjusted_hash(), exec});
-    //return exec;
+    // return exec;
   }
 
  public:
-//  bool has_executable(const XLASentinel::hash_t& hash) {
-//    Lock lk(mtx_);
-//    const __int128 hh = H128(hash);
-//    auto found = executables_.find(hh);
-//    if (found != executables_.end()) {
-//      return true;
-//    }
-//    return false;
-//  }
-  bool get_executable_by_adjusted_hash(
-      const XLASentinel::hash_t& hash) {
+  //  bool has_executable(const XLASentinel::hash_t& hash) {
+  //    Lock lk(mtx_);
+  //    const __int128 hh = H128(hash);
+  //    auto found = executables_.find(hh);
+  //    if (found != executables_.end()) {
+  //      return true;
+  //    }
+  //    return false;
+  //  }
+  bool get_executable_by_adjusted_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     const __int128 hh = H128(hash);
     auto found = adjusted_hash_map_.find(hh);
@@ -335,9 +332,9 @@ class ExecutableCache {
     if (has_executable(hh)) {
       return true;
     }
-//    if (exec) {
-//      return exec->is_active();
-//    }
+    //    if (exec) {
+    //      return exec->is_active();
+    //    }
     return false;
   }
   void activate_hash(const XLASentinel::hash_t& hash) {
@@ -347,26 +344,26 @@ class ExecutableCache {
     auto found = executables_.find(hh);
     if (found == executables_.end()) {
       add_executable(hh);
-//      assert(exec);
-//      exec->set_active(true);
-//      stats();
-//      XLA_COUNTER("SentinelExecutableActivate", 1);
-//      return std::move(exec);
+      //      assert(exec);
+      //      exec->set_active(true);
+      //      stats();
+      //      XLA_COUNTER("SentinelExecutableActivate", 1);
+      //      return std::move(exec);
     } else {
       // Track that we're doing this in a deterministic way and not
       // overlapping logic
-//      const bool is_active = found->second->is_active();
-//      if (!is_active) {
-//        //assert(!is_active);
-//        found->second->set_active(true);
-//        XLA_COUNTER("SentinelExecutableActivate", 1);
-//      }
-//      return found->second;
+      //      const bool is_active = found->second->is_active();
+      //      if (!is_active) {
+      //        //assert(!is_active);
+      //        found->second->set_active(true);
+      //        XLA_COUNTER("SentinelExecutableActivate", 1);
+      //      }
+      //      return found->second;
     }
   }
   void stats() {
-//    std::cout << "this->executables_.size()=" << this->executables_.size()
-//              << ENDL;
+    //    std::cout << "this->executables_.size()=" << this->executables_.size()
+    //              << ENDL;
   }
   void set_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
     Lock lk(mtx_);
@@ -378,39 +375,41 @@ class ExecutableCache {
       // Should only set this once
       auto found_adjusted = adjusted_hash_map_.find(hh1);
       if (found_adjusted != adjusted_hash_map_.end()) {
-        //assert(found_adjusted->second == found->second);
+        // assert(found_adjusted->second == found->second);
         assert(found_adjusted->second == hh1);
       } else {
         adjusted_hash_map_[hh2] = hh1;
-        //adjusted_hash_map_.insert(hh2);
+        // adjusted_hash_map_.insert(hh2);
       }
     } else {
       assert(false);  // does this ever happen?
     }
   }
 
-//  void deactivate_hash(const XLASentinel::hash_t&
-//                           hash) {  // currently we don't need to track the
-//                                    // "active" one, so this might be pointless
-//    Lock lk(mtx_);
-//    const __int128 hh = H128(hash);
-//    auto found = executables_.find(hh);
-//    if (found != executables_.end()) {
-//      // should we assert that its active?  probably not
-//      // since deactivations acan come pretty randomly from any direction
-//      if (found->second->is_active()) {
-//        found->second->set_active(false);
-//        XLA_COUNTER("SentinelExecutableDeactivate", 1);
-//      }
-//    }
-//  }
+  //  void deactivate_hash(const XLASentinel::hash_t&
+  //                           hash) {  // currently we don't need to track the
+  //                                    // "active" one, so this might be
+  //                                    pointless
+  //    Lock lk(mtx_);
+  //    const __int128 hh = H128(hash);
+  //    auto found = executables_.find(hh);
+  //    if (found != executables_.end()) {
+  //      // should we assert that its active?  probably not
+  //      // since deactivations acan come pretty randomly from any direction
+  //      if (found->second->is_active()) {
+  //        found->second->set_active(false);
+  //        XLA_COUNTER("SentinelExecutableDeactivate", 1);
+  //      }
+  //    }
+  //  }
 
  private:
   mutable std::recursive_mutex mtx_;
   std::unordered_set<__int128> executables_;  // needs to be locked?
-  //absl::node_hash_map<__int128, ExecutablePtr> executables_;  // needs to be locked?
-  //absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr> adjusted_hash_map_;
-  //absl::node_hash_map<__int128, ExecutablePtr> adjusted_hash_map_;
+  // absl::node_hash_map<__int128, ExecutablePtr> executables_;  // needs to be
+  // locked? absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr>
+  // adjusted_hash_map_; absl::node_hash_map<__int128, ExecutablePtr>
+  // adjusted_hash_map_;
   std::unordered_map<__int128, __int128> adjusted_hash_map_;
 };
 
@@ -453,6 +452,7 @@ bool thread_local is_in_mark_step = false;
 bool thread_local is_clean_step = false;
 // bool __thread is_qualifying_step = false;
 bool thread_local is_compile_only = false;
+bool thread_local mark_step_was_on_proxy = false;
 
 std::size_t proxy_compile_count = 0;
 
@@ -496,7 +496,8 @@ bool XLASentinel::PreProcessHlo(xla::XlaBuilder* builder,
     if (verbose) {
       std::cout << "PreProcessHlo(): " << coll.hash << ENDL;
     }
-    bool has_adjusted_exe = ex_cache->get_executable_by_adjusted_hash(coll.hash);
+    bool has_adjusted_exe =
+        ex_cache->get_executable_by_adjusted_hash(coll.hash);
     if (has_adjusted_exe) {
       if (true /*exe->is_active()*/) {
         // Mark this for proxy
@@ -777,8 +778,9 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       ++compile_info->mark_step_count_since_last_reset_;  // is there any point
                                                           // to increment this?
       ex_cache->activate_hash(
-          coll.hash);  // not sure if 'active' has a meaning anymore
-      state.fabric_run_ = true;
+          coll.hash);            // not sure if 'active' has a meaning anymore
+      state.fabric_run_ = true;  // <-- can this state just be a thread var?
+      mark_step_was_on_proxy = true;
       if (PruneTensors(tensors, coll)) {
         state.pre_prune_hash_ = coll.hash;
         coll.hash = state.start_hash_;
@@ -828,6 +830,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       ex_cache->activate_hash(coll.hash);
       if (PruneTensors(tensors, coll)) {
         state.fabric_run_ = true;
+        mark_step_was_on_proxy = true;
         assert(!state.pre_prune_hash_);
         state.pre_prune_hash_ = coll.hash;
         coll.hash = state.start_hash_;
@@ -844,6 +847,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       ex_cache->set_adjusted_hash(coll.hash, proxy_hash);
       coll.hash = proxy_hash;
       state.fabric_run_ = true;
+      mark_step_was_on_proxy = true;
       coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
     }
@@ -860,6 +864,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
 
     assert(state.fabric_run_);  // this should have been set the first pass,
                                 // or else we got here by accident
+    assert(mark_step_was_on_proxy);
 
     const hash_t proxy_hash =
         xla::util::HashCombine(coll.hash, PROXY_HASHING_VALUE);
@@ -881,6 +886,11 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
     return false;
   }
   return false;
+}
+
+bool XLASentinel::WasPreviousMarkStepOnProxy() {
+  assert(!is_in_mark_step);
+  return mark_step_was_on_proxy;
 }
 
 void XLASentinel::NotifyCompile(
@@ -998,6 +1008,7 @@ void XLASentinel::NotifyStepMarkerBegin(
     const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
+  mark_step_was_on_proxy = false;
   XLA_COUNTER("SentinelStepMarker", 1);
 
   static bool registered_step_requirement = false;
@@ -1112,7 +1123,14 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
     ready = true;  // always ready
   } else {
     // const bool ready = mark_step_count_since_reset - 1 == steps_required;
-    ready = mark_step_count_since_reset - 1 == steps_required;
+    // ready = mark_step_count_since_reset - 1 == steps_required;
+    ready = mark_step_count_since_reset - 1 > steps_required;
+    if (mark_step_count_since_reset - 1 != steps_required) {
+      std::cout << "Over qualifying sstep by "
+                << ((mark_step_count_since_reset - 1) - steps_required)
+                << "steps!" << std::endl
+                << std::flush;
+    }
   }
   if (ready) {
     assert(is_clean_step);  // validate it coincides with clean step logic

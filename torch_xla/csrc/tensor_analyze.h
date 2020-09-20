@@ -282,6 +282,7 @@ class XLASentinel {
   static bool IsForcingCustomLowering();
   static void SetCompileOnly(bool compile_only);
   static bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
+  static bool WasPreviousMarkStepOnProxy();
 
  private:
   static void NotifyStepMarkerBegin(const std::string& device_str,

@@ -307,8 +307,8 @@ py::object ExecuteCompiledGraph(
         GetXlaTensors(input_tensors, /*want_all=*/true);
     XLATensor::ExecuteCompiledGraph(xinput_tensors, compiled_graph,
                                     /*wait=*/
-                                    false
-                                    //true
+                                    //false
+                                    true
                                     );
   }
   return CreateOutputTensors(compiled_graph);
@@ -746,6 +746,9 @@ void InitXlaModuleBindings(py::module m) {
         SetOutputs(output_tensors, append);
       },
       py::arg("output_tensors"), py::arg("append") = false);
+  m.def("_xla_was_previous_mark_step_on_proxy", [](){
+      return XLASentinel::WasPreviousMarkStepOnProxy();
+  });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;
