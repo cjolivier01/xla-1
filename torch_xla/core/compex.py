@@ -87,11 +87,11 @@ def run(
         handle_map = graph_dict['handle_map']
       outputs = graph_dict['outputs']
 
-      if megabatch and step == 4:
-        print('PRE-SENDING MEGABATCH')
-        torch_xla._XLAC._xla_execute_compiled_graph(
-          flatten_xla_tensors(megabatch), steady_graph)
-        batch_count += megabatch_size
+      # if megabatch:
+      #   print('PRE-SENDING MEGABATCH')
+      #   torch_xla._XLAC._xla_execute_compiled_graph(
+      #     flatten_xla_tensors(megabatch), steady_graph)
+      #   batch_count += megabatch_size
 
       # Release the compile graph dictionary to make sure we do not hold two
       # copies of it while reaching stable compilations.
