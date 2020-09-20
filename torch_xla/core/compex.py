@@ -63,8 +63,10 @@ def run(
     if megabatch_size:
       megabatch = device_loader.next_megabatch_item()
     step += 1
+    print(f'step={step}')
     #if step == 1 or step == 2 or step == 3 or step == 4 or step == 5:
     if not steady_graph:
+      print('unsteady graph fork')
       tensors = closure(batch, *closure_args)
       if pre_closure:
         # Set outputs
@@ -84,6 +86,13 @@ def run(
         prev_hash = chash
         handle_map = graph_dict['handle_map']
       outputs = graph_dict['outputs']
+
+      if megabatch and step == 4:
+        print('PRE-SENDING MEGABATCH')
+        torch_xla._XLAC._xla_execute_compiled_graph(
+          flatten_xla_tensors(megabatch), steady_graph)
+        batch_count += megabatch_size
+
       # Release the compile graph dictionary to make sure we do not hold two
       # copies of it while reaching stable compilations.
       graph_dict = None
@@ -92,6 +101,7 @@ def run(
         pre_closure(tensors)
 
     else:
+      print('steady graph fork')
       assert steady_graph
       if output_closure is not None and outputs is not None:
         output_closure(outputs, *output_closure_args)
@@ -99,8 +109,10 @@ def run(
           flatten_xla_tensors(batch), steady_graph)
       batch_count += 1
       if megabatch:
+        print('Sending megabatch')
         torch_xla._XLAC._xla_execute_compiled_graph(
           flatten_xla_tensors(megabatch), steady_graph)
+        print('Megabatch sent')
         batch_count += megabatch_size
 
     xm.mark_step_trail()
