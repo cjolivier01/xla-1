@@ -68,6 +68,16 @@ def run(
     if megabatch_size:
       megabatch = device_loader.next_mini_batch_item()
 
+    def send_batch(batch, steady_graph):
+      assert torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
+      if batch:
+        print('Sending batch...')
+        outputs = torch_xla._XLAC._xla_execute_compiled_graph(
+          flatten_xla_tensors(batch), steady_graph)
+        # Could actually output closure here
+        print('Batch sent')
+
+
     if torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
       print(f'----------------------------------------')
       print(f'{batch_count}')
@@ -82,13 +92,14 @@ def run(
         flatten_xla_tensors(batch), steady_graph)
       batch_count += 1
       if megabatch_size:
-        assert False  # not running atm
-        print('Sending megabatch')
-        outputs = torch_xla._XLAC._xla_execute_compiled_graph(
-          flatten_xla_tensors(megabatch), steady_graph)
-        # Could actually output closure here
-        print('Megabatch sent')
+        send_batch(megabatch, steady_graph)
         batch_count += megabatch_size
+        # print('Sending megabatch')
+        # outputs = torch_xla._XLAC._xla_execute_compiled_graph(
+        #   flatten_xla_tensors(megabatch), steady_graph)
+        # # Could actually output closure here
+        # print('Megabatch sent')
+        # batch_count += megabatch_size
       # if pre_closure:
       #   # Set outputs
       #   pre_closure(tensors)
@@ -109,6 +120,9 @@ def run(
         xm.master_print("WSE STEADY GRAPH")
         steady_graph = graph_dict['graph']
         handle_map = None
+        if megabatch_size:
+          send_batch(megabatch, steady_graph)
+          batch_count += megabatch_size
       # elif chash == prev_hash and not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
       #   assert False
       #   xm.master_print("STEADY GRAPH")
