@@ -29,6 +29,9 @@ FORCE_RUNONWSE = True
 def run(
     loader,
     device,
+    batch_size,
+    minibatch_size,
+    megabatch_multiplier,
     closure,
     closure_args=(),
     output_closure=None,
@@ -39,13 +42,14 @@ def run(
   para_loader = pl.ParallelLoader(
       loader, [device],
       fixed_batch_size=True,
+      minibatch_size=minibatch_size,
       **kwargs)
 
   # Disabling the mark step is necessary because otherwise it
   # will try to sync the outputs that we pruned
   device_loader = para_loader.per_device_loader(
       device,
-      disable_mark_step_after_first=True,
+      enable_minibatch=minibatch_size != 0,
   )
 
   prev_hash = None
@@ -53,20 +57,21 @@ def run(
   steady_graph = None
   outputs = None
   tensors = None
-  #megabatch = None
-
-  megabatch_size = kwargs.get('megabatch_size', 0)
+  minibatch = None
 
   step = 0
   batch_count = 0
 
-  # TODO: if not steady_graph, can next() return us a batch-sized view of the megabatch?
+  has_been_steady = False
+  did_execute_on_proxy = False
+
+  # TODO: if not steady_graph, can next() return us a batch-sized view of the minibatch?
   for batch in device_loader:
     step += 1
     print(f'step={step}')
 
-    if megabatch_size:
-      megabatch = device_loader.next_mini_batch_item()
+    if minibatch_size > batch_size:
+      minibatch = device_loader.next_mini_batch_item()
 
     def send_batch(batch, steady_graph):
       assert torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
@@ -82,6 +87,7 @@ def run(
       print(f'----------------------------------------')
       print(f'{batch_count}')
       print(f'----------------------------------------')
+      has_been_steady = True
       if output_closure is not None and outputs is not None:
         output_closure(outputs, *output_closure_args)
       assert torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
@@ -91,20 +97,30 @@ def run(
       outputs = torch_xla._XLAC._xla_execute_compiled_graph(
         flatten_xla_tensors(batch), steady_graph)
       batch_count += 1
-      if megabatch_size:
-        send_batch(megabatch, steady_graph)
-        batch_count += megabatch_size
-        # print('Sending megabatch')
+      if minibatch is not None:
+        send_batch(minibatch, steady_graph)
+        batch_count += minibatch_size
+        # print('Sending minibatch')
         # outputs = torch_xla._XLAC._xla_execute_compiled_graph(
-        #   flatten_xla_tensors(megabatch), steady_graph)
+        #   flatten_xla_tensors(minibatch), steady_graph)
         # # Could actually output closure here
         # print('Megabatch sent')
-        # batch_count += megabatch_size
+        # batch_count += minibatch_size
       # if pre_closure:
       #   # Set outputs
       #   pre_closure(tensors)
+      handle_map.clear()
+
+      #tensors = closure(batch, *closure_args)
+
     else: # or not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
       print('unsteady graph fork')
+      if has_been_steady:
+        print('what went wrong?')
+        has_been_steady = False
+      if did_execute_on_proxy:
+        print('WHAT WENT WRONG???')
+        has_been_steady = False
       tensors = closure(batch, *closure_args)
       if pre_closure:
         # Set outputs
@@ -117,12 +133,14 @@ def run(
         raise RuntimeError('Unable to accelerate graph execution')
       chash = graph_dict['hash']
       if torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
+        did_execute_on_proxy = True
         xm.master_print("WSE STEADY GRAPH")
         steady_graph = graph_dict['graph']
-        handle_map = None
-        if megabatch_size:
-          send_batch(megabatch, steady_graph)
-          batch_count += megabatch_size
+        #handle_map = None
+        #handle_map.clear()
+        if minibatch is not None:
+          send_batch(minibatch, steady_graph)
+          batch_count += minibatch_size
       # elif chash == prev_hash and not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
       #   assert False
       #   xm.master_print("STEADY GRAPH")
@@ -138,30 +156,9 @@ def run(
       # copies of it while reaching stable compilations.
       graph_dict = None
 
-    # else:
-    #   print('steady graph fork')
-    #   assert steady_graph
-    #   if output_closure is not None and outputs is not None:
-    #     output_closure(outputs, *output_closure_args)
-    #   assert torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
-    #   outputs = torch_xla._XLAC._xla_execute_compiled_graph(
-    #       flatten_xla_tensors(batch), steady_graph)
-    #   batch_count += 1
-    #   if megabatch_size:
-    #     if torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
-    #       print('Last step was on proxy, so executing minibatch')
-    #       #megabatch = device_loader.next_mini_batch_item()
-    #       print('Sending megabatch')
-    #       torch_xla._XLAC._xla_execute_compiled_graph(
-    #         flatten_xla_tensors(megabatch), steady_graph)
-    #       print('Megabatch sent')
-    #       batch_count += megabatch_size
-    #     else:
-    #       print('Last step was on proxy, no minibatch')
-    #
-    #   if pre_closure:
-    #     # Set outputs
-    #     pre_closure(tensors)
+      # if pre_closure:
+      #   # Set outputs
+      #   pre_closure(list(outputs))
 
     xm.mark_step_trail()
 
@@ -170,6 +167,50 @@ def run(
     pre_closure(tensors)
 
   return step
+
+
+def run_almost_original(loader,
+                 device,
+                batch_size,
+                minibatch_size,
+                megabatch_multiplier,
+                 closure,
+                 closure_args=(),
+                 output_closure=None,
+                 output_closure_args=(),
+                 **kwargs):
+  para_loader = pl.ParallelLoader(loader, [device], fixed_batch_size=True)
+  device_loader = para_loader.per_device_loader(device)
+  prev_hash = None
+  handle_map = dict()
+  steady_graph = None
+  outputs = None
+  for batch in device_loader:
+    if output_closure is not None and outputs is not None:
+      output_closure(outputs, *output_closure_args)
+    if steady_graph:
+      outputs = torch_xla._XLAC._xla_execute_compiled_graph(
+        flatten_xla_tensors(batch), steady_graph)
+    else:
+      tensors = closure(batch, *closure_args)
+      graph_dict = torch_xla._XLAC._xla_compile_execute_graph(
+        flatten_xla_tensors(batch), tensors, str(device), [], handle_map)
+      if graph_dict is None:
+        raise RuntimeError('Unable to accelerate graph execution')
+      chash = graph_dict['hash']
+      if chash == prev_hash:
+        print("STEADY GRAPH")
+        steady_graph = graph_dict['graph']
+        handle_map = None
+      else:
+        print("UNSTEADY GRAPH")
+        prev_hash = chash
+        handle_map = graph_dict['handle_map']
+      outputs = graph_dict['outputs']
+      # Release the compile graph dictionary to make sure we do not hold two
+      # copies of it while reaching stable compilations.
+      graph_dict = None
+    xm.mark_step_trail()
 
 
 def run_original(loader,

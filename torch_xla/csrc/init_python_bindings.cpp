@@ -307,8 +307,8 @@ py::object ExecuteCompiledGraph(
         GetXlaTensors(input_tensors, /*want_all=*/true);
     XLATensor::ExecuteCompiledGraph(xinput_tensors, compiled_graph,
                                     /*wait=*/
-                                    //false
-                                    true
+                                    false
+                                    //true
                                     );
   }
   return CreateOutputTensors(compiled_graph);

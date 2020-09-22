@@ -47,6 +47,7 @@ bool verbose_remove_tensors = false;
 bool verbose_non_fabric = false;
 bool verbose_mark_step = false;
 bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
+bool prune_tensors_if_outputs_set = false;
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
 
@@ -784,10 +785,18 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       if (PruneTensors(tensors, coll)) {
         state.pre_prune_hash_ = coll.hash;
         coll.hash = state.start_hash_;
-        return true;  // need to recalculate postorder with new inputs
+        return true;  // need to recalculate postorder with new inputs/outputs
       }
       coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
+    } else if(prune_tensors_if_outputs_set) {
+        if (PruneTensors(tensors, coll)) {
+            state.pre_prune_hash_ = coll.hash;
+            coll.hash = state.start_hash_;
+            --state.pass_;
+            std::cout << "Pruned outputs on unknown executable.";
+            return true;  // need to recalculate postorder with new inputs/outputs
+        }
     }
 
     // Note: For trusted, we don't need to analyze anything
@@ -1060,9 +1069,11 @@ void XLASentinel::NotifyStepMarkerBegin(
 void XLASentinel::NotifyStepMarkerEnd() {
   assert(is_in_mark_step);
 
-  //  const pid_t tid = gettid();
-  //  auto compile_info = GetCompileInfo(tid);
-  //  compile_info->output_ids_.clear();
+#if 1 // TURNED ON FOR HEADLESS TEST
+  const pid_t tid = gettid();
+  auto compile_info = GetCompileInfo(tid);
+  compile_info->output_ids_.clear();
+#endif
 
   is_in_mark_step = false;
   is_clean_step = false;
@@ -1126,9 +1137,9 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
     // ready = mark_step_count_since_reset - 1 == steps_required;
     ready = mark_step_count_since_reset - 1 > steps_required;
     if (mark_step_count_since_reset - 1 != steps_required) {
-      std::cout << "Over qualifying sstep by "
+      std::cout << "Over-qualifying step by "
                 << ((mark_step_count_since_reset - 1) - steps_required)
-                << "steps!" << std::endl
+                << " steps!" << std::endl
                 << std::flush;
     }
   }

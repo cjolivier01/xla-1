@@ -218,7 +218,7 @@ def train_mnist(args):
     ctx.step = 0
 
     model.train()
-    cx.run(
+    cx.run_original(
         train_loader,
         device,
         train_loop_fn,

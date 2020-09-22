@@ -9,7 +9,6 @@ import torch_xla.utils.keyd_queue as kq
 import torch_xla.utils.utils as xu
 import torch_xla.core.xla_model as xm
 
-
 class PerDeviceQueue(object):
 
   def __init__(self, device, loader_prefetch_size, device_prefetch_size):
@@ -20,10 +19,10 @@ class PerDeviceQueue(object):
 
 class PerDeviceLoader(object):
 
-  def __init__(self, loader, device, disable_mark_step_after_first=None):
+  def __init__(self, loader, device, enable_minibatch=False, enable_megabatch=False):
     self._loader = loader
     self._device = device
-    self._disable_mark_step_after_first = disable_mark_step_after_first
+    self._disable_mark_step_after_first = enable_minibatch or enable_megabatch
 
   def __iter__(self):
     return self
@@ -35,28 +34,16 @@ class PerDeviceLoader(object):
     return self._loader.per_device_samples()
 
   def next(self):
-    #xm.mark_step()
-    if self._disable_mark_step_after_first is None:
-      xm.mark_step()
-      self._marked_step_on_proxy = torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
-    elif self._disable_mark_step_after_first:
-      xm.mark_step()
-      self._disable_mark_step_after_first = 0
-      self._marked_step_on_proxy = torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
-
-    # if self._marked_step_on_proxy changed, we may want to slice up
-    # the remaining minibatches and distribute them in the other queue
-    # in the proper order
-
+    xm.mark_step()
     item = self._loader.next_item(self._device)
     if item is None:
       raise StopIteration
     return item
 
-  def next_mini_batch_item(self):
-    if not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
-      print(f'Warning: fetching minibatch, but last step was not on the proxy device')
-    return self._loader.next_mini_batch_item(self._device)
+  # def next_mini_batch_item(self):
+  #   if not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
+  #     print(f'Warning: fetching minibatch, but last step was not on the proxy device')
+  #   return self._loader.next_mini_batch_item(self._device)
 
 
 class ParallelLoader(object):
@@ -91,7 +78,7 @@ class ParallelLoader(object):
                fixed_batch_size=False,
                loader_prefetch_size=8,
                device_prefetch_size=4,
-               megabatch_size=0):
+               minibatch_size=None):
     self._loader = loader
     self._devices = [torch.device(x) for x in devices]
     self._batchdim = batchdim
@@ -99,22 +86,22 @@ class ParallelLoader(object):
     self._per_device_samples = len(loader) // len(devices)
     self._done = False
     self._queues = dict()
-    self._mgb_queues = dict()
-    self._mgb_size = megabatch_size
+    self._minibatch_queues = dict()
+    self._minibatch_size = minibatch_size
     self._batch_dim = 0
     for device in self._devices:
       self._queues[device] = PerDeviceQueue(device, loader_prefetch_size,
                                             device_prefetch_size)
-      if self._mgb_size > 1:
-        self._mgb_queues[device] = PerDeviceQueue(device, loader_prefetch_size,
+      if self._minibatch_size is not None and self._minibatch_size > 1:
+        self._minibatch_queues[device] = PerDeviceQueue(device, loader_prefetch_size,
                                                   device_prefetch_size)
       else:
-        self._mgb_queues[device] = None
+        self._minibatch_queues[device] = None
     thread = threading.Thread(target=self._loader_worker)
     thread.daemon = True
     thread.start()
     for dqueue, mgbqueue in zip(
-        itervalues(self._queues), itervalues(self._mgb_queues)):
+        itervalues(self._queues), itervalues(self._minibatch_queues)):
       thread = threading.Thread(
           target=self._worker, args=(
               dqueue,
@@ -145,7 +132,7 @@ class ParallelLoader(object):
     return dqueue.queue.get()
 
   def next_mini_batch_item(self, device):
-    dqueue = self._mgb_queues[device]
+    dqueue = self._minibatch_queues[device]
     if dqueue is not None:
       return dqueue.queue.get()
     return None
@@ -171,13 +158,13 @@ class ParallelLoader(object):
 
   def _loader_worker(self):
     queues = list(self._queues.values())
-    mgb_queues = list(self._mgb_queues.values())
+    mgb_queues = list(self._minibatch_queues.values())
     data_iter = enumerate(self._loader)
     batch_size = None
     batch = []
     mgb_batch = []
     field_towers = list()
-    has_mgb = self._mgb_size > 1
+    has_mgb = self._minibatch_size > 1 if self._minibatch_size is not None else False
     mgb_data = None
     tmp_mgb_batch = []
     while not self._done:
@@ -185,9 +172,9 @@ class ParallelLoader(object):
         _, data = next(data_iter)
 
         if has_mgb:
-          for i in range(self._mgb_size):
+          for i in range(self._minibatch_size):
             _, more_data = next(data_iter)
-            # make towers of each field, self._mgb_size deep
+            # make towers of each field, self._minibatch_size deep
             for input_index, field in enumerate(more_data):
               if input_index == len(field_towers):
                 field_towers.append([field])

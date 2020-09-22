@@ -1805,6 +1805,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     const std::vector<XLATensor>& output_tensors,
     absl::Span<const std::string> devices,
     const CompiledGraph::DataHandleMap* dhandle_map) {
+  EnterLeave el2("XLATensor::CompileExecuteGraph", true, Color::FG_YELLOW);
   MarkStepScope mark_step_scope("", {});
   SyncTensorsConfig config;
   SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
@@ -1856,6 +1857,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
 void XLATensor::ExecuteCompiledGraph(
     const std::vector<XLATensor>& input_tensors,
     const CompiledGraph& compiled_graph, bool wait) {
+  EnterLeave el("XLATensor::ExecuteCompiledGraph", true, Color::FG_YELLOW);
   SyncTensorCollection coll;
   coll.device = compiled_graph.device;
   coll.hash = compiled_graph.hash;
