@@ -1638,6 +1638,17 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* ten
   PostOrderData po_data;
   std::size_t prev_indicess_size = 0;
   do {
+    if (prev_indicess_size && coll.indices.empty()) {
+        // In the case that everything was pruned, drop out of the loop
+        // This would be the case, for example, that we're setting
+        // up a prune before a second mark-step call by the loader
+        // after we've dropped out of the training loop or did
+        // a minibatch execution.
+        // Outputs would need to be explicitly restricted before that
+        // step marker, or nothing will be pruned, since the otuput
+        // pruning is reset for every step.
+        break;
+    }
     XLASentinel::PostmarkHash(state, tensors, coll);
 
     po_data = std::move(RunPostOrder(*tensors, coll.indices));
@@ -1668,6 +1679,10 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
                                   &coll.indices);
 
   PostOrderData po_data = GetPostOrderData(tensors, coll);
+
+  if (coll.indices.empty()) {
+    return nullptr;
+  }
 
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);

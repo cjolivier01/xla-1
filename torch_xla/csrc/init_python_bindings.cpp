@@ -747,7 +747,7 @@ void InitXlaModuleBindings(py::module m) {
       },
       py::arg("output_tensors"), py::arg("append") = false);
   m.def("_xla_was_previous_mark_step_on_proxy", [](){
-      return XLASentinel::WasPreviousMarkStepOnProxy();
+      return XLASentinel::WasMarkStepOnProxy();
   });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {

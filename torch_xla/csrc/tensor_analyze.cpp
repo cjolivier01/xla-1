@@ -36,20 +36,22 @@ void _my_assert_handler() { raise(SIGTRAP); }
  */
 namespace torch_xla {
 
-bool verbose = VERBOSE_FILE(false);
-bool verbose_tensor_sync = verbose;
-bool verbose_output_control = verbose || false;
-bool verbose_mp = false;
-bool verbose_hash = false;
-bool verbose_notify_compile = false;
-bool verbose_notify_execute = false;
-bool verbose_remove_tensors = false;
-bool verbose_non_fabric = false;
-bool verbose_mark_step = false;
-bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
-bool prune_tensors_if_outputs_set = false;
+namespace {
+const bool verbose = VERBOSE_FILE(false);
+const bool verbose_tensor_sync = verbose;
+const bool verbose_output_control = verbose || false;
+const bool verbose_mp = false;
+const bool verbose_hash = false;
+const bool verbose_notify_compile = false;
+const bool verbose_notify_execute = false;
+const bool verbose_remove_tensors = false;
+const bool verbose_non_fabric = false;
+const bool verbose_mark_step = false;
+const bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
+const bool prune_tensors_if_outputs_set = true;
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
+}
 
 std::string mp() {
   std::stringstream ss;
@@ -454,6 +456,7 @@ bool thread_local is_clean_step = false;
 // bool __thread is_qualifying_step = false;
 bool thread_local is_compile_only = false;
 bool thread_local mark_step_was_on_proxy = false;
+bool thread_local prev_step_was_on_proxy = false;
 
 std::size_t proxy_compile_count = 0;
 
@@ -595,8 +598,7 @@ bool XLASentinel::PruneTensors(std::vector<XLATensor>* tensors,
     }
   }
 
-  if (!adjusted_indices.empty() &&
-      adjusted_indices.size() != coll.indices.size()) {
+  if (adjusted_indices.empty() || adjusted_indices.size() != coll.indices.size()) {
     coll.indices = std::move(adjusted_indices);
     //    if (verbose) {
     //      std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> "
@@ -790,12 +792,37 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
     } else if(prune_tensors_if_outputs_set) {
-        if (PruneTensors(tensors, coll)) {
-            state.pre_prune_hash_ = coll.hash;
-            coll.hash = state.start_hash_;
-            --state.pass_;
-            std::cout << "Pruned outputs on unknown executable.";
-            return true;  // need to recalculate postorder with new inputs/outputs
+        if (is_in_mark_step) {
+            if (prev_step_was_on_proxy) {
+                // This is a subsequent step to a proxy step, and
+                // So if we have *intentionally* set the outputs since then,
+                // prune the tensors as if it were a regular mark step.
+                // This is because if there is a mark step later,
+                // it may try to *only* pull in those pruned tensors,
+                // so if that's the case, prune them again.
+                // If the resultant list of tensors to update is empty, then
+                // a sync can be skipped (as it would have been had we not pruned the
+                // tensors in the first place)
+                if (!coll.indices.empty()) {
+                    std::vector<size_t> save_indices = coll.indices;
+                    if (PruneTensors(tensors, coll)) {
+                        if (coll.indices.empty()) {
+                            state.pre_prune_hash_ = coll.hash;
+                            coll.hash = state.start_hash_;
+                            --state.pass_;
+                            std::cout << "Pruned outputs on unknown executable.";
+                            return true;  // need to recalculate postorder with new inputs/outputs
+                        } else {
+                            // We didn't prune everything, so allow the computation to
+                            // go forward
+//                            state.pre_prune_hash_ = coll.hash;
+//                            coll.hash = state.start_hash_;
+                            coll.indices = std::move(save_indices);
+                            //return false;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -897,8 +924,8 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
   return false;
 }
 
-bool XLASentinel::WasPreviousMarkStepOnProxy() {
-  assert(!is_in_mark_step);
+bool XLASentinel::WasMarkStepOnProxy() {
+  //assert(!is_in_mark_step);
   return mark_step_was_on_proxy;
 }
 
@@ -1017,6 +1044,7 @@ void XLASentinel::NotifyStepMarkerBegin(
     const std::string& device_str, const std::vector<std::string>& devices) {
   is_clean_step = false;
   is_in_mark_step = true;
+  prev_step_was_on_proxy = mark_step_was_on_proxy;
   mark_step_was_on_proxy = false;
   XLA_COUNTER("SentinelStepMarker", 1);
 

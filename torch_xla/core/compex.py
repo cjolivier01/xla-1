@@ -160,6 +160,10 @@ def run(
       #   # Set outputs
       #   pre_closure(list(outputs))
 
+    if pre_closure and torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
+        # Set outputs
+        pre_closure(list(outputs))
+
     xm.mark_step_trail()
 
   if tensors is not None and pre_closure:
