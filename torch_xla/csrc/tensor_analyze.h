@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sys/syscall.h>
-
 #include <map>
 #include <mutex>
 #include <ostream>
@@ -12,6 +10,8 @@
 #include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/tensor.h"
+
+#include <sys/syscall.h>
 
 #define ENDL std::endl << std::flush
 

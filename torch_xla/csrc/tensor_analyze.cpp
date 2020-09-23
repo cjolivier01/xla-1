@@ -262,7 +262,7 @@ struct CompileInfo {
 //  // static constexpr uint64_t HASH_MARKER = 478925426;
 //
 // public:
-//  explicit Executable(__int128 hash)
+//  explicit Executable(Int128 hash)
 //      : hash_(hash)
 //  // adjusted_hash_(xla::util::MHash(hash, HASH_MARKER))
 //  {}
@@ -271,7 +271,7 @@ struct CompileInfo {
 //  bool set_active(bool active) { active_ = active; }
 //
 // private:
-//  const __int128 hash_;
+//  const Int128 hash_;
 //  // const xla::hash_t adjusted_hash_;
 //  // not actually sure if we need this
 //  // active anymore since transition is automatic downstream
@@ -279,9 +279,21 @@ struct CompileInfo {
 //};
 // using ExecutablePtr = std::shared_ptr<Executable>;
 
-inline __int128 H128(const xla::hash_t& h) {
-  __int128 hh = h.operator __int128();
-  return hh;
+//using Int128 = std::pair<uint64_t, uint64_t>;
+//
+//inline Int128 H128(const xla::hash_t& h) {
+//  const __int128 h1 = h.operator unsigned __int128();
+//  Int128 hh = std::make_pair<uint64_t, uint64_t>(
+//      (h1.operator unsigned __int128() >> 64) & 0xFFFFFFFFFFFFFFFF,
+//      h1.operator unsigned __int128() & 0xFFFFFFFFFFFFFFFF
+//  );
+//  return std::move(hh);
+//}
+
+typedef __int128 Int128;
+
+inline Int128 H128(const xla::hash_t& h) {
+    return h.operator unsigned __int128();
 }
 
 /**
@@ -291,7 +303,7 @@ class ExecutableCache {
   void add_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     stats();
-    const __int128 hh = H128(hash);
+    const Int128 hh = H128(hash);
     assert(executables_.find(hh) == executables_.end());
     stats();
     auto exec = executables_.insert(hh);
@@ -303,7 +315,7 @@ class ExecutableCache {
  public:
   //  bool has_executable(const XLASentinel::hash_t& hash) {
   //    Lock lk(mtx_);
-  //    const __int128 hh = H128(hash);
+  //    const Int128 hh = H128(hash);
   //    auto found = executables_.find(hh);
   //    if (found != executables_.end()) {
   //      return true;
@@ -312,7 +324,7 @@ class ExecutableCache {
   //  }
   bool get_executable_by_adjusted_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    const __int128 hh = H128(hash);
+    const Int128 hh = H128(hash);
     auto found = adjusted_hash_map_.find(hh);
     if (found != adjusted_hash_map_.end()) {
       return true;
@@ -321,17 +333,17 @@ class ExecutableCache {
   }
   bool has_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    const __int128 hh = H128(hash);
+    const Int128 hh = H128(hash);
     return executables_.count(hh) != 0;
   }
   bool has_executable_by_adjusted_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    const __int128 hh = H128(hash);
+    const Int128 hh = H128(hash);
     return adjusted_hash_map_.count(hh) != 0;
   }
   bool is_active_executable(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
-    const __int128 hh = H128(hash);
+    const Int128 hh = H128(hash);
     if (has_executable(hh)) {
       return true;
     }
@@ -343,7 +355,7 @@ class ExecutableCache {
   void activate_hash(const XLASentinel::hash_t& hash) {
     Lock lk(mtx_);
     stats();
-    const __int128 hh = H128(hash);
+    const Int128 hh = H128(hash);
     auto found = executables_.find(hh);
     if (found == executables_.end()) {
       add_executable(hh);
@@ -371,8 +383,8 @@ class ExecutableCache {
   void set_adjusted_hash(const xla::hash_t& h1, const xla::hash_t& h2) {
     Lock lk(mtx_);
     assert(h1 != h2);
-    const __int128 hh1 = H128(h1);
-    const __int128 hh2 = H128(h2);
+    const Int128 hh1 = H128(h1);
+    const Int128 hh2 = H128(h2);
     auto found = executables_.find(hh1);
     if (found != executables_.end()) {
       // Should only set this once
@@ -394,7 +406,7 @@ class ExecutableCache {
   //                                    // "active" one, so this might be
   //                                    pointless
   //    Lock lk(mtx_);
-  //    const __int128 hh = H128(hash);
+  //    const Int128 hh = H128(hash);
   //    auto found = executables_.find(hh);
   //    if (found != executables_.end()) {
   //      // should we assert that its active?  probably not
@@ -408,12 +420,14 @@ class ExecutableCache {
 
  private:
   mutable std::recursive_mutex mtx_;
-  std::unordered_set<__int128> executables_;  // needs to be locked?
-  // absl::node_hash_map<__int128, ExecutablePtr> executables_;  // needs to be
+  //std::unordered_set<Int128> executables_;  // needs to be locked?
+  std::set<Int128> executables_;  // needs to be locked?
+  // absl::node_hash_map<Int128, ExecutablePtr> executables_;  // needs to be
   // locked? absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr>
-  // adjusted_hash_map_; absl::node_hash_map<__int128, ExecutablePtr>
+  // adjusted_hash_map_; absl::node_hash_map<Int128, ExecutablePtr>
   // adjusted_hash_map_;
-  std::unordered_map<__int128, __int128> adjusted_hash_map_;
+  //std::unordered_map<Int128, Int128> adjusted_hash_map_;
+  std::map<Int128, Int128> adjusted_hash_map_;
 };
 
 std::mutex compile_info_map_mtx_;
