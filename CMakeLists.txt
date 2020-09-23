@@ -70,7 +70,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/ba
 #string(REPLACE ${what_needs_to_go} "" new_include_dirs ${the_include_dirs})
 #set_property(DIRECTORY foo PROPERTY INCLUDE_DIRECTORIES ${new_include_dirs})
 
-message(STATUS "ptxla CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
+message(STATUS "${XLAC_EXTENSION_TARGET} CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 add_compile_options(-O0)
 #add_compile_options(-O1)
@@ -109,8 +109,10 @@ add_compile_options(-fvisibility=hidden)
 add_link_options(-fvisibility=hidden)
 add_compile_options(-Wno-ignored-qualifiers)
 
-add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
-add_dependencies(ptxla torch torch_python c10 shm torch_global_deps)
+set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
+
+add_library(${XLAC_EXTENSION_TARGET} SHARED ${XLA_SOURCES} ${XLA_HEADERS})
+add_dependencies(${XLAC_EXTENSION_TARGET} torch torch_python c10 shm torch_global_deps)
 
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
@@ -121,7 +123,7 @@ link_directories(${CMAKE_BINARY_DIR}/lib)
 set(XLAC_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7)
 
 set_target_properties(
-        ptxla
+        ${XLAC_EXTENSION_TARGET}
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY
         ${XLAC_BINARY_DIR}
@@ -133,7 +135,7 @@ message(STATUS "PTPY_LIB=${PTPY_LIB}")
 set(USE_TORCH_LIBRARIES torch torch_cpu c10 torch_python)
 
 target_link_libraries(
-        ptxla
+        ${XLAC_EXTENSION_TARGET}
         PUBLIC
         -Wl,--unresolved-symbols=ignore-in-shared-libs
         "${USE_TORCH_LIBRARIES}"
@@ -149,15 +151,15 @@ target_link_libraries(
 #
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
 
 # how to set RTLD_DEEPBIND# How to force RTLD_DEEPBIND?
 # -Wl,--copy-dt-needed-entries
-add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
+#add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
+#add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES OUTPUT_NAME "${XLAC_EXTENSION_TARGET}")
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES PREFIX "")
-target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ptxla)
+#target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ptxla)
 
 add_custom_target(
         xlac ALL
@@ -175,8 +177,8 @@ if (BUILD_TENSORFLOW)
     set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 
-    target_link_libraries(ptxla PRIVATE ${LIBXLA_COMPUTATION_CLIENT_LIB})
-    target_link_libraries(ptxla PRIVATE ${FRAMEWORK_LIBS})
+    target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ${LIBXLA_COMPUTATION_CLIENT_LIB})
+    target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ${FRAMEWORK_LIBS})
 
     set(TF_SOURCE_FILE "${TF_DIRECTORY}/bazel-bin/tensorflow/compiler/xla/xla_client/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     set(TF_DEST_FILE "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
@@ -210,10 +212,10 @@ if (BUILD_TENSORFLOW)
             DEPENDS libxla_computation_client_gdb_add_index libxla_computation_client_mkdir libxla_computation_client_build
     )
 
-    add_dependencies(ptxla libxla_computation_client)
+    add_dependencies(${XLAC_EXTENSION_TARGET} libxla_computation_client)
 
 else()
     message(STATUS "Not building TensorFlow -- assuming the library exists: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 endif()
 
-add_subdirectory(test/cpp)
+#add_subdirectory(test/cpp)
