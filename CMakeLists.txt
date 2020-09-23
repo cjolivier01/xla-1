@@ -112,7 +112,7 @@ add_compile_options(-Wno-ignored-qualifiers)
 set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
 
 add_library(${XLAC_EXTENSION_TARGET} SHARED ${XLA_SOURCES} ${XLA_HEADERS})
-add_dependencies(${XLAC_EXTENSION_TARGET} torch torch_python c10 shm torch_global_deps)
+add_dependencies(${XLAC_EXTENSION_TARGET} torch torch_python c10 shm torch_global_deps pytorch_all)
 
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
