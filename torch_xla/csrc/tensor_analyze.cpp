@@ -987,7 +987,7 @@ void XLASentinel::NotifyExecute(
   if (proxy_compile_only_count &&
       proxy_compile_count >= proxy_compile_only_count) {
     std::cout << "Compile-only mode, exiting.";
-    exit(0);
+    _exit(0);
   }
   if (verbose_notify_execute) {
     ColorScope clr(std::cout, {Color::FG_CYAN}, false);
