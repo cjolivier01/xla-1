@@ -1,23 +1,24 @@
 #ifndef XLA_CLIENT_XLA_COMPUTATION_PROXY_H_
 #define XLA_CLIENT_XLA_COMPUTATION_PROXY_H_
 
-#include "tensorflow/compiler/xla/service_interface.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_data.pb.h"
+#include <sys/syscall.h>
 
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 
-#include <sys/syscall.h>
+#include "tensorflow/compiler/xla/service_interface.h"
+#include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
+#include "tensorflow/compiler/xla/xla_data.pb.h"
 
 namespace xla {
 
 class XlaClientInfo;
 
 class XlaComputationProxy : public XrtComputationClient {
-    typedef XrtComputationClient Super;
-public:
+  typedef XrtComputationClient Super;
+
+ public:
   /**
    * @brief Create XlaComputationProxy object
    * @param options
@@ -25,8 +26,7 @@ public:
    */
   XlaComputationProxy(
       Options options,
-      std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto
-  );
+      std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto);
   /**
    * @brief Destroy the XlaComputationProxy object
    */
@@ -55,35 +55,65 @@ public:
   // its single elements.
   std::vector<DataPtr> ExecuteComputation(
       const Computation& computation, absl::Span<const DataPtr> arguments,
-      const std::string& device, const ExecuteComputationOptions& options) override;
+      const std::string& device,
+      const ExecuteComputationOptions& options) override;
 
-  static void SetDeviceProxyAddress(const std::string& device, const std::string& proxy_address);
+  static void SetDeviceProxyAddress(const std::string& device,
+                                    const std::string& proxy_address);
 
   static tensorflow::tpu::TopologyProto InitializeAndFetchTopology(
       const std::string& job, int task_no, const std::string& worker_host_port,
       const tensorflow::ConfigProto& config);
 
-  static XlaComputationProxy *Get() {
-    return dynamic_cast<XlaComputationProxy *>(Super::Get());
+  static XlaComputationProxy* Get() {
+    return dynamic_cast<XlaComputationProxy*>(Super::Get());
   }
 
   static bool IsEnabled();
 
   static bool IsInitialized();
 
-private:
+ private:
+  // -Intentionally not overrides
+  void ReleaseProxyHandles(
+      std::vector<DeviceHandle>* handles,
+      const std::function<std::shared_ptr<xla::ServiceInterface>(
+          const std::shared_ptr<xla::ServiceInterface>&,
+          const tensorflow::Scope&, const std::string&)>& op_generator,
+      metrics::Metric* timed_metric, metrics::Counter* destroy_counter);
+
+  void ReleaseProxyHandleAsync(int64 handle, const std::string& device,
+                               std::vector<DeviceHandle>* handles);
+
+  void ReleaseProxyComputation(const std::string& compilation_device,
+                               int64 handle);
+
+  void ReleaseProxyData(const std::string& device, int64 handle);
+  // Starts the handle releaser thread (which runs the HandleReleaser() API).
+  void StartProxyHandleReleaser();
+
+  // The handler releaser function. Runs in the releaser thread and never
+  // returns.
+  void HandleReleaser();
+  // Intentionally not overrides-
+
   class GlobalDataHandleMapper;
 
   static bool HasProxyAddresses();
 
-  std::vector<DataPtr> TransferToServerInternal(absl::Span<const TensorSource> tensors);
+  void PrepareToExit() override;
+
+  std::vector<DataPtr> TransferToServerInternal(
+      absl::Span<const TensorSource> tensors);
 
   static std::recursive_mutex xla_client_map_mtx_;
-  static std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>> xla_client_map_;
+  static std::unordered_map<std::string, std::shared_ptr<XlaClientInfo>>
+      xla_client_map_;
 
   std::unique_ptr<GlobalDataHandleMapper> data_mapper_;
 
-  static std::shared_ptr<xla::ServiceInterface> GetXlaClient(const std::string& device, bool create = true);
+  static std::shared_ptr<xla::ServiceInterface> GetXlaClient(
+      const std::string& device, bool create = true);
   xla::DeviceHandle GetDeviceHandle(const std::string& device);
 
   mutable std::mutex proxy_executable_set_mtx_;
@@ -92,12 +122,16 @@ private:
   mutable std::mutex proxy_mapping_mtx_;
   std::unordered_map<std::string, std::string> proxy_mapping_;
 
+  std::unique_ptr<util::TriggeredTask> triggered_proxy_task_;
+
+  std::mutex proxy_lock_;
+  std::vector<DeviceHandle> released_proxy_data_handles_;
+  std::vector<DeviceHandle> released_proxy_compile_handles_;
+
   std::vector<ComputationClient::DataPtr> MoveDataBetweenDevices(
-    const std::vector<ComputationClient::DataPtr>& source_data,
-    const std::string& to_device,
-    bool release_from_source,
-    bool add_mapping_entry
-  );
+      const std::vector<ComputationClient::DataPtr>& source_data,
+      const std::string& to_device, bool release_from_source,
+      bool add_mapping_entry);
 
   /**
    * @brief Is device capable of proxy?
@@ -105,14 +139,15 @@ private:
    * @return
    */
 
-  std::vector<DataPtr> NormalizeDataToDevice(absl::Span<const DataPtr> tensors, const std::string& device, bool in_place);
+  std::vector<DataPtr> NormalizeDataToDevice(absl::Span<const DataPtr> tensors,
+                                             const std::string& device,
+                                             bool in_place);
 
-  ComputationClient::DataPtr TransferLiteralToServer(
-    const std::string& device,
-    const Literal& literal
-  );
-  //bool IsProxyDevice(const std::string& device) const;
-  //bool SetProxyForDevice(const std::string& source_device, const std::string& proxy_device);
+  ComputationClient::DataPtr TransferLiteralToServer(const std::string& device,
+                                                     const Literal& literal);
+  // bool IsProxyDevice(const std::string& device) const;
+  // bool SetProxyForDevice(const std::string& source_device, const std::string&
+  // proxy_device);
   bool ShouldCloneDataForDevice(const std::string& device) const;
   bool IsProxyExecutable(uint64_t executable_handle) const;
   void AddProxyExecutable(uint64_t executable_handle);
@@ -123,7 +158,7 @@ private:
    * @return
    */
   void ReleaseXrtData(const std::string& device, int64 handle) override;
-  void ReleaseXlaProxyData(const std::string& device, int64 handle);
+  // void ReleaseXlaProxyData(const std::string& device, int64 handle);
 };
 
 enum class Color {
@@ -149,46 +184,48 @@ enum class Color {
 class ColorModifier {
   const Color code;
   const bool bright;
-public:
-  ColorModifier(Color pCode, const bool is_bright=true)
+
+ public:
+  ColorModifier(Color pCode, const bool is_bright = true)
       : code(pCode), bright(is_bright) {}
 
-  friend std::ostream &
-  operator<<(std::ostream &os, const ColorModifier &mod) {
+  friend std::ostream& operator<<(std::ostream& os, const ColorModifier& mod) {
     return os << "\033[" << (mod.bright ? "1;" : "0;") << (int)mod.code << "m";
   }
 };
 
 class ColorScope {
   std::ostream& os_;
-public:
-  inline ColorScope(std::ostream& os, Color pCode, bool bright=true) : os_(os) {
+
+ public:
+  inline ColorScope(std::ostream& os, Color pCode, bool bright = true)
+      : os_(os) {
     ColorModifier mod(pCode, bright);
     os << mod;
   }
-  inline ColorScope(std::ostream& os, std::vector<Color> codes, bool bright=false) : os_(os) {
+  inline ColorScope(std::ostream& os, std::vector<Color> codes,
+                    bool bright = false)
+      : os_(os) {
     for (auto c : codes) {
       ColorModifier mod(c, bright);
       os << mod;
     }
   }
-  ColorScope(Color pCode, bool bright=true) : os_(std::cout) {
+  ColorScope(Color pCode, bool bright = true) : os_(std::cout) {
     os_ << ColorModifier(pCode, bright) << std::flush;
   }
   ~ColorScope() {
-    os_ << ColorModifier(Color::FG_DEFAULT)
-        << ColorModifier(Color::FG_DEFAULT)
+    os_ << ColorModifier(Color::FG_DEFAULT) << ColorModifier(Color::FG_DEFAULT)
         << ColorModifier(Color::BG_DEFAULT);
   }
 };
 
-template<typename T>
+template <typename T>
 inline std::string to_string(const T& obj) {
   std::stringstream ss;
   ss << obj;
   return std::move(ss.str());
 }
-
 
 #define WSE_DEBUG_LOGGING
 
@@ -203,8 +240,9 @@ class EnterLeave {
   const bool both_;
   const Color use_color_;
   static std::mutex mtx_;
-public:
-  static std::string concat(const char *s0, const char *s1, const char *s2) {
+
+ public:
+  static std::string concat(const char* s0, const char* s1, const char* s2) {
     std::string s;
     if (s0 && *s0) {
       s = s0;
@@ -220,15 +258,20 @@ public:
     }
     return s;
   }
-  inline EnterLeave(const std::string& label, bool both=true, const Color use_color = Color::BG_INVALID)
-      : label_(label), thread_id_(syscall(SYS_gettid)), both_(both),
-        use_color_(use_color == Color::BG_INVALID ? library_color_ : use_color) {
+  inline EnterLeave(const std::string& label, bool both = true,
+                    const Color use_color = Color::BG_INVALID)
+      : label_(label),
+        thread_id_(syscall(SYS_gettid)),
+        both_(both),
+        use_color_(use_color == Color::BG_INVALID ? library_color_
+                                                  : use_color) {
     std::lock_guard<std::mutex> lk(mtx_);
     for (int x = 0; x < depth_; ++x) {
       printf("  ");
     }
     ColorScope color_scope(use_color_);
-    printf("%s[tid=%d (%s)]: %s\n", both_ ? "ENTER" : "HERE", thread_id_, library_.c_str(), label.c_str());
+    printf("%s[tid=%d (%s)]: %s\n", both_ ? "ENTER" : "HERE", thread_id_,
+           library_.c_str(), label.c_str());
     fflush(stdout);
     ++depth_;
   }
@@ -240,7 +283,8 @@ public:
       for (int x = 0; x < depth_; ++x) {
         printf("  ");
       }
-      printf("LEAVE[tid=%d (%s)]: %s\n", thread_id_, library_.c_str(), label_.c_str());
+      printf("LEAVE[tid=%d (%s)]: %s\n", thread_id_, library_.c_str(),
+             label_.c_str());
       fflush(stdout);
     }
   }
@@ -248,21 +292,42 @@ public:
 #else
 
 class EnterLeave {
-public:
-  inline EnterLeave(const std::string& label, bool both=true) {}
+ public:
+  inline EnterLeave(const std::string& label, bool both = true) {}
 };
 
 #endif  // WSE_DEBUG_LOGGING
 
 #ifdef WSE_DEBUG_LOGGING
 
-std::string short_fn_name(const std::string &fn_name);
+std::string short_fn_name(const std::string& fn_name);
 
-#define HEREC(__color$) EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), """"), true, __color$)
-#define HERE() EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""))
-#define HEREX() EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), false)
-#define HEREXC(__color$) EnterLeave __here(EnterLeave::concat(nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), false, __color$)
-#define HEREXCT(__color$) EnterLeave __here(EnterLeave::concat(std::to_string(this).c_str(), ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), false, __color$)
+#define HEREC(__color$)                                                     \
+  EnterLeave __here(                                                        \
+      EnterLeave::concat(nullptr,                                           \
+                         ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), \
+                         ""                                                 \
+                         ""),                                               \
+      true, __color$)
+#define HERE()                          \
+  EnterLeave __here(EnterLeave::concat( \
+      nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""))
+#define HEREX()                                                            \
+  EnterLeave __here(                                                       \
+      EnterLeave::concat(                                                  \
+          nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), \
+      false)
+#define HEREXC(__color$)                                                   \
+  EnterLeave __here(                                                       \
+      EnterLeave::concat(                                                  \
+          nullptr, ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), ""), \
+      false, __color$)
+#define HEREXCT(__color$)                                                   \
+  EnterLeave __here(                                                        \
+      EnterLeave::concat(std::to_string(this).c_str(),                      \
+                         ::xla::short_fn_name(__PRETTY_FUNCTION__).c_str(), \
+                         ""),                                               \
+      false, __color$)
 #else
 #define HERE() ((void)0)
 #define HEREX() ((void)0)
