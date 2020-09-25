@@ -65,7 +65,7 @@ bool ShouldUseDenseScatter(const Device& device, const xla::Shape& input_shape,
   static int dense_scatter_factor =
       xla::sys_util::GetEnvInt("XLA_DENSE_SCATTER_FACTOR", 100);
   if (dense_scatter_factor < 0) {
-      // TEMPORARY WORKAROUND FOR
+      // TEMPORARY WORKAROUND FOR LAIR SCATTER ISSUE
       return true;
   }
   if (device.hw_type == DeviceType::TPU || device.hw_type == DeviceType::WSE) {

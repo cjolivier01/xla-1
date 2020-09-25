@@ -137,9 +137,9 @@ bool using_grpc_service_main_cpu = false;
 bool disable_proxy = false;
 bool throw_on_compile_fail = true;
 bool verbose_pull = false;
-bool verbose_transfer = true;
+bool verbose_transfer = false;
 bool verbose_topology = false;
-bool verbose_handle_mapping = true;
+bool verbose_handle_mapping = false;
 const std::string PROXYABLE_DEVICE_PREFIX = "WSE:";
 constexpr char PROXYABLE_DEVICE_SUFFIX = 'P';
 
