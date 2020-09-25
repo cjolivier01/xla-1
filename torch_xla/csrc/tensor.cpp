@@ -47,6 +47,8 @@ extern int is_autograd_thread();
 namespace torch_xla {
 namespace {
 
+bool verbose_alias = false;
+
 struct TlsData {
   void Reset() { trim_counter = 0; }
 
