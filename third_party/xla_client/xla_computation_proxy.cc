@@ -766,7 +766,9 @@ void XlaComputationProxy::ReleaseProxyHandles(
       //      XLA_CHECK_OK(session->session()->Run(
       //          feed_inputs, {}, {cached_node.operations[0]}, &outputs));
       //        assert(false);
-      std::cerr << "Failed to free handles" << std::endl << std::flush;
+      std::cerr << "Failed to free handles: "
+                << ", reason: " << status.error_message()
+                << std::endl << std::flush;
     }
     if (destroy_counter) {
       destroy_counter->AddValue(released_handles.size());
@@ -797,6 +799,7 @@ void XlaComputationProxy::HandleReleaser() {
                       nullptr /*DestroyCompileHandlesCounter()*/
   );
 }
+
 
 void XlaComputationProxy::ReleaseProxyHandleAsync(
     int64 handle, const std::string& device,
