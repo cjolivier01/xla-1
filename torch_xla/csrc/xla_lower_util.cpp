@@ -64,7 +64,11 @@ bool ShouldUseDenseScatter(const Device& device, const xla::Shape& input_shape,
                            const xla::Shape& index_shape) {
   static int dense_scatter_factor =
       xla::sys_util::GetEnvInt("XLA_DENSE_SCATTER_FACTOR", 100);
-  if (device.hw_type == DeviceType::TPU) {
+  if (dense_scatter_factor < 0) {
+      // TEMPORARY WORKAROUND FOR
+      return true;
+  }
+  if (device.hw_type == DeviceType::TPU || device.hw_type == DeviceType::WSE) {
     xla::int64 input_elements = xla::ShapeUtil::ElementsIn(input_shape);
     xla::int64 index_elements = xla::ShapeUtil::ElementsIn(index_shape);
     return index_elements * dense_scatter_factor >= input_elements;
