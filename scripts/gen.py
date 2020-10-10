@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import argparse
-import collections
+import collections.abc
 import lark
 import json
 import os
@@ -13,7 +13,7 @@ import sys
 def namedtuple_with_defaults(typename, field_names, default_values=()):
   ntuple = collections.namedtuple(typename, field_names)
   ntuple.__new__.__defaults__ = (None,) * len(ntuple._fields)
-  if isinstance(default_values, collections.Mapping):
+  if isinstance(default_values, collections.abc.Mapping):
     prototype = ntuple(**default_values)
   else:
     prototype = ntuple(*default_values)
@@ -25,11 +25,12 @@ class ArgTemplate(string.Template):
   idpattern = r'[a-z0-9_]+'
 
 
-FuncDef = namedtuple_with_defaults('FuncDef', 'cpp_sig, aten_sig, leaf')
+FuncDef = namedtuple_with_defaults('FuncDef',
+                                   'cpp_sig, aten_sig, dispatch, math')
 
 FuncGen = namedtuple_with_defaults(
     'FuncGen',
-    'tree, xtree, rwxtree, func, xfunc, code, sig, rwsig, cppsig, funsig, mapsig, aten_sig, leaf'
+    'tree, xtree, rwxtree, func, xfunc, code, sig, rwsig, cppsig, funsig, mapsig, aten_sig, dispatch, math'
 )
 
 FuncOpts = namedtuple_with_defaults(
@@ -80,12 +81,12 @@ _PARSER = lark.Lark(_GRAMMAR, parser='lalr', propagate_positions=True)
 _XPARSER = lark.Lark(
     _GRAMMAR, parser='lalr', propagate_positions=True, keep_all_tokens=True)
 
-# _FN_FULL_OVERRIDE/_FN_BLACKLIST takes either name or mapsig.
+# _FN_AUTOGRAD_XLA/_FN_BLACKLIST takes either name or mapsig.
 _FN_BLACKLIST = set([])
 
 # List of non-leaf ops we want to override both forward + backward.
 # TODO(https://github.com/pytorch/pytorch/issues/39959)
-_FN_FULL_OVERRIDE = set([
+_FN_AUTOGRAD_XLA = set([
     'max_pool2d(Tensor, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, bool) -> Tensor',
     'max_pool3d(Tensor, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, bool) -> Tensor',
 ])
@@ -97,8 +98,17 @@ _FN_BLACKLIST_REGEX = [
 ]
 
 _FN_OUT = {
+    'abs_out': FuncOpts(),
     'add_out': FuncOpts(),
+    'acos_out': FuncOpts(),
+    'acosh_out': FuncOpts(),
+    'asin_out': FuncOpts(),
+    'asinh_out': FuncOpts(),
+    'atan_out': FuncOpts(),
+    'atan2_out': FuncOpts(),
+    'atanh_out': FuncOpts(),
     'baddbmm_out': FuncOpts(),
+    'bernoulli_out': FuncOpts(),
     'binary_cross_entropy_out': FuncOpts(),
     'binary_cross_entropy_backward_out': FuncOpts(),
     'clamp_out': FuncOpts(),
@@ -118,9 +128,10 @@ _FN_OUT = {
     'nonzero_out': FuncOpts(),
     'round_out': FuncOpts(),
     'normal_out': FuncOpts(),
+    'std_out': FuncOpts(),
     'take_out': FuncOpts(),
-    'true_divide_out': FuncOpts(),
     'topk_out': FuncOpts(),
+    'var_out': FuncOpts(),
 }
 
 # List of tuples with the regex match first, and the corresponding FuncOpts()
@@ -922,7 +933,8 @@ def get_xla_wrapper(fndef, ctx):
       mapsig=mapsig,
       funsig=create_stdfunc_sig(rwxtree, rwsig),
       aten_sig=fndef.aten_sig,
-      leaf=fndef.leaf)
+      dispatch=fndef.dispatch,
+      math=fndef.math)
 
 
 def is_tensor_api(fndef):
@@ -937,7 +949,8 @@ def create_funcdef(fndef, jdata):
   return FuncDef(
       cpp_sig=fndef,
       aten_sig=fields['schema'],
-      leaf=fields.get('compound', 'false') == 'false')
+      dispatch=fields.get('dispatch', 'False') == 'True',
+      math=fields.get('math', 'False') == 'True')
 
 
 def extract_functions(path):
@@ -1005,10 +1018,10 @@ def generate_unboxed(aten_sig, overload, override_fn):
 
 def generate_registrations(fgens, overrides):
   aten_code = 'TORCH_LIBRARY_IMPL(aten, XLA, m) {\n'
-  preautograd_code = 'TORCH_LIBRARY_IMPL(aten, AutogradXLA, m) {\n'
+  autogradxla_code = 'TORCH_LIBRARY_IMPL(aten, AutogradXLA, m) {\n'
   overridden = set()
   for fgen in fgens:
-    if not is_overrideable(fgen):
+    if not requires_registration(fgen, overrides):
       continue
     mapsig_key = get_mapsig_key(fgen.mapsig)
     if mapsig_key in overrides:
@@ -1020,30 +1033,44 @@ def generate_registrations(fgens, overrides):
       pos = fgen.funsig.find('(')
       overload = fgen.funsig[:pos] + ' (*)' + fgen.funsig[pos:]
       unboxed = generate_unboxed(fgen.aten_sig, overload, override_fn)
-      if fgen.mapsig in _FN_FULL_OVERRIDE:
-        preautograd_code += unboxed
+      if fgen.mapsig in _FN_AUTOGRAD_XLA:
+        autogradxla_code += unboxed
       else:
         aten_code += unboxed
-  return aten_code + '\n}\n' + preautograd_code + '\n}\n', overridden
+  return aten_code + '\n}\n' + autogradxla_code + '\n}\n', overridden
 
 
-# XLA is only able to override leaf ops and whitelisted non-leaf ops.
-def is_overrideable(fgen):
-  return fgen.leaf or fgen.mapsig in _FN_FULL_OVERRIDE or fgen.func in _FN_FULL_OVERRIDE
+# For an op that requires_lowering=True:
+#   - If XLA has a lowering in AtenXlaType, we register that kernel to XLA dispatch key.
+#   - If XLA doesn't have a lowering in AtenXlaType, we generate one in AtenXlaTypeDefault
+#     and register that kernel to XLA dispatch key.
+# For an op that requires_lowering=False, has_xla_lowering=True:
+#   - xla lowering in AtenXlaType will be registerd to XLA dispatch key and used.
+#     (note this is new since it was impossible to override composite op before)
+# For an op that has_autogradxla=True:
+#   - the kernel must have both forward and backward implemented and it's registered to
+#     AutogradXLA dispatch key.
+#     Backends should only use this when Autograd kernel in PyTorch codebase doesn't fit.
+#     E.g max_pool2d which enforce materializing indices for backward pass to use.
+def requires_registration(fgen, overrides):
+  requires_lowering = fgen.dispatch and not fgen.math
+  has_xla_lowering = get_mapsig_key(fgen.mapsig) in overrides
+  has_autogradxla = fgen.mapsig in _FN_AUTOGRAD_XLA or fgen.func in _FN_AUTOGRAD_XLA
+  return requires_lowering or has_xla_lowering or has_autogradxla
 
 
-def generate_functions(fgens):
+def generate_functions(fgens, overrides):
   code = ''
   for fgen in fgens:
-    if fgen.code and is_overrideable(fgen):
+    if fgen.code and requires_registration(fgen, overrides):
       code += '{}\n\n'.format(fgen.code)
   return code
 
 
-def generate_class_functions(fgens):
+def generate_class_functions(fgens, overrides):
   code = ''
   for fgen in fgens:
-    if fgen.code and is_overrideable(fgen):
+    if fgen.code and requires_registration(fgen, overrides):
       code += '  static {};\n'.format(fgen.rwsig)
   return code
 
@@ -1103,8 +1130,8 @@ def generate(args):
       'Generated {} wrappers for {}'.format(len(fgens), args.typedef),
       file=sys.stderr)
 
-  functions = generate_functions(fgens)
-  hfunctions = generate_class_functions(fgens)
+  functions = generate_functions(fgens, overrides)
+  hfunctions = generate_class_functions(fgens, overrides)
   regs, overridden = generate_registrations(fgens, overrides)
   assert check_overrides(overrides, overridden)
   # Create output files ...

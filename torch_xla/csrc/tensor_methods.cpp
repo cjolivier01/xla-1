@@ -123,6 +123,7 @@
 #include "torch_xla/csrc/ops/upsample_nearest2d.h"
 #include "torch_xla/csrc/ops/upsample_nearest2d_backward.h"
 #include "torch_xla/csrc/ops/user_computation.h"
+#include "torch_xla/csrc/ops/var.h"
 #include "torch_xla/csrc/ops/view.h"
 #include "torch_xla/csrc/shape_builder.h"
 #include "torch_xla/csrc/tensor.h"
@@ -258,6 +259,18 @@ ir::Value GetIrValueOrDefault(const XLATensor& input, at::Scalar default_value,
   return input.is_null() ? XLATensor::GetIrValueForScalar(default_value,
                                                           default_shape, device)
                          : input.GetIrValue();
+}
+
+// Returns the IR for the given input. If the IR is not a floating point value,
+// cast it to the float_type.
+ir::Value GetFloatingIrValue(const XLATensor& input,
+                             at::ScalarType float_type) {
+  ir::Value input_value = input.GetIrValue();
+  if (!xla::primitive_util::IsFloatingPointType(
+          input_value.shape().element_type())) {
+    input_value = ir::MakeNode<ir::ops::Cast>(input_value, float_type);
+  }
+  return input_value;
 }
 
 absl::optional<ir::Value> GetOptionalIrValue(const XLATensor& tensor) {
@@ -457,6 +470,14 @@ void XLATensor::acos_(XLATensor& input) {
   input.SetInPlaceIrValue(ir::ops::Acos(input.GetIrValue()));
 }
 
+XLATensor XLATensor::acosh(const XLATensor& input) {
+  return input.CreateFrom(ir::ops::Acosh(input.GetIrValue()));
+}
+
+void XLATensor::acosh_(XLATensor& input) {
+  input.SetInPlaceIrValue(ir::ops::Acosh(input.GetIrValue()));
+}
+
 XLATensor XLATensor::add(const XLATensor& input, const XLATensor& other,
                          at::Scalar alpha,
                          c10::optional<at::ScalarType> logical_element_type) {
@@ -619,12 +640,28 @@ void XLATensor::asin_(XLATensor& input) {
   input.SetInPlaceIrValue(ir::ops::Asin(input.GetIrValue()));
 }
 
+XLATensor XLATensor::asinh(const XLATensor& input) {
+  return input.CreateFrom(ir::ops::Asinh(input.GetIrValue()));
+}
+
+void XLATensor::asinh_(XLATensor& input) {
+  input.SetInPlaceIrValue(ir::ops::Asinh(input.GetIrValue()));
+}
+
 XLATensor XLATensor::atan(const XLATensor& input) {
   return input.CreateFrom(ir::ops::Atan(input.GetIrValue()));
 }
 
 void XLATensor::atan_(XLATensor& input) {
   input.SetInPlaceIrValue(ir::ops::Atan(input.GetIrValue()));
+}
+
+XLATensor XLATensor::atanh(const XLATensor& input) {
+  return input.CreateFrom(ir::ops::Atanh(input.GetIrValue()));
+}
+
+void XLATensor::atanh_(XLATensor& input) {
+  input.SetInPlaceIrValue(ir::ops::Atanh(input.GetIrValue()));
 }
 
 XLATensor XLATensor::atan2(const XLATensor& input, const XLATensor& other,
@@ -987,25 +1024,54 @@ XLATensor XLATensor::diagonal(const XLATensor& input, xla::int64 offset,
 
 XLATensor XLATensor::div(const XLATensor& input, const XLATensor& other,
                          c10::optional<at::ScalarType> logical_element_type) {
-  return input.CreateFrom(input.GetIrValue() / other.GetIrValue(),
-                          logical_element_type);
+  at::ScalarType scalar_type =
+      at::typeMetaToScalarType(c10::get_default_dtype());
+  xla::PrimitiveType input_type = input.shape().get().element_type();
+  xla::PrimitiveType other_type = other.shape().get().element_type();
+  bool input_is_float = xla::primitive_util::IsFloatingPointType(input_type);
+  bool other_is_float = xla::primitive_util::IsFloatingPointType(other_type);
+  if (input_is_float && !other_is_float) {
+    scalar_type = TensorTypeFromXlaType(input_type);
+  } else if (!input_is_float && other_is_float) {
+    scalar_type = TensorTypeFromXlaType(other_type);
+  }
+  ir::Value input_value = GetFloatingIrValue(input, scalar_type);
+  ir::Value other_value = GetFloatingIrValue(other, scalar_type);
+
+  // Promote the result to the logical_element_type if one of the
+  // input and the other is float. If that is not the case logical_element_type
+  // will be non-floating-point type.
+  if (input_is_float || other_is_float) {
+    return input.CreateFrom(input_value / other_value, logical_element_type);
+  } else {
+    return input.CreateFrom(input_value / other_value, scalar_type);
+  }
 }
 
-XLATensor XLATensor::div(const XLATensor& input, at::Scalar other,
-                         c10::optional<at::ScalarType> logical_element_type) {
-  ir::Value constant = GetIrValueForScalar(
-      other, input.shape(), logical_element_type, input.GetDevice());
-  return input.CreateFrom(input.GetIrValue() / constant, logical_element_type);
+XLATensor XLATensor::div(const XLATensor& input, at::Scalar other) {
+  at::ScalarType scalar_type =
+      at::typeMetaToScalarType(c10::get_default_dtype());
+  ir::Value input_value = GetFloatingIrValue(input, scalar_type);
+  ir::Value other_value = GetIrValueForScalar(
+      other, input_value.shape().element_type(), input.GetDevice());
+  return input.CreateFrom(input_value / other_value, scalar_type);
 }
 
 void XLATensor::div_(XLATensor& input, const XLATensor& other) {
-  input.SetInPlaceIrValue(input.GetIrValue() / other.GetIrValue());
+  at::ScalarType scalar_type =
+      at::typeMetaToScalarType(c10::get_default_dtype());
+  ir::Value input_value = GetFloatingIrValue(input, scalar_type);
+  ir::Value other_value = GetFloatingIrValue(other, scalar_type);
+  input.SetInPlaceIrValue(input_value / other_value);
 }
 
 void XLATensor::div_(XLATensor& input, at::Scalar other) {
-  ir::Value constant =
-      GetIrValueForScalar(other, input.shape(), input.GetDevice());
-  input.SetInPlaceIrValue(input.GetIrValue() / constant);
+  at::ScalarType scalar_type =
+      at::typeMetaToScalarType(c10::get_default_dtype());
+  ir::Value input_value = GetFloatingIrValue(input, scalar_type);
+  ir::Value other_value = GetIrValueForScalar(
+      other, input_value.shape().element_type(), input.GetDevice());
+  input.SetInPlaceIrValue(input_value / other_value);
 }
 
 XLATensor XLATensor::eq(const XLATensor& input, at::Scalar other) {
@@ -2307,17 +2373,18 @@ XLATensor XLATensor::slice(const XLATensor& input, xla::int64 dim,
 
 XLATensor XLATensor::smooth_l1_loss(const XLATensor& input,
                                     const XLATensor& target,
-                                    xla::int64 reduction) {
-  return tensor_ops::SmoothL1Loss(input, target,
-                                  GetXlaReductionMode(reduction));
+                                    xla::int64 reduction, double beta) {
+  return tensor_ops::SmoothL1Loss(input, target, GetXlaReductionMode(reduction),
+                                  beta);
 }
 
 XLATensor XLATensor::smooth_l1_loss_backward(const XLATensor& grad_output,
                                              const XLATensor& input,
                                              const XLATensor& target,
-                                             xla::int64 reduction) {
+                                             xla::int64 reduction,
+                                             double beta) {
   return tensor_ops::SmoothL1LossBackward(grad_output, input, target,
-                                          GetXlaReductionMode(reduction));
+                                          GetXlaReductionMode(reduction), beta);
 }
 
 XLATensor XLATensor::softmax(const XLATensor& input, xla::int64 dim,
@@ -2656,36 +2723,6 @@ void XLATensor::triu_(XLATensor& input, xla::int64 diagonal) {
   input.SetIrValue(ir::MakeNode<ir::ops::Triu>(input.GetIrValue(), diagonal));
 }
 
-XLATensor XLATensor::true_divide(const XLATensor& input,
-                                 const XLATensor& other) {
-  at::ScalarType scalar_type =
-      at::typeMetaToScalarType(c10::get_default_dtype());
-  ir::Value input_value = input.GetIrValue();
-  ir::Value other_value = other.GetIrValue();
-  if (!xla::primitive_util::IsFloatingPointType(
-          input_value.shape().element_type())) {
-    input_value = ir::MakeNode<ir::ops::Cast>(input_value, scalar_type);
-  }
-  if (!xla::primitive_util::IsFloatingPointType(
-          other_value.shape().element_type())) {
-    other_value = ir::MakeNode<ir::ops::Cast>(other_value, scalar_type);
-  }
-  return input.CreateFrom(input_value / other_value, scalar_type);
-}
-
-XLATensor XLATensor::true_divide(const XLATensor& input, at::Scalar other) {
-  at::ScalarType scalar_type =
-      at::typeMetaToScalarType(c10::get_default_dtype());
-  ir::Value input_value = input.GetIrValue();
-  ir::Value other_value =
-      GetIrValueForScalar(other, xla::PrimitiveType::F32, input.GetDevice());
-  if (!xla::primitive_util::IsFloatingPointType(
-          input_value.shape().element_type())) {
-    input_value = ir::MakeNode<ir::ops::Cast>(input_value, scalar_type);
-  }
-  return input.CreateFrom(input_value / other_value, scalar_type);
-}
-
 XLATensor XLATensor::trunc(const XLATensor& input) {
   return input.CreateFrom(ir::ops::Trunc(input.GetIrValue()));
 }
@@ -2770,6 +2807,16 @@ XLATensor XLATensor::view(const XLATensor& input,
       XlaHelpers::GetDynamicReshape(input_shape, complete_dimensions);
   ViewInfo view_info(ViewInfo::Type::kReshape, std::move(shape), input_shape);
   return input.CreateViewTensor(std::move(view_info));
+}
+
+XLATensor XLATensor::var(const XLATensor& input,
+                         std::vector<xla::int64> dimensions, bool unbiased,
+                         bool keep_reduced_dimensions) {
+  return input.CreateFrom(
+      ir::MakeNode<ir::ops::Var>(input.GetIrValue(),
+                                 XlaHelpers::GetCanonicalDimensionIndices(
+                                     dimensions, input.shape().get().rank()),
+                                 unbiased, keep_reduced_dimensions));
 }
 
 void XLATensor::zero_(XLATensor& input) {

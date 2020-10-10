@@ -1395,6 +1395,11 @@ class TestAtenXlaTensor(XlaTestCase):
     self.assertRaises(RuntimeError, lambda: torch.min(xla_a, dim=1))
     self.assertRaises(RuntimeError, lambda: torch.min(xla_a))
 
+  def test_reduction_unordered_dim(self):
+    self.runAtenTest(
+        torch.rand(4, 3, 4, 2),
+        lambda x: torch.mean(x, (-1, -3, -2), keepdim=True))
+
   def test_index_select_0dim(self):
 
     def test_fn(s, i):
@@ -1847,6 +1852,30 @@ class TestOpBuilder(XlaTestCase):
         op_fn,
         aten_fn=aten_fn,
         kwargs={'limit': 10})
+
+  def test_triangular_solve(self):
+
+    def op_fn(b, A, lower, unit_diagonal, transpose_a):
+      return A.triangualr_solve(b, True, lower, unit_diagonal, transpose_a)
+
+    def aten_fn(b, A, lower, unit_diagonal, transpose_a):
+      return torch.triangular_solve(
+          b,
+          A,
+          upper=not lower,
+          unitriangular=unit_diagonal,
+          transpose=transpose_a)
+
+    self.runOpBuilderTest(
+        'test_triangular_solve',
+        [torch.randn(2, 3), torch.randn(2, 2).triu()],
+        op_fn,
+        aten_fn=aten_fn,
+        kwargs={
+            'lower': False,
+            'unit_diagonal': False,
+            'transpose_a': False
+        })
 
 
 class MpDecoratorTest(XlaTestCase):

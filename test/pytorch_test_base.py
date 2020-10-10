@@ -15,6 +15,7 @@ TORCH_TEST_PRECIIONS = {
     # test_name : floating_precision,
     'test_pow_xla_float32': 0.0035,
     'test_pow_xla_float64': 0.0045,
+    'test_var_neg_dim_xla_bfloat16': 0.01
 }
 
 DISABLED_TORCH_TESTS_ANY = {
@@ -183,6 +184,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_maximum_minimum_type_promotion_xla_.*bfloat16.*',  # doesn't raise
         'test_index_add_mem_overlap',  # doesn't raise
         'test_shift_mem_overlap',  # doesn't raise
+        'test_matrix_exp_analytic_xla',  # server side crash
     },
     'TestViewOpsXLA': {
         'test_contiguous_nonview',
@@ -258,6 +260,7 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_half',  # half support
         'test_complex_promotion',  # complex support
         'test_complex_scalar_mult_tensor_promotion',  # complex support
+        'test_div_promotion_inplace_xla',  # doesn't raise
     }
 }
 
@@ -302,12 +305,19 @@ DISABLED_TORCH_TESTS_TPU_ONLY = {
         'test_block_diag_scipy',  # failed to handle np.complex128 as input to tensor.
         'test_remainder_fmod_large_dividend_xla',  # precision, remainder with 1e9 gives incorrect answer
         'test_logical_not_out_xla',  # constant with type f16 and f64 is not supported
-        'test_matrix_exp_analytic_xla',  # server side crash
+        'test_i0_range1_xla_bfloat16',  # precision, 52480.0 vs. 54016.0
+        'test_i0_range2_xla_bfloat16',  # precision, 7.019985352739087e+36 vs. 5.815372481559007e+36
+        'test_bucketization_xla',  # server side crash
     },
 
     # test_indexing.py
     'TestIndexingXLA': {
         'test_index_put_accumulate_large_tensor_xla',  # memory limit exceeded on v2-8
+    },
+
+    # test_nn.py
+    'TestNNDeviceTypeXLA': {
+        'test_embedding_bag_empty_input_xla',  # server side crash
     },
 
     # test_type_promotion.py

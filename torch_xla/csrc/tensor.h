@@ -311,6 +311,9 @@ class XLATensor {
   static XLATensor acos(const XLATensor& input);
   static void acos_(XLATensor& input);
 
+  static XLATensor acosh(const XLATensor& input);
+  static void acosh_(XLATensor& input);
+
   static XLATensor add(
       const XLATensor& input, const XLATensor& other, at::Scalar alpha,
       c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
@@ -365,8 +368,14 @@ class XLATensor {
   static XLATensor asin(const XLATensor& input);
   static void asin_(XLATensor& input);
 
+  static XLATensor asinh(const XLATensor& input);
+  static void asinh_(XLATensor& input);
+
   static XLATensor atan(const XLATensor& input);
   static void atan_(XLATensor& input);
+
+  static XLATensor atanh(const XLATensor& input);
+  static void atanh_(XLATensor& input);
 
   static XLATensor atan2(
       const XLATensor& input, const XLATensor& other,
@@ -513,9 +522,7 @@ class XLATensor {
   static XLATensor div(
       const XLATensor& input, const XLATensor& other,
       c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
-  static XLATensor div(
-      const XLATensor& input, at::Scalar other,
-      c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
+  static XLATensor div(const XLATensor& input, at::Scalar other);
   static void div_(XLATensor& input, const XLATensor& other);
   static void div_(XLATensor& input, at::Scalar other);
 
@@ -1026,14 +1033,14 @@ class XLATensor {
   // Computes a loss that uses a squared term if the absolute element-wise error
   // falls below 1 and an L1 term otherwise.
   static XLATensor smooth_l1_loss(const XLATensor& input,
-                                  const XLATensor& target,
-                                  xla::int64 reduction);
+                                  const XLATensor& target, xla::int64 reduction,
+                                  double beta);
 
   // Returns the gradient of the input of a smooth_l1_loss operation.
   static XLATensor smooth_l1_loss_backward(const XLATensor& grad_output,
                                            const XLATensor& input,
                                            const XLATensor& target,
-                                           xla::int64 reduction);
+                                           xla::int64 reduction, double beta);
 
   static XLATensor softmax(const XLATensor& input, xla::int64 dim,
                            c10::optional<at::ScalarType> dtype);
@@ -1152,10 +1159,6 @@ class XLATensor {
   // In-place version of the method above.
   static void triu_(XLATensor& input, xla::int64 diagonal);
 
-  static XLATensor true_divide(const XLATensor& input, const XLATensor& other);
-
-  static XLATensor true_divide(const XLATensor& input, at::Scalar other);
-
   static XLATensor trunc(const XLATensor& input);
   static void trunc_(XLATensor& input);
 
@@ -1185,6 +1188,10 @@ class XLATensor {
   static XLATensor upsample_nearest2d_backward(
       const XLATensor& grad_output, std::vector<xla::int64> output_size,
       std::vector<xla::int64> input_size);
+
+  static XLATensor var(const XLATensor& input,
+                       std::vector<xla::int64> dimensions, bool unbiased,
+                       bool keep_reduced_dimensions);
 
   // Like reshape, but it returns a view into the original tensor.
   static XLATensor view(const XLATensor& input,

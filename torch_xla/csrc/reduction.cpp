@@ -1,6 +1,7 @@
 #include "torch_xla/csrc/reduction.h"
 
 #include <cmath>
+#include <unordered_set>
 
 #include "tensorflow/compiler/xla/client/lib/arithmetic.h"
 #include "tensorflow/compiler/xla/client/lib/constants.h"
@@ -26,10 +27,10 @@ ReductionInfo GetReductionInfo(xla::XlaOp input, const xla::Shape& shape,
                                absl::Span<const xla::int64> dimensions,
                                bool keep_reduced_dimensions) {
   ReductionInfo rinfo;
-  size_t idim = 0;
+  std::unordered_set<xla::int64> reduced_dimensions(dimensions.begin(),
+                                                    dimensions.end());
   for (xla::int64 i = 0; i < shape.rank(); ++i) {
-    if (idim < dimensions.size() && dimensions[idim] == i) {
-      ++idim;
+    if (reduced_dimensions.count(i) > 0) {
       if (keep_reduced_dimensions) {
         rinfo.new_dimensions.push_back(1);
       }
@@ -441,6 +442,26 @@ xla::XlaOp BuildAny(xla::XlaOp input, absl::Span<const xla::int64> dimensions,
     result = XlaHelpers::DynamicReshape(result, rinfo.new_dimensions);
   }
   return result;
+}
+
+xla::XlaOp BuildVar(xla::XlaOp input, absl::Span<const xla::int64> dimensions,
+                    bool unbiased, bool keep_reduced_dimensions) {
+  const xla::Shape& input_shape = XlaHelpers::ShapeOfXlaOp(input);
+  SummationResult mean_result =
+      CreateSummation(input, dimensions, /*keep_reduced_dimensions=*/true,
+                      /*scale=*/true);
+  // var = ((input - mean)^2).sum(dim) / reduced_element_count
+  xla::XlaOp diff = input - mean_result.result;
+  xla::XlaOp unscaled_result =
+      CreateSummation(diff * diff, dimensions, keep_reduced_dimensions,
+                      /*scale=*/false)
+          .result;
+  xla::XlaOp count = mean_result.rinfo.element_count.size;
+  if (unbiased) {
+    count = count - xla::One(input.builder(),
+                             XlaHelpers::ShapeOfXlaOp(count).element_type());
+  }
+  return GetScaleValue(unscaled_result, count, input_shape.element_type());
 }
 
 xla::XlaOp BuildLogsumexp(xla::XlaOp input,

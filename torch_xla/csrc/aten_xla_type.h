@@ -80,6 +80,10 @@ class AtenXlaType {
 
   static at::Tensor& acos_(at::Tensor& self);
 
+  static at::Tensor acosh(const at::Tensor& self);
+
+  static at::Tensor& acosh_(at::Tensor& self);
+
   static at::Tensor add(const at::Tensor& self, const at::Tensor& other,
                         at::Scalar alpha);
 
@@ -138,13 +142,21 @@ class AtenXlaType {
 
   static at::Tensor& asin_(at::Tensor& self);
 
+  static at::Tensor asinh(const at::Tensor& self);
+
+  static at::Tensor& asinh_(at::Tensor& self);
+
   static at::Tensor atan(const at::Tensor& self);
+
+  static at::Tensor atanh(const at::Tensor& self);
 
   static at::Tensor atan2(const at::Tensor& self, const at::Tensor& other);
 
   static at::Tensor& atan2_(at::Tensor& self, const at::Tensor& other);
 
   static at::Tensor& atan_(at::Tensor& self);
+
+  static at::Tensor& atanh_(at::Tensor& self);
 
   static at::Tensor avg_pool2d(const at::Tensor& self,
                                at::IntArrayRef kernel_size,
@@ -228,10 +240,6 @@ class AtenXlaType {
   static at::Tensor ceil(const at::Tensor& self);
 
   static at::Tensor& ceil_(at::Tensor& self);
-
-  static at::Tensor celu(const at::Tensor& self, at::Scalar alpha);
-
-  static at::Tensor& celu_(at::Tensor& self, at::Scalar alpha);
 
   static at::Tensor cholesky(const at::Tensor& self, bool upper);
 
@@ -681,11 +689,6 @@ class AtenXlaType {
                              bool train, double eps,
                              std::array<bool, 3> output_mask);
 
-  static std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm(
-      const at::Tensor& input, const c10::optional<at::Tensor>& weight,
-      const c10::optional<at::Tensor>& bias, int64_t N, int64_t C, int64_t HxW,
-      int64_t group, double eps);
-
   static std::tuple<at::Tensor, at::Tensor, at::Tensor>
   native_group_norm_backward(const at::Tensor& grad_out,
                              const at::Tensor& input, const at::Tensor& mean,
@@ -892,12 +895,13 @@ class AtenXlaType {
                           int64_t end, int64_t step);
 
   static at::Tensor smooth_l1_loss(const at::Tensor& self,
-                                   const at::Tensor& target, int64_t reduction);
+                                   const at::Tensor& target, int64_t reduction,
+                                   double beta);
 
   static at::Tensor smooth_l1_loss_backward(const at::Tensor& grad_output,
                                             const at::Tensor& self,
                                             const at::Tensor& target,
-                                            int64_t reduction);
+                                            int64_t reduction, double beta);
 
   static at::Tensor softplus(const at::Tensor& self, at::Scalar beta,
                              at::Scalar threshold);
@@ -1016,11 +1020,6 @@ class AtenXlaType {
 
   static at::Tensor& triu_(at::Tensor& self, int64_t diagonal);
 
-  static at::Tensor true_divide(const at::Tensor& self,
-                                const at::Tensor& other);
-
-  static at::Tensor true_divide(const at::Tensor& self, at::Scalar other);
-
   static at::Tensor trunc(const at::Tensor& self);
 
   static at::Tensor& trunc_(at::Tensor& self);
@@ -1055,6 +1054,11 @@ class AtenXlaType {
                                                 at::IntArrayRef input_size,
                                                 c10::optional<double> scales_h,
                                                 c10::optional<double> scales_w);
+
+  static at::Tensor var(const at::Tensor& self, bool unbiased);
+
+  static at::Tensor var(const at::Tensor& self, at::IntArrayRef dim,
+                        bool unbiased, bool keepdim);
 
   static at::Tensor view(const at::Tensor& self, at::IntArrayRef size);
 

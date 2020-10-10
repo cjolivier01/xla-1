@@ -13,11 +13,23 @@
 #   VERSIONED_XLA_BUILD
 #     creates a versioned build
 #
+#   TORCH_XLA_PACKAGE_NAME
+#     change the package name to something other than 'torch_xla'
+#
 #   COMPILE_PARALLEL=1
 #     enable parallel compile
 #
 #   BUILD_CPP_TESTS=1
 #     build the C++ tests
+#
+#   XLA_DEBUG=0
+#     build the xla/xrt client in debug mode
+#
+#   XLA_BAZEL_VERBOSE=0
+#     turn on verbose messages during the bazel build of the xla/xrt client
+#
+#   XLA_CUDA=0
+#     build the xla/xrt client with CUDA enabled
 #
 
 from __future__ import print_function
