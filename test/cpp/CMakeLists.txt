@@ -18,6 +18,11 @@ execute_process(COMMAND
 
 project(ptxla_test)
 
+if (NOT TF_RENAME_NAMESPACE)
+  set(TF_RENAME_NAMESPACE ptxla_tf)
+endif()
+add_definitions(-Dtensorflow=${TF_RENAME_NAMESPACE})
+
 find_package(PythonLibs)
 message(STATUS "PT_DIR=${PT_DIR}")
 set(Torch_DIR "${PT_DIR}/torch/share/cmake/Torch")
