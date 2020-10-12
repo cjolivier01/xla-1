@@ -667,7 +667,7 @@ def generate_entry_debug_code(t, fname, params, fname_ns=None):
     code += '  XLA_COUNTER("{}::{}", 1);\n'.format(fname_ns, fname)
   # VLOG info. Use the following to see debug output:
   #  export TF_CPP_VMODULE=aten_xla_type_default=3
-  code += '  torch_xla::ir::ScopePusher _scope_push(\"{}::{}\");\n'.format(
+  code += '  torch_xla::ir::ScopePusher _scope_push(\"ptxla::{}::{}\");\n'.format(
     fname_ns, fname)
   code += '  TF_VLOG(3) << "XLA {} :"'.format(fname)
   for p in params:
