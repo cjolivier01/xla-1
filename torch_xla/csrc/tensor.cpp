@@ -245,7 +245,7 @@ xla::ComputationClient::DataPtr GetDeviceData(at::Scalar value,
 
 bool AllNumbersSpecialScalar() {
   static bool all_scalar_numbers_special =
-      xla::sys_util::GetEnvBool("XLA_ALL_NUMBERS_SPECIAL_SCALARS", false);
+      DebugUtil::ExperimentEnabled("allscalarspec");
   return all_scalar_numbers_special;
 }
 

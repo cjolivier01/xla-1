@@ -222,3 +222,4 @@ else()
 endif()
 
 #add_subdirectory(test/cpp)
+#add_dependencies(xlac test_ptxla)
