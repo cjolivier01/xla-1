@@ -37,6 +37,8 @@ struct UserMetaData {
 struct MetaData {
   std::string scope;
   std::vector<SourceLocation> frame_info;
+  // Frontend attributes use a map for determinism
+  std::map<std::string, std::string> frontend_attributes;
 };
 
 // Represents a use of the output of a given node.
@@ -284,6 +286,15 @@ struct ScopePusher {
   static void ResetScopes();
   static std::size_t Depth();
   static std::string CurrentScope();
+};
+
+struct FrontendAttributePusher {
+  explicit FrontendAttributePusher(std::string key, std::string value);
+  ~FrontendAttributePusher();
+  static const std::unordered_map<std::string, std::string>& GetFrontendAttributes();
+private:
+    const std::string key_;
+    std::string previous_value_;
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const Node& node) {

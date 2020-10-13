@@ -18,9 +18,48 @@ namespace torch_xla {
 namespace ir {
 namespace {
 
+class FrontendAttributeSetter {
+ public:
+  FrontendAttributeSetter(
+      xla::XlaBuilder* builder,
+      const std::map<std::string, std::string>& attributes)
+      : builder_(builder) {
+    if (!attributes.empty()) {
+      set_ = true;
+      xla::FrontendAttributes frontend_attributes;
+      frontend_attributes.CopyFrom(builder_->frontend_attributes());
+      for (const auto& item : attributes) {
+        frontend_attributes.mutable_map()->insert({item.first, item.second});
+      }
+      save_ = builder->SwapFrontendAttributes(frontend_attributes);
+    }
+  }
+  ~FrontendAttributeSetter() {
+    if (set_) {
+      builder_->ClearOpMetadata();
+      builder_->SetFrontendAttributes(save_);
+    }
+  }
+  std::string Dump() {
+    std::stringstream ss;
+    for (const auto& item : builder_->frontend_attributes().map()) {
+      ss << item.first << " -> " << item.second << ", ";
+    }
+    return ss.str();
+  }
+
+ private:
+  xla::XlaBuilder* builder_;
+  xla::FrontendAttributes save_;
+  bool set_ = false;
+};
+
 class HloMetadataSetter {
  public:
-  HloMetadataSetter(LoweringContext* loctx, const Node* node) {
+  HloMetadataSetter(LoweringContext* loctx, const Node* node)
+      : frontend_attribute_scope_(
+            loctx->builder(),
+            node->metadata().frontend_attributes) {
     if (ShouldPopulateXlaOpMetadata()) {
       PopulateXlaOpMetadata(loctx, node);
       loctx_ = loctx;
@@ -69,45 +108,8 @@ class HloMetadataSetter {
     }
     loctx->builder()->SetOpMetadata(std::move(metadata));
   }
-
+  FrontendAttributeSetter frontend_attribute_scope_;
   LoweringContext* loctx_ = nullptr;
-};
-
-class FrontendAttributeScope {
- public:
-  FrontendAttributeScope(
-      xla::XlaBuilder* builder,
-      const std::unordered_map<std::string, std::string>& attributes)
-      : builder_(builder) {
-    if (!attributes.empty()) {
-      set_ = true;
-      xla::FrontendAttributes frontend_attributes;
-      frontend_attributes.CopyFrom(builder_->frontend_attributes());
-      for (const auto& item : attributes) {
-        //(*frontend_attributes.mutable_map())[item.first] = item.second;
-        frontend_attributes.mutable_map()->insert({item.first, item.second});
-      }
-      save_ = builder->SwapFrontendAttributes(frontend_attributes);
-    }
-  }
-  ~FrontendAttributeScope() {
-    if (set_) {
-      builder_->ClearOpMetadata();
-      builder_->SetFrontendAttributes(save_);
-    }
-  }
-  std::string Dump() {
-    std::stringstream ss;
-    for (const auto& item : builder_->frontend_attributes().map()) {
-      ss << item.first << " -> " << item.second << ", ";
-    }
-    return ss.str();
-  }
-
- private:
-  xla::XlaBuilder* builder_;
-  xla::FrontendAttributes save_;
-  bool set_ = false;
 };
 
 }  // namespace
@@ -172,13 +174,7 @@ void LoweringContext::SetResult(size_t index, xla::XlaOp op) {
 
 xla::StatusOr<xla::XlaComputation> LoweringContext::Build() {
   if (!root_tuple_.empty()) {
-    xla::XlaOp root;
-    {
-      // Add the thread's frontend attrbutes to the root tuple
-      FrontendAttributeScope frontend_attribute_scope(
-          builder(), GetPythonFrontendAttributes());
-      root = xla::Tuple(builder(), root_tuple_);
-    }
+    xla::XlaOp root = xla::Tuple(builder(), root_tuple_);
     return builder()->Build(root);
   }
   return builder()->Build();

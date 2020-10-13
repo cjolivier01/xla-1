@@ -164,6 +164,8 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
 //  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
+  const auto& fa_map = FrontendAttributePusher::GetFrontendAttributes();
+  metadata_.frontend_attributes.insert(fa_map.begin(), fa_map.end());
   for (auto& operand : operands) {
     AddOperand(operand.node, operand.index);
     hash_ = xla::util::HashCombine(hash_, operand.hash());
@@ -194,6 +196,8 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
 //  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
+  const auto& fa_map = FrontendAttributePusher::GetFrontendAttributes();
+  metadata_.frontend_attributes.insert(fa_map.begin(), fa_map.end());
 }
 
 Node::~Node() {
@@ -306,6 +310,42 @@ void ScopePusher::ResetScopes() { ResetScopeContext(); }
 std::size_t ScopePusher::Depth() { return ScopeDepth(); }
 
 std::string ScopePusher::CurrentScope() { return GetCurrentScope(); }
+
+FrontendAttributePusher::FrontendAttributePusher(std::string key, std::string value)
+: key_(std::move(key))
+{
+    // Empty value means to erase from the map
+    auto found = g_frontend_attribute_context.attributes.find(key_);
+    if (found != g_frontend_attribute_context.attributes.end()) {
+        previous_value_ = std::move(found->second);
+        if (!value.empty()) {
+            found->second = std::move(value);
+        } else {
+            g_frontend_attribute_context.attributes.erase(found);
+        }
+    } else {
+        g_frontend_attribute_context.attributes.emplace(key_, std::move(value));
+    }
+}
+
+FrontendAttributePusher::~FrontendAttributePusher() {
+    auto found = g_frontend_attribute_context.attributes.find(key_);
+    // Entertain the possibility that it may have been removed within the scope
+    // by something after the push operation
+    if (found != g_frontend_attribute_context.attributes.end()) {
+        if (previous_value_.empty()) {
+            g_frontend_attribute_context.attributes.erase(found);
+        } else {
+            found->second = std::move(previous_value_);
+        }
+    } else if(!previous_value_.empty()) {
+        g_frontend_attribute_context.attributes.emplace(key_, std::move(previous_value_));
+    }
+}
+
+const std::unordered_map<std::string, std::string>& FrontendAttributePusher::GetFrontendAttributes() {
+    return g_frontend_attribute_context.attributes;
+}
 
 void PythonPushScope(std::string scope) { return PushScope(std::move(scope)); }
 void PythonPopScope() { PopScope(); }
