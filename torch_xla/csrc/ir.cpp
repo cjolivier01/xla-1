@@ -311,9 +311,18 @@ std::size_t ScopePusher::Depth() { return ScopeDepth(); }
 
 std::string ScopePusher::CurrentScope() { return GetCurrentScope(); }
 
-FrontendAttributePusher::FrontendAttributePusher(std::string key, std::string value)
-: key_(std::move(key))
+FrontendAttributePusher::FrontendAttributePusher(const std::string& key, std::string value, bool prefix_depth)
+: prefix_depth_(prefix_depth)
 {
+    if (prefix_depth_) {
+        const std::size_t current_depth = g_frontend_attribute_context.attributes.size();
+        std::stringstream ss;
+        ss << current_depth << "." << key;
+        // Allow forced overwrite in case of duplicate
+        key_ = ss.str();
+    } else {
+        key_ = key;
+    }
     // Empty value means to erase from the map
     auto found = g_frontend_attribute_context.attributes.find(key_);
     if (found != g_frontend_attribute_context.attributes.end()) {

@@ -289,12 +289,13 @@ struct ScopePusher {
 };
 
 struct FrontendAttributePusher {
-  explicit FrontendAttributePusher(std::string key, std::string value);
+  FrontendAttributePusher(const std::string& key, std::string value, bool prefix_depth = false);
   ~FrontendAttributePusher();
   static const std::unordered_map<std::string, std::string>& GetFrontendAttributes();
 private:
-    const std::string key_;
+    std::string key_;
     std::string previous_value_;
+    const bool prefix_depth_;
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const Node& node) {
