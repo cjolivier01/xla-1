@@ -292,6 +292,7 @@ struct FrontendAttributePusher {
   FrontendAttributePusher(const std::string& key, std::string value, bool prefix_depth = false);
   ~FrontendAttributePusher();
   static const std::unordered_map<std::string, std::string>& GetFrontendAttributes();
+  static void Reset();
 private:
     std::string key_;
     std::string previous_value_;

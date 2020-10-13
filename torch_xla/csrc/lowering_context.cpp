@@ -85,6 +85,7 @@ class HloMetadataSetter {
 
     std::stringstream ss;
     if (node->IsAutograd()) {
+      //raise(SIGTRAP);
       ss << "@autograd";
       if (!nmeta.scope.empty()) {
         ss << "/";
@@ -208,6 +209,12 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
 XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
+//    if (node->IsAutograd()) {
+//        std::cout << "lowering autograd node" << std::endl;
+//        if (node->metadata().frontend_attributes.size()) {
+//          std::cout << "\twith frontend attribute: " << node->metadata().frontend_attributes.begin()->first << std::endl;
+//        }
+//    }
     HloMetadataSetter meta_setter(this, node);
 
     result_ops = node->Lower(this);

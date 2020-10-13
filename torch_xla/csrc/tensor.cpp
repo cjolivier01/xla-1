@@ -44,6 +44,8 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
+namespace aten_tensor_ops { void ResetMatchedScope(); }
+
 namespace torch_xla {
 namespace {
 
@@ -1403,6 +1405,8 @@ void XLATensor::MarkStep(const Device& device) {
   XLA_COUNTER("MarkStep", 1);
   DeviceContextArena::Get()->MarkStep(device);
   ir::ScopePusher::ResetScopes();
+  ir::FrontendAttributePusher::Reset();
+  aten_tensor_ops::ResetMatchedScope();
   g_tls_data.Reset();
 }
 

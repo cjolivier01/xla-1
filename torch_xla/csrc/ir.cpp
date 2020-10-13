@@ -162,6 +162,9 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
 //  } else {
 //    std::cout << "not autograd node" << std::endl;
 //  }
+//  if (op == ir::OpKind(at::aten::native_batch_norm_backward)) {
+//      std::cout << "Kind" << std::endl;
+//  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   const auto& fa_map = FrontendAttributePusher::GetFrontendAttributes();
@@ -201,6 +204,12 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
 }
 
 Node::~Node() {
+//  if (op_ == ir::OpKind(at::aten::native_batch_norm_backward)) {
+//      std::cout << "Kind" << std::endl;
+//  }
+//  if (is_autograd_ && metadata_.frontend_attributes.size()) {
+//    std::cout << "Destroying node: " << metadata_.frontend_attributes.begin()->first << std::endl;
+//  }
   for (size_t i = 0; i < operands_as_outputs_.size(); ++i) {
     operands_[i]->RemoveUse(Use(this, i, operands_as_outputs_[i].index));
   }
@@ -333,7 +342,7 @@ FrontendAttributePusher::FrontendAttributePusher(const std::string& key, std::st
             g_frontend_attribute_context.attributes.erase(found);
         }
     } else {
-        g_frontend_attribute_context.attributes.emplace(key_, std::move(value));
+        g_frontend_attribute_context.attributes.insert(std::make_pair(key_, std::move(value)));
     }
 }
 
@@ -348,12 +357,16 @@ FrontendAttributePusher::~FrontendAttributePusher() {
             found->second = std::move(previous_value_);
         }
     } else if(!previous_value_.empty()) {
-        g_frontend_attribute_context.attributes.emplace(key_, std::move(previous_value_));
+        g_frontend_attribute_context.attributes.insert(std::make_pair(key_, std::move(previous_value_)));
     }
 }
 
 const std::unordered_map<std::string, std::string>& FrontendAttributePusher::GetFrontendAttributes() {
     return g_frontend_attribute_context.attributes;
+}
+
+void FrontendAttributePusher::Reset() {
+    return g_frontend_attribute_context.attributes.clear();
 }
 
 void PythonPushScope(std::string scope) { return PushScope(std::move(scope)); }
