@@ -9,22 +9,21 @@ namespace aten_tensor_ops {
 
 namespace {
 constexpr const char* MATCHED_OP = "MATCHED_OP";
-std::atomic<std::size_t> matched_scope_fwd{0}, matched_scope_bwd{0};
+std::atomic<std::size_t> matched_scope{0};
 std::string match_name(bool fwd) {
     std::stringstream ss;
     ss << MATCHED_OP;
     if (fwd) {
-        ss << ".FWD." << ++matched_scope_fwd;
+        ss << ".FWD." << ++matched_scope;
     } else {
-        ss << ".BWD." << ++matched_scope_bwd;
+        ss << ".BWD." << ++matched_scope;
     }
     return ss.str();
 }
 }  // namespace
 
 void ResetMatchedScope() {
-    matched_scope_fwd = 0;
-    matched_scope_bwd = 0;
+    matched_scope = 0;
 }
 
 std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
