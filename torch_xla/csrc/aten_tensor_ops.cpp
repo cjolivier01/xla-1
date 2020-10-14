@@ -30,6 +30,8 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
     const at::Tensor& grad_out, const at::Tensor& input, const at::Tensor& mean,
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t N,
     int64_t C, int64_t HxW, int64_t group, std::array<bool, 3> output_mask) {
+  torch_xla::ir::FrontendAttributePusher fattr(
+      match_name(true), "native_group_norm::backward", /*prefix_depth=*/true);
   at::Tensor grad_input = grad_out;
   std::vector<int64_t> affine_param_shape(input.dim(), 1);
   affine_param_shape[1] = C;
