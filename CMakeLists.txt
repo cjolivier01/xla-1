@@ -119,6 +119,7 @@ if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 endif()
 
 link_directories(${CMAKE_BINARY_DIR}/lib)
+link_directories(${TORCH_PATH}/torch/lib)
 
 set(XLAC_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7)
 
@@ -129,8 +130,8 @@ set_target_properties(
         ${XLAC_BINARY_DIR}
 )
 
-message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
-message(STATUS "PTPY_LIB=${PTPY_LIB}")
+#message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
+#message(STATUS "PTPY_LIB=${PTPY_LIB}")
 
 set(USE_TORCH_LIBRARIES torch torch_cpu c10 torch_python)
 
@@ -139,7 +140,7 @@ target_link_libraries(
         PUBLIC
         -Wl,--unresolved-symbols=ignore-in-shared-libs
         "${USE_TORCH_LIBRARIES}"
-        "${PTPY_LIB}"
+#        "${PTPY_LIB}"
         "${PYTHON_LIBRARY}"
         -lutil
         -pthread
@@ -147,7 +148,8 @@ target_link_libraries(
         -latomic
 )
 
-add_dependencies(${XLAC_EXTENSION_TARGET} pytorch_all)
+#add_dependencies(${XLAC_EXTENSION_TARGET} pytorch_all)
+#add_dependencies(${XLAC_EXTENSION_TARGET} ${USE_TORCH_LIBRARIES})
 
 #
 # _XLAC extension
