@@ -23,6 +23,7 @@
 #include "torch_xla/csrc/ir_util.h"
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
+#include "torch_xla/csrc/tensor_sentinel.h"
 
 namespace torch_xla {
 

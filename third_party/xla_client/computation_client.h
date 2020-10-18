@@ -18,6 +18,8 @@
 
 namespace xla {
 
+class ComputationClientFactory;
+
 class ComputationClient {
  public:
   class Data {
@@ -162,6 +164,8 @@ class ComputationClient {
     int64 kb_free = 0;
     int64 kb_total = 0;
   };
+
+  static void SetFactory(std::shared_ptr<ComputationClientFactory> factory);
 
   static std::unique_ptr<ComputationClient> Create();
 

@@ -111,8 +111,16 @@ add_compile_options(-Wno-ignored-qualifiers)
 
 set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
 
-add_library(${XLAC_EXTENSION_TARGET} SHARED ${XLA_SOURCES} ${XLA_HEADERS})
-add_dependencies(${XLAC_EXTENSION_TARGET} torch torch_python c10 shm torch_global_deps)
+set(BUILD_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/${ARCH_BUILD_DIR_NAME})
+
+#add_library(${XLAC_EXTENSION_TARGET} SHARED ${XLA_SOURCES} ${XLA_HEADERS})
+#add_dependencies(${XLAC_EXTENSION_TARGET} torch torch_python c10 shm torch_global_deps)
+
+#
+# ptxla library
+#
+add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
+add_dependencies(ptxla torch torch_python c10 shm torch_global_deps)
 
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
@@ -121,32 +129,62 @@ endif()
 link_directories(${CMAKE_BINARY_DIR}/lib)
 link_directories(${TORCH_PATH}/torch/lib)
 
-set(XLAC_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7)
-
 set_target_properties(
-        ${XLAC_EXTENSION_TARGET}
+        ptxla
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY
-        ${XLAC_BINARY_DIR}
+        ${BUILD_OUTPUT_DIR}/torch_xla/lib
 )
-
 #message(STATUS "TORCH_LIBRARIES=${TORCH_LIBRARIES}")
 #message(STATUS "PTPY_LIB=${PTPY_LIB}")
 
 set(USE_TORCH_LIBRARIES torch torch_cpu c10 torch_python)
 
 target_link_libraries(
-        ${XLAC_EXTENSION_TARGET}
+        #${XLAC_EXTENSION_TARGET}
+        ptxla
         PUBLIC
         -Wl,--unresolved-symbols=ignore-in-shared-libs
         "${USE_TORCH_LIBRARIES}"
-#        "${PTPY_LIB}"
+        #        "${PTPY_LIB}"
         "${PYTHON_LIBRARY}"
         -lutil
         -pthread
         -lstdc++
         -latomic
 )
+add_dependencies(ptxla _C _dl)
+
+# Link into develop dir position
+add_custom_command(
+        TARGET ptxla POST_BUILD
+        COMMAND mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib
+        COMMAND ln -sf $<TARGET_FILE:ptxla> ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/
+)
+
+#
+# _XLAC Python Extension Library
+#
+add_library(
+        ${XLAC_EXTENSION_TARGET}
+        ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/stub.cpp
+)
+
+set_target_properties(
+        ${XLAC_EXTENSION_TARGET}
+        PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY
+        ${BUILD_OUTPUT_DIR}
+)
+set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES BUILD_RPATH "$ORIGIN")
+set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES BUILD_RPATH "$ORIGIN/lib")
+
+target_link_libraries(
+        ${XLAC_EXTENSION_TARGET}
+        PRIVATE
+        ptxla
+)
+
 
 #add_dependencies(${XLAC_EXTENSION_TARGET} pytorch_all)
 #add_dependencies(${XLAC_EXTENSION_TARGET} ${USE_TORCH_LIBRARIES})
@@ -161,14 +199,20 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # -Wl,--copy-dt-needed-entries
 #add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
 #add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
-set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+##set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES OUTPUT_NAME "${XLAC_EXTENSION_TARGET}")
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES PREFIX "")
 #target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ptxla)
 
+add_custom_command(
+        TARGET ${XLAC_EXTENSION_TARGET} POST_BUILD
+        COMMAND ln -sf $<TARGET_FILE:${XLAC_EXTENSION_TARGET}> ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_custom_target(
         xlac ALL
-        COMMAND "ln" "-s" "-f" "$<TARGET_FILE:${XLAC_EXTENSION_TARGET}>" "${CMAKE_CURRENT_LIST_DIR}/build/${ARCH_BUILD_DIR_NAME}/${XLAC_EXTENSION_TARGET}.so"
+        #COMMAND "ln" "-s" "-f" "$<TARGET_FILE:${XLAC_EXTENSION_TARGET}>" "${CMAKE_CURRENT_LIST_DIR}/build/${ARCH_BUILD_DIR_NAME}/${XLAC_EXTENSION_TARGET}.so"
+        COMMAND echo  "xlac built"
         DEPENDS ${XLAC_EXTENSION_TARGET}
 )
 

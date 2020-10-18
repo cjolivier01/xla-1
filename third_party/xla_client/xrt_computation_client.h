@@ -6,9 +6,9 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <utility>
-#include <sstream>
 
 #include "absl/types/optional.h"
 #include "tensorflow/cc/client/client_session.h"
@@ -33,6 +33,8 @@
 #include "tensorflow/core/protobuf/tpu/topology.pb.h"
 
 namespace xla {
+
+class XrtComputationClientFactory;
 
 class XrtComputationClient : public ComputationClient {
   friend class XlaComputationProxy;
@@ -65,14 +67,14 @@ class XrtComputationClient : public ComputationClient {
               })) {}
 
     // memory on proxy device
-    XrtData(XrtComputationClient* self, std::string device, std::string proxy_device, Shape device_shape,
-            int64 handle)
-      : Data(std::move(device), std::move(device_shape)),
-        proxy_device_(std::move(proxy_device)),
-        handle_ptr(std::make_shared<XrtHandle>(
-          handle, [self, device=this->device(), handle]() {
-            self->ReleaseXrtData(device, handle);
-          })) {}
+    XrtData(XrtComputationClient* self, std::string device,
+            std::string proxy_device, Shape device_shape, int64 handle)
+        : Data(std::move(device), std::move(device_shape)),
+          proxy_device_(std::move(proxy_device)),
+          handle_ptr(std::make_shared<XrtHandle>(
+              handle, [self, device = this->device(), handle]() {
+                self->ReleaseXrtData(device, handle);
+              })) {}
 
     int64 get_handle() const { return handle_ptr->handle; }
 
@@ -82,7 +84,9 @@ class XrtComputationClient : public ComputationClient {
 
     bool HasValue() const override { return handle_ptr != nullptr; }
 
-    const std::string& device() const override { return proxy_device_.empty() ? Data::device() : proxy_device_; }
+    const std::string& device() const override {
+      return proxy_device_.empty() ? Data::device() : proxy_device_;
+    }
 
     std::string proxy_device_;
     XrtHandlePtr handle_ptr;
@@ -531,6 +535,16 @@ class XrtComputationClient : public ComputationClient {
   // feeding different TPU devices in a POD (or slice) training.
   std::unique_ptr<service::MeshService> mesh_service_;
   std::shared_ptr<std::vector<std::string>> replication_devices_;
+};
+
+class ComputationClientFactory {
+ public:
+  virtual std::unique_ptr<ComputationClient> Create(
+      XrtComputationClient::Options options,
+      std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto) {
+    return std::make_unique<XrtComputationClient>(std::move(options),
+                                                  std::move(topology_proto));
+  }
 };
 
 }  // namespace xla

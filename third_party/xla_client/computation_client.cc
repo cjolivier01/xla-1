@@ -30,6 +30,10 @@ namespace {
 
 bool verbose = false;
 
+
+std::shared_ptr<ComputationClientFactory> computation_client_factory =
+    std::make_shared<ComputationClientFactory>();
+
 struct DeviceCountDefaults {
   int num_tpus = 0;
   int num_gpus = 0;
@@ -322,6 +326,10 @@ bool ParseEnvDevices(XrtComputationClient::Options* options) {
 
 }  // namespace
 
+void ComputationClient::SetFactory(std::shared_ptr<ComputationClientFactory> factory) {
+    computation_client_factory = std::move(factory);
+}
+
 std::unique_ptr<ComputationClient> ComputationClient::Create() {
   print_environment_config();
   XrtComputationClient::Options options;
@@ -332,8 +340,12 @@ std::unique_ptr<ComputationClient> ComputationClient::Create() {
     XLA_ERROR() << "Missing XLA configuration";
   }
   PopulateLocalDevices(&options);
+#if 0
+  return computation_client_factory->Create(options, std::move(topology_proto));
+#else
   return std::unique_ptr<ComputationClient>(
       new XlaComputationProxy(options, std::move(topology_proto)));
+#endif
 }
 
 std::shared_ptr<ComputationClient::Computation> ComputationClient::Compile(
