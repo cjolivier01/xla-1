@@ -458,16 +458,12 @@ std::mutex init_devices_mutex;
 
 bool thread_local is_in_mark_step = false;
 bool thread_local is_clean_step = false;
-// bool __thread is_qualifying_step = false;
-bool thread_local is_compile_only = false;
 bool thread_local mark_step_was_on_proxy = false;
 bool thread_local prev_step_was_on_proxy = false;
 
 std::size_t proxy_compile_count = 0;
 
 }  // namespace
-
-//std::vector<std::string> XLASentinel::wse_devices_;
 
 void XLASentinel::SetAllDevices(const std::vector<std::string>& all_devices) {
   wse_devices_.clear();
@@ -478,24 +474,6 @@ void XLASentinel::SetAllDevices(const std::vector<std::string>& all_devices) {
       wse_devices_.push_back(device_str);
     }
   }
-}
-
-void XLASentinel::SetCompileOnly(bool compile_only) {
-  is_compile_only = compile_only;
-}
-
-bool XLASentinel::GetCompileOnly(XLATensor::SyncTensorCollection& coll) {
-  //  static std::size_t proxy_compile_only_count =
-  //  xla::sys_util::GetEnvInt("PROXY_COMPILE_ONLY_COUNT", 0); if
-  //  (proxy_compile_only_count && proxy_compile_count >=
-  //  proxy_compile_only_count) {
-  //    //if (IsQualifyingStep(coll.requesting_tid)) {
-  //      return true;
-  //    //}
-  //  }
-  // return is_in_mark_step && is_compile_only &&
-  // IsQualifyingStep(coll.requesting_tid);
-  return false;
 }
 
 bool XLASentinel::PreProcessHlo(xla::XlaBuilder* builder,

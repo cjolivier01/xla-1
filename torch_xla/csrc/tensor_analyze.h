@@ -225,46 +225,46 @@ class XLASentinel : public Sentinel {
 
   // Configuration
   void SetDeviceProxyAddress(const std::string& device,
-                             const std::string& proxy_address);
-  void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append);
-  bool IsInitialized();
+                             const std::string& proxy_address) override;
+  void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) override;
+  bool IsInitialized() override;
 
   // Notification handlers
   void NotifyCompile(
       std::vector<xla::ComputationClient::CompileInstance>& instances,
-      hash_t hash, pid_t tid);
+      hash_t hash, pid_t tid) override;
   void NotifyExecute(const xla::ComputationClient::Computation& computation,
-                     const std::string& device, hash_t hash, pid_t tid);
+                     const std::string& device, hash_t hash, pid_t tid) override;
   std::vector<xla::ComputationClient::DataPtr> NotifyScheduleSyncTensorsGraph(
       std::vector<XLATensor>* tensors,
       std::vector<xla::ComputationClient::DataPtr> tensors_data,
       XLATensor::SyncTensorCollection* coll,
-      std::shared_ptr<xla::ComputationClient::Computation>& computation);
+      std::shared_ptr<xla::ComputationClient::Computation>& computation) override;
 
   // Interception and external mapping
   void PostmarkHash(HashingState& state, std::vector<XLATensor>* tensors,
-                    XLATensor::SyncTensorCollection& coll);
+                    XLATensor::SyncTensorCollection& coll) override;
   bool OnHashingComplete(HashingState& state, std::vector<XLATensor>* tensors,
-                         XLATensor::SyncTensorCollection& coll);
+                         XLATensor::SyncTensorCollection& coll) override;
 
   bool PreProcessHlo(xla::XlaBuilder* builder,
-                     const XLATensor::SyncTensorCollection& coll);
+                     const XLATensor::SyncTensorCollection& coll) override;
 
-  bool IsSpecialLoweringEnabled();
+  bool IsSpecialLoweringEnabled() override;
 
-  std::map<std::string, std::string> GetStats(bool reset_stats);
+  //std::map<std::string, std::string> GetStats(bool reset_stats) override;
 
+  bool IsForcingCustomLowering() override;
+//  void SetCompileOnly(bool compile_only) override;
+//  bool GetCompileOnly(XLATensor::SyncTensorCollection& coll) override;
+  bool WasMarkStepOnProxy() override; // Maybe should be get last mark step device
+
+  void NotifyStepMarkerBegin(const std::string& device_str,
+                             const std::vector<std::string>& devices) override;
+ private:
   bool IsAllowedOutput(const XLATensor& tensor,
                        XLATensor::SyncTensorCollection& coll,
                        bool* is_restricting);
-  bool IsForcingCustomLowering();
-  void SetCompileOnly(bool compile_only);
-  bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
-  bool WasMarkStepOnProxy(); // Maybe should be get last mark step device
-
- private:
-  void NotifyStepMarkerBegin(const std::string& device_str,
-                             const std::vector<std::string>& devices);
   void NotifyStepMarkerEnd();
 
   bool IsTrainingThread(pid_t tid);

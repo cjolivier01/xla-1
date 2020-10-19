@@ -30,7 +30,7 @@ public:
   // TOP BE MOVED TO PTWSE OUT OF SENTINEL INTERFACE
   virtual bool IsInitialized() { return false; }
 
-  virtual void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append);
+  virtual void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {}
   //bool IsInitialized();
 
   /**
@@ -101,7 +101,7 @@ public:
 
   virtual bool IsSpecialLoweringEnabled() { return false; }
 
-  virtual bool IsForcingCustomLowering();
+  virtual bool IsForcingCustomLowering() { return false; }
   //  void SetCompileOnly(bool compile_only);
   //  bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
   //  bool WasMarkStepOnProxy();

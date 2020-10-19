@@ -118,7 +118,7 @@ set(BUILD_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/${ARCH_BUILD_DIR_NAME})
 # ptxla library
 #
 add_library(ptxla SHARED ${XLA_SOURCES} ${XLA_HEADERS})
-add_dependencies(ptxla torch torch_python c10 shm torch_global_deps)
+add_dependencies(ptxla torch torch_python c10 shm torch_global_deps torch_shm_manager)
 
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
