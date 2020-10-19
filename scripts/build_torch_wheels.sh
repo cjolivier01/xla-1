@@ -5,7 +5,7 @@ set -x  # Display commands being run.
 
 PYTHON_VERSION=$1
 RELEASE_VERSION=$2  # rX.Y or nightly
-DEFAULT_PYTHON_VERSION=3.6
+DEFAULT_PYTHON_VERSION=3.7
 DEBIAN_FRONTEND=noninteractive
 
 function maybe_append {
@@ -211,17 +211,17 @@ function install_torchvision_from_source() {
 }
 
 function main() {
-  setup_system
-  maybe_install_sources
-  install_req_packages
-  install_llvm_clang
+  # setup_system
+  # maybe_install_sources
+  # install_req_packages
+  # install_llvm_clang
   install_and_setup_conda
-  build_and_install_torch
-  pushd xla
-  build_and_install_torch_xla
-  popd
-  install_torchvision_from_source
-  install_gcloud
+  # build_and_install_torch
+  # pushd xla
+  # build_and_install_torch_xla
+  # popd
+  # install_torchvision_from_source
+  # install_gcloud
 }
 
 main
