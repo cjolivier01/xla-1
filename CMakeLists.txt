@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 project(pytorch_xla CXX C)
 #set(CMAKE_CXX_STANDARD 17)
 
-message(STATUS "PATH=$ENV{PATH}")
-
 include_directories(${PYTHON_INCLUDE_DIR})
 
 message(STATUS "PYTHON_VERSION_STRING=${PYTHON_VERSION_STRING}")

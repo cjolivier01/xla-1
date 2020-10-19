@@ -47,11 +47,12 @@ const bool verbose_notify_execute = false;
 const bool verbose_remove_tensors = false;
 const bool verbose_non_fabric = false;
 const bool verbose_mark_step = false;
-const bool disable_proxy = xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
+const bool disable_proxy =
+    xla::sys_util::GetEnvBool("WSE_DISABLE_PROXY", false);
 const bool prune_tensors_if_outputs_set = true;
 
 constexpr std::size_t DEFAULT_CLEAN_STEPS_UNTIL_PROXY = 1;
-}
+}  // namespace
 
 std::string mp() {
   std::stringstream ss;
@@ -222,16 +223,6 @@ void PushPythonState(EPythonState state) { _PushPythonState(state); }
 
 void PopPythonState() { python_state.pop(); }
 
-MarkStepScope::MarkStepScope(const std::string& device_str,
-                             const std::vector<std::string>& devices) {
-  if (verbose || verbose_mark_step) {
-    el_ = std::make_unique<EnterLeave>("*** MARK STEP", verbose, Color::FG_RED);
-  }
-  XLASentinel::NotifyStepMarkerBegin(device_str, devices);
-}
-
-MarkStepScope::~MarkStepScope() { XLASentinel::NotifyStepMarkerEnd(); }
-
 namespace {
 
 constexpr std::size_t INVALID_COUNT = std::numeric_limits<std::size_t>::max();
@@ -279,9 +270,9 @@ struct CompileInfo {
 //};
 // using ExecutablePtr = std::shared_ptr<Executable>;
 
-//using Int128 = std::pair<uint64_t, uint64_t>;
+// using Int128 = std::pair<uint64_t, uint64_t>;
 //
-//inline Int128 H128(const xla::hash_t& h) {
+// inline Int128 H128(const xla::hash_t& h) {
 //  const __int128 h1 = h.operator unsigned __int128();
 //  Int128 hh = std::make_pair<uint64_t, uint64_t>(
 //      (h1.operator unsigned __int128() >> 64) & 0xFFFFFFFFFFFFFFFF,
@@ -293,7 +284,7 @@ struct CompileInfo {
 typedef __int128 Int128;
 
 inline Int128 H128(const xla::hash_t& h) {
-    return h.operator unsigned __int128();
+  return h.operator unsigned __int128();
 }
 
 /**
@@ -420,13 +411,13 @@ class ExecutableCache {
 
  private:
   mutable std::recursive_mutex mtx_;
-  //std::unordered_set<Int128> executables_;  // needs to be locked?
+  // std::unordered_set<Int128> executables_;  // needs to be locked?
   std::set<Int128> executables_;  // needs to be locked?
   // absl::node_hash_map<Int128, ExecutablePtr> executables_;  // needs to be
   // locked? absl::node_hash_map<XLASentinel::hash_t, ExecutablePtr>
   // adjusted_hash_map_; absl::node_hash_map<Int128, ExecutablePtr>
   // adjusted_hash_map_;
-  //std::unordered_map<Int128, Int128> adjusted_hash_map_;
+  // std::unordered_map<Int128, Int128> adjusted_hash_map_;
   std::map<Int128, Int128> adjusted_hash_map_;
 };
 
@@ -476,7 +467,7 @@ std::size_t proxy_compile_count = 0;
 
 }  // namespace
 
-std::vector<std::string> XLASentinel::wse_devices_;
+//std::vector<std::string> XLASentinel::wse_devices_;
 
 void XLASentinel::SetAllDevices(const std::vector<std::string>& all_devices) {
   wse_devices_.clear();
@@ -612,7 +603,8 @@ bool XLASentinel::PruneTensors(std::vector<XLATensor>* tensors,
     }
   }
 
-  if (adjusted_indices.empty() || adjusted_indices.size() != coll.indices.size()) {
+  if (adjusted_indices.empty() ||
+      adjusted_indices.size() != coll.indices.size()) {
     coll.indices = std::move(adjusted_indices);
     //    if (verbose) {
     //      std::cout << "PostmarkHash(): coll.hash: " << coll.hash << " -> "
@@ -805,39 +797,40 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       }
       coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
-    } else if(prune_tensors_if_outputs_set) {
-        if (is_in_mark_step) {
-            if (prev_step_was_on_proxy) {
-                // This is a subsequent step to a proxy step, and
-                // So if we have *intentionally* set the outputs since then,
-                // prune the tensors as if it were a regular mark step.
-                // This is because if there is a mark step later,
-                // it may try to *only* pull in those pruned tensors,
-                // so if that's the case, prune them again.
-                // If the resultant list of tensors to update is empty, then
-                // a sync can be skipped (as it would have been had we not pruned the
-                // tensors in the first place)
-                if (!coll.indices.empty()) {
-                    std::vector<size_t> save_indices = coll.indices;
-                    if (PruneTensors(tensors, coll)) {
-                        if (coll.indices.empty()) {
-                            state.pre_prune_hash_ = coll.hash;
-                            coll.hash = state.start_hash_;
-                            --state.pass_;
-                            std::cout << "Pruned outputs on unknown executable.";
-                            return true;  // need to recalculate postorder with new inputs/outputs
-                        } else {
-                            // We didn't prune everything, so allow the computation to
-                            // go forward
-//                            state.pre_prune_hash_ = coll.hash;
-//                            coll.hash = state.start_hash_;
-                            coll.indices = std::move(save_indices);
-                            //return false;
-                        }
-                    }
-                }
+    } else if (prune_tensors_if_outputs_set) {
+      if (is_in_mark_step) {
+        if (prev_step_was_on_proxy) {
+          // This is a subsequent step to a proxy step, and
+          // So if we have *intentionally* set the outputs since then,
+          // prune the tensors as if it were a regular mark step.
+          // This is because if there is a mark step later,
+          // it may try to *only* pull in those pruned tensors,
+          // so if that's the case, prune them again.
+          // If the resultant list of tensors to update is empty, then
+          // a sync can be skipped (as it would have been had we not pruned the
+          // tensors in the first place)
+          if (!coll.indices.empty()) {
+            std::vector<size_t> save_indices = coll.indices;
+            if (PruneTensors(tensors, coll)) {
+              if (coll.indices.empty()) {
+                state.pre_prune_hash_ = coll.hash;
+                coll.hash = state.start_hash_;
+                --state.pass_;
+                std::cout << "Pruned outputs on unknown executable.";
+                return true;  // need to recalculate postorder with new
+                              // inputs/outputs
+              } else {
+                // We didn't prune everything, so allow the computation to
+                // go forward
+                //                            state.pre_prune_hash_ = coll.hash;
+                //                            coll.hash = state.start_hash_;
+                coll.indices = std::move(save_indices);
+                // return false;
+              }
             }
+          }
         }
+      }
     }
 
     // Note: For trusted, we don't need to analyze anything
@@ -939,7 +932,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
 }
 
 bool XLASentinel::WasMarkStepOnProxy() {
-  //assert(!is_in_mark_step);
+  // assert(!is_in_mark_step);
   return mark_step_was_on_proxy;
 }
 
@@ -1111,7 +1104,7 @@ void XLASentinel::NotifyStepMarkerBegin(
 void XLASentinel::NotifyStepMarkerEnd() {
   assert(is_in_mark_step);
 
-#if 1 // TURNED ON FOR HEADLESS TEST
+#if 1  // TURNED ON FOR HEADLESS TEST
   const pid_t tid = gettid();
   auto compile_info = GetCompileInfo(tid);
   compile_info->output_ids_.clear();

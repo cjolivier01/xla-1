@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/syscall.h>
+
 #include <map>
 #include <mutex>
 #include <ostream>
@@ -9,9 +11,7 @@
 #include "tensorflow/compiler/xla/xla_client/types.h"
 #include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "torch_xla/csrc/aten_xla_bridge.h"
-#include "torch_xla/csrc/tensor.h"
-
-#include <sys/syscall.h>
+#include "torch_xla/csrc/tensor_sentinel.h"
 
 #define ENDL std::endl << std::flush
 
@@ -68,7 +68,7 @@ class MsgException : public std::exception {
   }
   ~MsgException() noexcept {}
 
-  static std::ostream& next(std::ostream& os) {
+  std::ostream& next(std::ostream& os) {
     os.put('\n');
     return os;
   }
@@ -89,24 +89,6 @@ class MsgException : public std::exception {
 };
 
 using sentinel_exception = MsgException;
-
-struct MarkStepScope {
-  MarkStepScope(const std::string& device_str,
-                const std::vector<std::string>& devices);
-  ~MarkStepScope();
-  std::unique_ptr<xla::EnterLeave> el_;
-};
-
-struct HashingState {
-  explicit HashingState(const xla::hash_t& start_hash)
-      : start_hash_(start_hash) {};
-  const xla::hash_t start_hash_;
-  xla::hash_t pre_prune_hash_ = 0;
-  std::size_t pass_ = 0;
-  bool fabric_run_ = false;
-  bool known_executable_ =
-      false;  // optimization when we know this executable already exists
-};
 
 template <typename CB>
 void XLATensor::print_tensors(const std::string& label,
@@ -152,7 +134,7 @@ class EnvFileMacro {
    * @return std::string
    */
   static std::string file_to_macro_name(const std::string& file_name,
-                                        const std::string& prefix) {
+                                 const std::string& prefix) {
     std::stringstream ss;
     if (!prefix.empty()) {
       ss << prefix << "_";
@@ -175,8 +157,8 @@ class EnvFileMacro {
    * @return false
    */
   static bool get_file_env_bool(const std::string& file_name,
-                                bool default_value = false,
-                                const std::string& prefix = "") {
+                         bool default_value = false,
+                         const std::string& prefix = "") {
     return get_env_bool(file_to_macro_name(file_name, prefix), default_value);
   }
 };
@@ -198,23 +180,23 @@ class EnvFileMacro {
 
 class THelper {
  public:
-  static inline at::Tensor get_tensor(const XLATensor& t) {
+  inline at::Tensor get_tensor(const XLATensor& t) {
     if (t.data()->tensor_data.has_value()) {
       return t.data()->tensor_data.value();
     }
     return bridge::AtenFromXlaTensor(t);
   }
 
-  static inline bool has_tensor(const XLATensor& t) {
+  inline bool has_tensor(const XLATensor& t) {
     const at::Tensor tensor = get_tensor(t);
     return tensor.defined();
   }
 
-  static inline bool is_weight(const at::Tensor& tensor) {
+  inline bool is_weight(const at::Tensor& tensor) {
     return tensor.requires_grad() && tensor.is_leaf();
   }
 
-  static inline bool is_weight(const XLATensor& t) {
+  inline bool is_weight(const XLATensor& t) {
     at::Tensor tensor = get_tensor(t);
     if (!tensor.defined()) {
       return false;
@@ -229,7 +211,7 @@ class THelper {
   };
 
   template <typename CB>
-  static inline _Not<CB> Not(const CB cb) {
+  inline _Not<CB> Not(const CB cb) {
     return _Not<CB>{cb};
   }
 };
@@ -237,69 +219,65 @@ class THelper {
 /**
  * This is mostly an exploratory class and will go away eventually
  */
-class XLASentinel {
+class XLASentinel : public Sentinel {
  public:
   typedef xla::hash_t hash_t;
 
   // Configuration
-  static void SetDeviceProxyAddress(const std::string& device,
-                                    const std::string& proxy_address);
-  static void SetOutputs(const std::vector<at::Tensor>& output_tensors,
-                         bool append);
-  static bool IsInitialized();
+  void SetDeviceProxyAddress(const std::string& device,
+                             const std::string& proxy_address);
+  void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append);
+  bool IsInitialized();
 
   // Notification handlers
-  static void NotifyCompile(
+  void NotifyCompile(
       std::vector<xla::ComputationClient::CompileInstance>& instances,
       hash_t hash, pid_t tid);
-  static void NotifyExecute(
-      const xla::ComputationClient::Computation& computation,
-      const std::string& device, hash_t hash, pid_t tid);
-  static std::vector<xla::ComputationClient::DataPtr>
-  NotifyScheduleSyncTensorsGraph(
+  void NotifyExecute(const xla::ComputationClient::Computation& computation,
+                     const std::string& device, hash_t hash, pid_t tid);
+  std::vector<xla::ComputationClient::DataPtr> NotifyScheduleSyncTensorsGraph(
       std::vector<XLATensor>* tensors,
       std::vector<xla::ComputationClient::DataPtr> tensors_data,
       XLATensor::SyncTensorCollection* coll,
       std::shared_ptr<xla::ComputationClient::Computation>& computation);
 
   // Interception and external mapping
-  static void PostmarkHash(HashingState& state, std::vector<XLATensor>* tensors,
-                           XLATensor::SyncTensorCollection& coll);
-  static bool OnHashingComplete(HashingState& state,
-                                std::vector<XLATensor>* tensors,
-                                XLATensor::SyncTensorCollection& coll);
+  void PostmarkHash(HashingState& state, std::vector<XLATensor>* tensors,
+                    XLATensor::SyncTensorCollection& coll);
+  bool OnHashingComplete(HashingState& state, std::vector<XLATensor>* tensors,
+                         XLATensor::SyncTensorCollection& coll);
 
-  static bool PreProcessHlo(xla::XlaBuilder* builder,
-                            const XLATensor::SyncTensorCollection& coll);
+  bool PreProcessHlo(xla::XlaBuilder* builder,
+                     const XLATensor::SyncTensorCollection& coll);
 
-  static bool IsSpecialLoweringEnabled();
+  bool IsSpecialLoweringEnabled();
 
-  static std::map<std::string, std::string> GetStats(bool reset_stats);
+  std::map<std::string, std::string> GetStats(bool reset_stats);
 
-  static bool IsAllowedOutput(const XLATensor& tensor,
-                              XLATensor::SyncTensorCollection& coll,
-                              bool* is_restricting);
-  static bool IsForcingCustomLowering();
-  static void SetCompileOnly(bool compile_only);
-  static bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
-  static bool WasMarkStepOnProxy();
+  bool IsAllowedOutput(const XLATensor& tensor,
+                       XLATensor::SyncTensorCollection& coll,
+                       bool* is_restricting);
+  bool IsForcingCustomLowering();
+  void SetCompileOnly(bool compile_only);
+  bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
+  bool WasMarkStepOnProxy(); // Maybe should be get last mark step device
 
  private:
-  static void NotifyStepMarkerBegin(const std::string& device_str,
-                                    const std::vector<std::string>& devices);
-  static void NotifyStepMarkerEnd();
+  void NotifyStepMarkerBegin(const std::string& device_str,
+                             const std::vector<std::string>& devices);
+  void NotifyStepMarkerEnd();
 
-  static bool IsTrainingThread(pid_t tid);
-  static bool IsQualifyingStep(pid_t tid /*, bool or_higher = false*/);
-  static void SetAllDevices(const std::vector<std::string>& all_devices);
-  static bool HasWseDevices();
-  static bool PruneTensors(std::vector<XLATensor>* tensors,
-                           XLATensor::SyncTensorCollection& coll);
+  bool IsTrainingThread(pid_t tid);
+  bool IsQualifyingStep(pid_t tid /*, bool or_higher = false*/);
+  void SetAllDevices(const std::vector<std::string>& all_devices);
+  bool HasWseDevices();
+  bool PruneTensors(std::vector<XLATensor>* tensors,
+                    XLATensor::SyncTensorCollection& coll);
 
   //
   // Data
   //
-  static std::vector<std::string> wse_devices_;
+  std::vector<std::string> wse_devices_;
   friend struct MarkStepScope;
 };
 

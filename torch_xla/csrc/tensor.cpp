@@ -1,5 +1,4 @@
 #include "torch_xla/csrc/tensor.h"
-#include "torch_xla/csrc/tensor.h"
 
 #include <algorithm>
 #include <atomic>
@@ -36,17 +35,29 @@
 #include "torch_xla/csrc/ops/ops.h"
 #include "torch_xla/csrc/ops/view.h"
 #include "torch_xla/csrc/ops/xla_ops.h"
-#include "torch_xla/csrc/tensor_analyze.h"
+#include "torch_xla/csrc/tensor.h"
+#include "torch_xla/csrc/tensor_sentinel.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
+
+#ifndef USE_PTWSE_SENTINEL
+#include "torch_xla/csrc/tensor_analyze.h"
+#endif
 
 extern "C" {
 extern int is_autograd_thread();
 }
 
-namespace aten_tensor_ops { void ResetMatchedScope(); }
+namespace aten_tensor_ops {
+void ResetMatchedScope();
+}
 
 namespace torch_xla {
+#ifdef USE_PTWSE_SENTINEL
+std::shared_ptr<Sentinel> Sentinel::sentinel_ = std::make_shared<Sentinel>();
+#else
+std::shared_ptr<Sentinel> Sentinel::sentinel_ = std::make_shared<XLASentinel>();
+#endif
 namespace {
 
 bool verbose_alias = false;
@@ -1271,7 +1282,7 @@ std::vector<xla::ComputationClient::DataPtr> XLATensor::FetchTensorData(
     std::vector<XLATensor>* tensors, const SyncTensorsConfig& config,
     absl::Span<const size_t> indices,
     const std::unordered_map<xla::int64, xla::ComputationClient::DataPtr>*
-    uid_data_map) {
+        uid_data_map) {
   std::vector<xla::ComputationClient::DataPtr> tensors_data;
   tensors_data.reserve(indices.size());
   for (auto index : indices) {
@@ -1321,8 +1332,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
                  requesting_tid = coll->requesting_tid]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      XLASentinel::NotifyExecute(*async->cached_computation->computation,
-                                 async->device, hash, requesting_tid);
+      Sentinel::GetSentinel()->NotifyExecute(
+          *async->cached_computation->computation, async->device, hash,
+          requesting_tid);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
@@ -1365,7 +1377,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
     std::vector<xla::ComputationClient::DataPtr> parameters_data,
     std::string device, ComputationCache::TypePtr cached_computation) {
   auto tensors_data = FetchTensorData(tensors, coll->config, coll->indices);
-  tensors_data = XLASentinel::NotifyScheduleSyncTensorsGraph(
+  tensors_data = Sentinel::GetSentinel()->NotifyScheduleSyncTensorsGraph(
       tensors, tensors_data, coll, cached_computation->computation);
   return ScheduleSyncTensorsGraph(coll, std::move(parameters_data),
                                   std::move(tensors_data),
@@ -1507,7 +1519,7 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
       lowering_ctx->GetParametersData();
 
   // std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT:
-  // " << indices.size() << ENDL;
+  // " << indices.size() << std::endl << std::flush;
 
   std::vector<ssize_t> alias_map(indices.size(), -1);
   for (size_t i = 0; i < parameters_data.size(); ++i) {
@@ -1526,12 +1538,12 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
           static bool reported = false;
           if (!reported) {
             reported = true;
-            std::cout << "Alias not same shape..." << ENDL;
+            std::cout << "Alias not same shape..." << std::endl << std::flush;
           }
           // raise(SIGTRAP);
         } else if (alias_map[output_index] >= 0) {
-          std::cout << "Found duplicate aliases." << ENDL;
-          //raise(SIGTRAP);
+          std::cout << "Found duplicate aliases." << std::endl << std::flush;
+          // raise(SIGTRAP);
         }
         if (parameters_data[i]->shape() == root_shape &&
             alias_map[output_index] < 0) {
@@ -1546,17 +1558,17 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
           //                    << " with output index " << output_index << ": "
           //                    << parameters_data[i]->shape()
           //                    //<< " (id=" << tensor_id << ") "
-          //                    << ENDL;
+          //                    << std::endl << std::flush;
         } else {
           // TODO: need to put this in alias map as well
-          std::cerr << "Aliased param wrong shape or more than one?" << ENDL;
+          std::cerr << "Aliased param wrong shape or more than one?" << std::endl << std::flush;
         }
       } else {
         //        std::cout << "Input parameter " << i
         //                  << " (id=" << data_info->tensor_id << ") and shape:
         //                  "
         //                  << parameters_data[i]->shape()
-        //                  << ENDL;
+        //                  << std::endl << std::flush;
       }
     }
   }
@@ -1606,7 +1618,7 @@ XLATensor::CompilationResult XLATensor::Compile(
   }
 
   // Might add a proxy device to the Hlo
-  XLASentinel::PreProcessHlo(lowering_ctx.builder(), coll);
+  Sentinel::GetSentinel()->PreProcessHlo(lowering_ctx.builder(), coll);
 
   xla::XlaComputation computation = ConsumeValue(lowering_ctx.Build());
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());
@@ -1619,7 +1631,8 @@ XLATensor::CompilationResult XLATensor::Compile(
                            coll.device.ToString(), devices),
                        &shape});
 
-  XLASentinel::NotifyCompile(instances, coll.hash, coll.requesting_tid);
+  Sentinel::GetSentinel()->NotifyCompile(instances, coll.hash,
+                                         coll.requesting_tid);
 
   TF_VLOG(3) << "Compiling IR graph hash " << xla::util::HexHash(coll.hash)
              << " on device " << coll.device << " ...";
@@ -1642,25 +1655,25 @@ XLATensor::CompilationResult XLATensor::Compile(
           /*parameters_data=*/std::move(po_data->parameters_data)};
 }
 
-XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* tensors,
-                                                     SyncTensorCollection& coll) {
+XLATensor::PostOrderData XLATensor::GetPostOrderData(
+    std::vector<XLATensor>* tensors, SyncTensorCollection& coll) {
   HashingState state(coll.hash);
 
   PostOrderData po_data;
   std::size_t prev_indicess_size = 0;
   do {
     if (prev_indicess_size && coll.indices.empty()) {
-        // In the case that everything was pruned, drop out of the loop
-        // This would be the case, for example, that we're setting
-        // up a prune before a second mark-step call by the loader
-        // after we've dropped out of the training loop or did
-        // a minibatch execution.
-        // Outputs would need to be explicitly restricted before that
-        // step marker, or nothing will be pruned, since the otuput
-        // pruning is reset for every step.
-        break;
+      // In the case that everything was pruned, drop out of the loop
+      // This would be the case, for example, that we're setting
+      // up a prune before a second mark-step call by the loader
+      // after we've dropped out of the training loop or did
+      // a minibatch execution.
+      // Outputs would need to be explicitly restricted before that
+      // step marker, or nothing will be pruned, since the otuput
+      // pruning is reset for every step.
+      break;
     }
-    XLASentinel::PostmarkHash(state, tensors, coll);
+    Sentinel::GetSentinel()->PostmarkHash(state, tensors, coll);
 
     po_data = std::move(RunPostOrder(*tensors, coll.indices));
 
@@ -1674,7 +1687,7 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(std::vector<XLATensor>* ten
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
 
-  } while (XLASentinel::OnHashingComplete(state, tensors, coll));
+  } while (Sentinel::GetSentinel()->OnHashingComplete(state, tensors, coll));
   return std::move(po_data);
 }
 
@@ -1699,7 +1712,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
              << xla::util::HexHash(coll.hash);
 
   static int hidden_step_count = 0;
-      //xla::sys_util::GetEnvInt("XLA_HIDDEN_STEP_COUNT", 0);
+  // xla::sys_util::GetEnvInt("XLA_HIDDEN_STEP_COUNT", 0);
 
   if (!hidden_step_count) {
     std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
@@ -1707,7 +1720,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
       return async;
     }
   } else {
-
   }
 
   CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
@@ -1719,9 +1731,6 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
       std::move(compile_result.computation));
   GetComputationCache()->Add(coll.hash, cached_computation);
 
-  if (XLASentinel::GetCompileOnly(coll)) {
-    throw std::runtime_error("sentinel_compile_only");
-  }
   return ScheduleSyncTensorsGraph(
       tensors, &coll, std::move(compile_result.parameters_data),
       compile_result.device.ToString(), std::move(cached_computation));
@@ -1729,17 +1738,7 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
 
 xla::int64 XLATensor::GetNextTensorId() {
   static std::atomic<xla::int64>* id_generator = new std::atomic<xla::int64>(1);
-  xla::int64 id = id_generator->fetch_add(1);
-  //  if (id < 100) {
-  //    static std::mutex mtx;
-  //    std::lock_guard<std::mutex> lk(mtx);
-  //    std::cout << "Creating tensor id: " << id << std::endl;
-  //    if (id == 28) {
-  //      //raise(SIGTRAP);
-  //      std::cout << "Creating # 28" << std::endl << std::flush;
-  //    }
-  //  }
-  return id;
+  return id_generator->fetch_add(1);
 }
 
 ir::Value XLATensor::GetRngSeed(const Device& device) {
@@ -1762,13 +1761,11 @@ xla::uint64 XLATensor::GetRunningSeed(const Device& device) {
 std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CreateCompiledGraph(
     std::vector<XLATensor>* tensors,
     const std::shared_ptr<CachedComputation>& cached_computation,
-    SyncTensorCollection& coll,
-    const SyncTensorsConfig& config,
+    SyncTensorCollection& coll, const SyncTensorsConfig& config,
     const std::vector<XLATensor>& input_tensors,
     const std::vector<XLATensor>& output_tensors,
     const std::vector<xla::ComputationClient::DataPtr>& parameters_data,
     const CompiledGraph::DataHandleMap* dhandle_map) {
-
   std::unordered_map<xla::ComputationClient::Data::OpaqueHandle, size_t>
       input_map;
   for (size_t i = 0; i < input_tensors.size(); ++i) {
@@ -1808,9 +1805,9 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CreateCompiledGraph(
   for (size_t i = 0; i < output_tensors.size(); ++i) {
     auto it = tensors_map.find(output_tensors[i].GetUniqueId());
     XLA_CHECK(it != tensors_map.end())
-      << "Unable to map output tensor " << i << " with UID "
-      << output_tensors[i].GetUniqueId() << " and shape "
-      << output_tensors[i].shape().get();
+        << "Unable to map output tensor " << i << " with UID "
+        << output_tensors[i].GetUniqueId() << " and shape "
+        << output_tensors[i].shape().get();
     outputs_mapping.push_back(
         {it->second, output_tensors[i].data()->logical_element_type});
   }
@@ -1831,7 +1828,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     const std::vector<XLATensor>& output_tensors,
     absl::Span<const std::string> devices,
     const CompiledGraph::DataHandleMap* dhandle_map) {
-  //EnterLeave el2("XLATensor::CompileExecuteGraph", true, Color::FG_YELLOW);
+  // EnterLeave el2("XLATensor::CompileExecuteGraph", true, Color::FG_YELLOW);
   MarkStepScope mark_step_scope("", {});
   SyncTensorsConfig config;
   SyncTensorCollection coll = CollectSyncTensors(*tensors, config);
@@ -1842,10 +1839,12 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
   PostOrderData po_data = GetPostOrderData(tensors, coll);
 
   std::vector<xla::ComputationClient::DataPtr> parameters_data;
-  ComputationCache::TypePtr cached_computation =
-      LookupCachedCompile(*tensors, coll.hash);  /* WARNING: this may need the parameter hashing and postorder added later */
+  ComputationCache::TypePtr cached_computation = LookupCachedCompile(
+      *tensors, coll.hash); /* WARNING: this may need the parameter hashing and
+                               postorder added later */
   if (cached_computation == nullptr) {
-    CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);
+    CompilationResult compile_result =
+        Compile(*tensors, devices, coll, &po_data);
 
     cached_computation = std::make_shared<CachedComputation>(
         std::move(compile_result.computation));
@@ -1856,14 +1855,8 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
     parameters_data = std::move(po_data.parameters_data);
   }
   auto compiled_graph = CreateCompiledGraph(
-      tensors,
-      cached_computation,
-      coll,
-      config,
-      input_tensors,
-      output_tensors,
-      parameters_data,
-      dhandle_map);
+      tensors, cached_computation, coll, config, input_tensors, output_tensors,
+      parameters_data, dhandle_map);
 
   auto async = ScheduleSyncTensorsGraph(&coll, std::move(parameters_data),
                                         compiled_graph->tensors_data,
@@ -1883,7 +1876,7 @@ std::unique_ptr<XLATensor::CompiledGraph> XLATensor::CompileExecuteGraph(
 void XLATensor::ExecuteCompiledGraph(
     const std::vector<XLATensor>& input_tensors,
     const CompiledGraph& compiled_graph, bool wait) {
-  //EnterLeave el("XLATensor::ExecuteCompiledGraph", true, Color::FG_YELLOW);
+  // EnterLeave el("XLATensor::ExecuteCompiledGraph", true, Color::FG_YELLOW);
   SyncTensorCollection coll;
   coll.device = compiled_graph.device;
   coll.hash = compiled_graph.hash;
@@ -1915,7 +1908,7 @@ void XLATensor::ExecuteCompiledGraph(
   auto async = ScheduleSyncTensorsGraph(&coll, std::move(parameters_data),
                                         compiled_graph.tensors_data,
                                         compiled_graph.computation);
-  //std::cout << "sync'd" << ENDL;
+  // std::cout << "sync'd" << std::endl << std::flush;
   if (wait) {
     async->mwait.Wait();
   }

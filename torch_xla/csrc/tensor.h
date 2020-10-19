@@ -23,7 +23,6 @@
 #include "torch_xla/csrc/ir_util.h"
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
-#include "torch_xla/csrc/tensor_sentinel.h"
 
 namespace torch_xla {
 
@@ -1204,6 +1203,7 @@ class XLATensor {
                          const XLATensor& other);
 
  private:
+  friend class Sentinel;
   struct SyncTensorsConfig {
     // Whether we want to force XLA data on the target tensors (hence trimming
     // the IR graph above them).
@@ -1449,14 +1449,13 @@ class XLATensor {
   static std::unique_ptr<XLATensor::CompiledGraph> CreateCompiledGraph(
       std::vector<XLATensor>* tensors,
       const std::shared_ptr<CachedComputation>& cached_computation,
-      SyncTensorCollection& coll,
-      const SyncTensorsConfig& config,
+      SyncTensorCollection& coll, const SyncTensorsConfig& config,
       const std::vector<XLATensor>& input_tensors,
       const std::vector<XLATensor>& output_tensors,
       const std::vector<xla::ComputationClient::DataPtr>& parameters_data,
       const CompiledGraph::DataHandleMap* dhandle_map);
 
-    static std::shared_ptr<Async> SyncTensorsGraphInternal(
+  static std::shared_ptr<Async> SyncTensorsGraphInternal(
       std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,
       const SyncTensorsConfig& config);
 

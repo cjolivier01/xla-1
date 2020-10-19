@@ -8,7 +8,7 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
-#include "torch_xla/csrc/tensor_analyze.h"
+#include "torch_xla/csrc/tensor_sentinel.h"
 
 extern "C" {
 extern int is_autograd_thread();
@@ -20,9 +20,8 @@ namespace {
 
 class FrontendAttributeSetter {
  public:
-  FrontendAttributeSetter(
-      xla::XlaBuilder* builder,
-      const std::map<std::string, std::string>& attributes)
+  FrontendAttributeSetter(xla::XlaBuilder* builder,
+                          const std::map<std::string, std::string>& attributes)
       : builder_(builder) {
     if (!attributes.empty()) {
       set_ = true;
@@ -57,9 +56,8 @@ class FrontendAttributeSetter {
 class HloMetadataSetter {
  public:
   HloMetadataSetter(LoweringContext* loctx, const Node* node)
-      : frontend_attribute_scope_(
-            loctx->builder(),
-            node->metadata().frontend_attributes) {
+      : frontend_attribute_scope_(loctx->builder(),
+                                  node->metadata().frontend_attributes) {
     if (ShouldPopulateXlaOpMetadata()) {
       PopulateXlaOpMetadata(loctx, node);
       loctx_ = loctx;
@@ -85,7 +83,7 @@ class HloMetadataSetter {
 
     std::stringstream ss;
     if (node->IsAutograd()) {
-      //raise(SIGTRAP);
+      // raise(SIGTRAP);
       ss << "@autograd";
       if (!nmeta.scope.empty()) {
         ss << "/";
@@ -118,7 +116,8 @@ class HloMetadataSetter {
 LoweringContext::LoweringContext(const std::string& name, Device device)
     : builder_(name),
       device_(std::move(device)),
-      allow_custom_lowering_(XLASentinel::IsForcingCustomLowering()) {}
+      allow_custom_lowering_(
+          Sentinel::GetSentinel()->IsForcingCustomLowering()) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,
@@ -128,8 +127,9 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
       device_(std::move(device)),
       emit_status_(std::move(emit_status)),
       allow_custom_lowering_(
-          XLASentinel::IsForcingCustomLowering() ||
-          (allow_custom_lowering && XLASentinel::IsSpecialLoweringEnabled())) {
+          Sentinel::GetSentinel()->IsForcingCustomLowering() ||
+          (allow_custom_lowering &&
+           Sentinel::GetSentinel()->IsSpecialLoweringEnabled())) {
   for (auto node : post_order) {
     LowerNode(node);
   }
@@ -209,12 +209,14 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
 XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
-//    if (node->IsAutograd()) {
-//        std::cout << "lowering autograd node" << std::endl;
-//        if (node->metadata().frontend_attributes.size()) {
-//          std::cout << "\twith frontend attribute: " << node->metadata().frontend_attributes.begin()->first << std::endl;
-//        }
-//    }
+    //    if (node->IsAutograd()) {
+    //        std::cout << "lowering autograd node" << std::endl;
+    //        if (node->metadata().frontend_attributes.size()) {
+    //          std::cout << "\twith frontend attribute: " <<
+    //          node->metadata().frontend_attributes.begin()->first <<
+    //          std::endl;
+    //        }
+    //    }
     HloMetadataSetter meta_setter(this, node);
 
     result_ops = node->Lower(this);

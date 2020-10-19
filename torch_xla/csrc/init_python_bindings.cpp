@@ -34,8 +34,8 @@
 #include "torch_xla/csrc/ir_dump_util.h"
 #include "torch_xla/csrc/ir_util.h"
 #include "torch_xla/csrc/python_util.h"
-#include "torch_xla/csrc/tensor_analyze.h"
 #include "torch_xla/csrc/tensor_impl.h"
+#include "torch_xla/csrc/tensor_sentinel.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
@@ -325,12 +325,12 @@ std::string GetTensorsJsonGraph(const std::vector<at::Tensor>& tensors) {
 }
 
 void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
-  XLASentinel::SetOutputs(output_tensors, append);
+  Sentinel::GetSentinel()->SetOutputs(output_tensors, append);
 }
 
 void SetDeviceAddress(const std::string& device,
                       const std::string& proxy_address) {
-  XLASentinel::SetDeviceProxyAddress(device, proxy_address);
+  Sentinel::GetSentinel()->SetDeviceProxyAddress(device, proxy_address);
 }
 
 std::string GetLiveTensorsReport(size_t nodes_threshold,
@@ -747,7 +747,8 @@ void InitXlaModuleBindings(py::module m) {
       },
       py::arg("output_tensors"), py::arg("append") = false);
   m.def("_xla_was_previous_mark_step_on_proxy", [](){
-      return XLASentinel::WasMarkStepOnProxy();
+    // TODO: move to ptwse
+      return Sentinel::GetSentinel()->WasMarkStepOnProxy();
   });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
@@ -925,8 +926,9 @@ void InitXlaModuleBindings(py::module m) {
       },
       py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
   m.def("_xla_is_initialized", []() {
+    // TODO: move to ptwse
     NoGilSection nogil;
-    return XLASentinel::IsInitialized();
+    return Sentinel::GetSentinel()->IsInitialized();
   });
   m.def(
       "_xla_step_marker",
@@ -1040,13 +1042,9 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
-  //  m.def("_xla_set_compile_only",
-  //        [](bool compile_only) {
-  //          XLASentinel::SetCompileOnly(compile_only);
-  //        });
-  m.def("_xla_push_python_state",
-        [](const int state) { PushPythonState((EPythonState)state); });
-  m.def("_xla_pop_python_state", []() { PopPythonState(); });
+//  m.def("_xla_push_python_state",
+//        [](const int state) { PushPythonState((EPythonState)state); });
+//  m.def("_xla_pop_python_state", []() { PopPythonState(); });
   m.def("_xla_push_ir_scope",
         [](std::string scope) { ir::PythonPushScope(std::move(scope)); });
   m.def("_xla_pop_ir_scope", []() { ir::PythonPopScope(); });
