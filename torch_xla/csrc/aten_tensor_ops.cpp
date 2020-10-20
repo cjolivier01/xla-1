@@ -31,7 +31,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t N,
     int64_t C, int64_t HxW, int64_t group, std::array<bool, 3> output_mask) {
   torch_xla::ir::FrontendAttributePusher fattr(
-      match_name(true), "native_group_norm::backward", /*prefix_depth=*/true);
+      match_name(true), "native_group_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
   at::Tensor grad_input = grad_out;
   std::vector<int64_t> affine_param_shape(input.dim(), 1);
   affine_param_shape[1] = C;
@@ -60,7 +60,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm(
     const at::Tensor& input, const c10::optional<at::Tensor>& weight,
     const c10::optional<at::Tensor>& bias, int64_t M, int64_t N, double eps) {
   torch_xla::ir::FrontendAttributePusher fattr(
-      match_name(true), "native_layer_norm::forward", /*prefix_depth=*/true);
+      match_name(true), "native_layer_norm_forward<float16>(NAT,NAT)", /*prefix_depth=*/true);
   auto input_shape = input.sizes();
   at::Tensor input_reshaped = input.view({1, M, -1});
   // Unlike Batch Normalization, which applies scalar scale and bias for each
@@ -87,7 +87,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm_backward(
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t M,
     int64_t N, std::array<bool, 3> output_mask) {
   torch_xla::ir::FrontendAttributePusher fattr(
-      match_name(false), "native_layer_norm::backward", /*prefix_depth=*/true);
+      match_name(false), "native_layer_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
   at::Tensor grad_input = grad_out;
   if (torch_xla::IsDefined(weight)) {
     grad_input = grad_input.mul(weight.value());
