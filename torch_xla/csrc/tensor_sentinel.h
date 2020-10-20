@@ -102,9 +102,6 @@ public:
   virtual bool IsSpecialLoweringEnabled() { return false; }
 
   virtual bool IsForcingCustomLowering() { return false; }
-  //  void SetCompileOnly(bool compile_only);
-  //  bool GetCompileOnly(XLATensor::SyncTensorCollection& coll);
-  //  bool WasMarkStepOnProxy();
 
   /**
    * @brief Get the current Sentinel
