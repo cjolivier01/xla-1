@@ -387,4 +387,60 @@ GetPythonFrontendAttributes() {
 }
 
 }  // namespace ir
+
+constexpr const char* MATCHED_OP = "MATCHED_OP";
+
+std::atomic<std::size_t> matched_scope{0};
+std::string __partition_match_name(bool fwd) {
+    std::stringstream ss;
+    ss << MATCHED_OP;
+    if (fwd) {
+        ss << ".FWD." << ++matched_scope;
+    } else {
+        ss << ".BWD." << ++matched_scope;
+    }
+    return ss.str();
+}
+
+const char *prev_char(const char *original, const char *start, char c) {
+    while(start > original && *start != c) {
+        --start;
+    }
+    return start;
+}
+
+std::string short_fn_name(const std::string &fn_name) {
+    std::string result = fn_name;
+    //std::cout << "fn_name=" << fn_name << ENDL;
+    const char *start = fn_name.c_str();
+    const char *s = strchr(start, '(');
+    if (s && *s && s > start) {
+        ++s;
+        if (*s) {
+            //std::cout << "s: " << s << ENDL;
+            if (const char *s0 = prev_char(start, s - 1, ' ')) {
+                //std::cout << "s0: " << s0 << ENDL;
+                if (*s0 == ' ') {
+                    ++s0;
+                }
+                const size_t sz = s - s0 + 1;
+                //std::cout << "sz: " << sz << std::endl << std::flush;
+                result = std::string(s0, sz);
+                std::replace(result.begin(), result.end(), ':', '_');
+//                const char *s_colon = std::strrchr(result.c_str(), ':');
+//                if (s_colon) {
+//                    ++s_colon;
+//                    result = s_colon;
+//                }
+            }
+        }
+    }
+    return std::move(result);
+}
+std::string __make_partition_name(const std::string& function_name) {
+    std::stringstream ss;
+    ss << short_fn_name(function_name) << "<float32>(NAT,NAT)";
+    return ss.str();
+}
+
 }  // namespace torch_xla

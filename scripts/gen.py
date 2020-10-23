@@ -9,6 +9,7 @@ import re
 import string
 import sys
 
+GENERATE_FRONTEND_ATTRIBUTES = False
 
 def namedtuple_with_defaults(typename, field_names, default_values=()):
   ntuple = collections.namedtuple(typename, field_names)
@@ -669,6 +670,8 @@ def generate_entry_debug_code(t, fname, params, fname_ns=None):
   #  export TF_CPP_VMODULE=aten_xla_type_default=3
   code += '  torch_xla::ir::ScopePusher _scope_push(\"ptxla::{}::{}\");\n'.format(
     fname_ns, fname)
+  if GENERATE_FRONTEND_ATTRIBUTES:
+    code += '  torch_xla::ir::FrontendAttributePusher fattr(torch_xla::__partition_match_name(true), torch_xla::__make_partition_name("{}_{}"), true);\n'.format(fname_ns, fname)
   code += '  TF_VLOG(3) << "XLA {} :"'.format(fname)
   for p in params:
     ptype = param_type(p)

@@ -19,6 +19,7 @@
 #include "torch_xla/csrc/python_util.h"
 
 namespace torch_xla {
+
 namespace ir {
 
 class Node;
@@ -333,4 +334,15 @@ const std::unordered_map<std::string, std::string>&
 GetPythonFrontendAttributes();
 
 }  // namespace ir
+
+std::string __partition_match_name(bool fwd);
+std::string __make_partition_name(const std::string &function_name);
+
 }  // namespace torch_xla
+
+#define DECLARE_PARTITION() \
+    torch_xla::ir::FrontendAttributePusher \
+        fattr(torch_xla::__partition_match_name(true), \
+        torch_xla::__make_partition_name(__FUNCTION__), \
+        /*prefix_depth=*/true)
+
