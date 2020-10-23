@@ -54,7 +54,7 @@ if [ "$CMD" == "clean" ]; then
   bazel clean
   popd
 else
-  cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
+#  cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
 
   pushd $THIRD_PARTY_DIR/tensorflow
   bazel $BAZELOPTS build $MAX_JOBS $VERBOSE --define framework_shared_object=false -c "$MODE" "${OPTS[@]}" \
