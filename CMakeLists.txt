@@ -80,7 +80,7 @@ add_compile_options(-DTORCH_EXTENSION_NAME=_XLAC)
 add_compile_options(-D_LARGEFILE_SOURCE)
 add_compile_options(-D_LARGEFILE64_SOURCE)
 add_compile_options(-D_FILE_OFFSET_BITS=64)
-
+add_compile_options(-Dtensorflow=ptxla_tf)
 #set(CMAKE_VERBOSE_MAKEFILE True)
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS}")
 if (NOT TF_RENAME_NAMESPACE STREQUAL "")

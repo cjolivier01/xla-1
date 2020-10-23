@@ -58,7 +58,7 @@ else
 
   pushd $THIRD_PARTY_DIR/tensorflow
   bazel $BAZELOPTS build $MAX_JOBS $VERBOSE --define framework_shared_object=false -c "$MODE" "${OPTS[@]}" \
-    $XLA_CUDA_CFG //tensorflow/compiler/xla/xla_client:libxla_computation_client.so
+    $XLA_CUDA_CFG --copt=-Dtensorflow=ptxla_tf --cxxopt=-Dtensorflow=ptxla_tf //tensorflow/compiler/xla/xla_client:libxla_computation_client.so
 
   popd
   mkdir -p torch_xla/lib
