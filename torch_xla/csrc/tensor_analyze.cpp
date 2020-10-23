@@ -1149,12 +1149,12 @@ bool XLASentinel::IsQualifyingStep(pid_t tid /*, bool or_higher*/) {
     // const bool ready = mark_step_count_since_reset - 1 == steps_required;
     // ready = mark_step_count_since_reset - 1 == steps_required;
     ready = mark_step_count_since_reset - 1 > steps_required;
-    if (mark_step_count_since_reset - 1 != steps_required) {
-      std::cout << "Over-qualifying step by "
-                << ((mark_step_count_since_reset - 1) - steps_required)
-                << " steps!" << std::endl
-                << std::flush;
-    }
+//    if (mark_step_count_since_reset - 1 != steps_required) {
+//      std::cout << "Over-qualifying step by "
+//                << ((mark_step_count_since_reset - 1) - steps_required)
+//                << " steps!" << std::endl
+//                << std::flush;
+//    }
   }
   if (ready) {
     assert(is_clean_step);  // validate it coincides with clean step logic
