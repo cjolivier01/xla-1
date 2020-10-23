@@ -33,6 +33,12 @@ ExternalProject_Add(
 
 ExternalProject_Get_Property(googletest SOURCE_DIR)
 
+
+if (NOT TF_RENAME_NAMESPACE)
+  set(TF_RENAME_NAMESPACE ptxla_tf)
+endif()
+add_definitions(-Dtensorflow=${TF_RENAME_NAMESPACE})
+
 set(TORCH_XLA_TEST_SOURCES
   main.cpp
   cpp_test_util.cpp
