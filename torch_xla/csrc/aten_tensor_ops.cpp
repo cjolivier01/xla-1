@@ -75,7 +75,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm_backward(
     const at::Tensor& grad_out, const at::Tensor& input, const at::Tensor& mean,
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t M,
     int64_t N, std::array<bool, 3> output_mask) {
-//  DECLARE_PARTITION();
   torch_xla::ir::FrontendAttributePusher fattr(
       torch_xla::__partition_match_name(false), "native_layer_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
   at::Tensor grad_input = grad_out;
