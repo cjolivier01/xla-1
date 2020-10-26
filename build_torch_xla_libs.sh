@@ -51,7 +51,7 @@ fi
 
 if [ "$CMD" == "clean" ]; then
   pushd $THIRD_PARTY_DIR/tensorflow
-  bazel clean
+  bazel $BAZELOPTS clean
   popd
 else
 #  cp -r -u -p $THIRD_PARTY_DIR/xla_client $THIRD_PARTY_DIR/tensorflow/tensorflow/compiler/xla/
