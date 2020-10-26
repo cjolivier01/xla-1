@@ -766,7 +766,7 @@ void XlaComputationProxy::ReleaseProxyHandles(
       //      XLA_CHECK_OK(session->session()->Run(
       //          feed_inputs, {}, {cached_node.operations[0]}, &outputs));
       //        assert(false);
-      std::cerr << "Failed to free handles: "
+      std::cerr << "Failed to free handles: Error code=" << status.error_codeO()
                 << ", reason: " << status.error_message()
                 << std::endl << std::flush;
     }

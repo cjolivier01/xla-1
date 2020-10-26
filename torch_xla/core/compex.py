@@ -100,15 +100,6 @@ def run(
       if minibatch is not None:
         send_batch(minibatch, steady_graph)
         batch_count += minibatch_size
-        # print('Sending minibatch')
-        # outputs = torch_xla._XLAC._xla_execute_compiled_graph(
-        #   flatten_xla_tensors(minibatch), steady_graph)
-        # # Could actually output closure here
-        # print('Megabatch sent')
-        # batch_count += minibatch_size
-      # if pre_closure:
-      #   # Set outputs
-      #   pre_closure(tensors)
       handle_map.clear()
 
       #tensors = closure(batch, *closure_args)
@@ -141,11 +132,6 @@ def run(
         if minibatch is not None:
           send_batch(minibatch, steady_graph)
           batch_count += minibatch_size
-      # elif chash == prev_hash and not torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
-      #   assert False
-      #   xm.master_print("STEADY GRAPH")
-      #   steady_graph = graph_dict['graph']
-      #   handle_map = None
       else:
         xm.master_print("UNSTEADY GRAPH")
         prev_hash = chash
@@ -155,10 +141,6 @@ def run(
       # Release the compile graph dictionary to make sure we do not hold two
       # copies of it while reaching stable compilations.
       graph_dict = None
-
-      # if pre_closure:
-      #   # Set outputs
-      #   pre_closure(list(outputs))
 
     if pre_closure and torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
         # Set outputs
