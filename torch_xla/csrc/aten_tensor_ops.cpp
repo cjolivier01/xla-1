@@ -2,22 +2,15 @@
 
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/torch_util.h"
-
-namespace torch_xla { extern std::atomic<std::size_t> matched_scope; }
-
-namespace aten_tensor_ops { void ResetMatchedScope(); }
+#include "torch_xla/csrc/ptwse_scope.hh"
 
 namespace aten_tensor_ops {
-
-void ResetMatchedScope() {
-    torch_xla::matched_scope = 0;
-}
 
 std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
     const at::Tensor& grad_out, const at::Tensor& input, const at::Tensor& mean,
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t N,
     int64_t C, int64_t HxW, int64_t group, std::array<bool, 3> output_mask) {
-//  torch_xla::ir::FrontendAttributePusher fattr(
+//  torch_xla::FrontendAttributePusher fattr(
 //      __partition_match_name(true), "native_group_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
 //  DECLARE_PARTITION();
   at::Tensor grad_input = grad_out;
@@ -47,9 +40,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
 std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm(
     const at::Tensor& input, const c10::optional<at::Tensor>& weight,
     const c10::optional<at::Tensor>& bias, int64_t M, int64_t N, double eps) {
-  torch_xla::ir::FrontendAttributePusher fattr(
-      torch_xla::__partition_match_name(true), "native_layer_norm<float16>(NAT,NAT)", /*prefix_depth=*/true);
-  //DECLARE_PARTITION();
+//    ptwse::FrontendAttributePusher fattr(
+//        ptwse::PartitionScope::PartitionMatchName(true), "native_layer_norm<float16>(NAT,NAT)", /*prefix_depth=*/true);
+  DECLARE_PARTITION();
   auto input_shape = input.sizes();
   at::Tensor input_reshaped = input.view({1, M, -1});
   // Unlike Batch Normalization, which applies scalar scale and bias for each
@@ -75,8 +68,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm_backward(
     const at::Tensor& grad_out, const at::Tensor& input, const at::Tensor& mean,
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t M,
     int64_t N, std::array<bool, 3> output_mask) {
-  torch_xla::ir::FrontendAttributePusher fattr(
-      torch_xla::__partition_match_name(false), "native_layer_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
+//  ptwse::FrontendAttributePusher fattr(
+//      ptwse::PartitionScope::PartitionMatchName(false), "native_layer_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
+  DECLARE_PARTITION();
   at::Tensor grad_input = grad_out;
   if (torch_xla::IsDefined(weight)) {
     grad_input = grad_input.mul(weight.value());

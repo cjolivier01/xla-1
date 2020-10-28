@@ -39,6 +39,7 @@
 #include "torch_xla/csrc/tensor_sentinel.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
+#include "torch_xla/csrc/ptwse_scope.hh"
 
 #ifndef USE_PTWSE_SENTINEL
 #include "torch_xla/csrc/tensor_analyze.h"
@@ -1417,7 +1418,7 @@ void XLATensor::MarkStep(const Device& device) {
   XLA_COUNTER("MarkStep", 1);
   DeviceContextArena::Get()->MarkStep(device);
   ir::ScopePusher::ResetScopes();
-  ir::FrontendAttributePusher::Reset();
+  ptwse::FrontendAttributePusher::Reset();
   aten_tensor_ops::ResetMatchedScope();
   g_tls_data.Reset();
 }

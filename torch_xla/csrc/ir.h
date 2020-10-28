@@ -289,17 +289,6 @@ struct ScopePusher {
   static std::string CurrentScope();
 };
 
-struct FrontendAttributePusher {
-  FrontendAttributePusher(const std::string& key, std::string value, bool prefix_depth = false);
-  ~FrontendAttributePusher();
-  static const std::unordered_map<std::string, std::string>& GetFrontendAttributes();
-  static void Reset();
-private:
-    std::string key_;
-    std::string previous_value_;
-    const bool prefix_depth_;
-};
-
 inline std::ostream& operator<<(std::ostream& stream, const Node& node) {
   stream << node.ToString();
   return stream;
@@ -327,22 +316,6 @@ T* NodeCast(const Node* node, OpKind op) {
 void PythonPushScope(std::string scope);
 void PythonPopScope();
 
-void PythonAddFrontendAttribute(std::string key, std::string value);
-void PythonRemoveFrontendAttribute(const std::string& key);
-
-const std::unordered_map<std::string, std::string>&
-GetPythonFrontendAttributes();
-
 }  // namespace ir
 
-std::string __partition_match_name(bool fwd);
-std::string __make_partition_name(const std::string &function_name);
-
 }  // namespace torch_xla
-
-#define DECLARE_PARTITION() \
-    torch_xla::ir::FrontendAttributePusher \
-        fattr(torch_xla::__partition_match_name(true), \
-        torch_xla::__make_partition_name(__FUNCTION__), \
-        /*prefix_depth=*/true)
-

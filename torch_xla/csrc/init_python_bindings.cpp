@@ -40,6 +40,7 @@
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
 #include "torch_xla/csrc/xla_op_builder.h"
+#include "torch_xla/csrc/ptwse_scope.hh"
 
 namespace torch_xla {
 namespace {
@@ -1049,10 +1050,10 @@ void InitXlaModuleBindings(py::module m) {
         [](std::string scope) { ir::PythonPushScope(std::move(scope)); });
   m.def("_xla_pop_ir_scope", []() { ir::PythonPopScope(); });
   m.def("_xla_add_frontend_attribute", [](std::string key, std::string value) {
-    ir::PythonAddFrontendAttribute(std::move(key), std::move(value));
+      ptwse::FrontendAttributePusher::PythonAddFrontendAttribute(std::move(key), std::move(value));
   });
   m.def("_xla_remove_frontend_attribute",
-        [](const std::string& key) { ir::PythonRemoveFrontendAttribute(key); });
+        [](const std::string& key) { ptwse::FrontendAttributePusher::PythonRemoveFrontendAttribute(key); });
   m.def("_xla_trap", []() { raise(SIGTRAP); });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");

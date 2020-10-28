@@ -671,7 +671,7 @@ def generate_entry_debug_code(t, fname, params, fname_ns=None):
   code += '  torch_xla::ir::ScopePusher _scope_push(\"ptxla::{}::{}\");\n'.format(
     fname_ns, fname)
   if GENERATE_FRONTEND_ATTRIBUTES:
-    code += '  torch_xla::ir::FrontendAttributePusher fattr(torch_xla::__partition_match_name(true), torch_xla::__make_partition_name("{}_{}"), true);\n'.format(fname_ns, fname)
+    code += '  torch_xla::FrontendAttributePusher fattr(torch_xla::__partition_match_name(true), torch_xla::__make_partition_name("{}_{}"), true);\n'.format(fname_ns, fname)
   code += '  TF_VLOG(3) << "XLA {} :"'.format(fname)
   for p in params:
     ptype = param_type(p)
