@@ -9,6 +9,7 @@
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
 #include "torch_xla/csrc/tensor_sentinel.h"
+#include "torch_xla/csrc/ptwse_scope.hh"
 
 extern "C" {
 extern int is_autograd_thread();
@@ -18,46 +19,9 @@ namespace torch_xla {
 namespace ir {
 namespace {
 
-class FrontendAttributeSetter {
- public:
-  FrontendAttributeSetter(xla::XlaBuilder* builder,
-                          const std::map<std::string, std::string>& attributes)
-      : builder_(builder) {
-    if (!attributes.empty()) {
-      set_ = true;
-      xla::FrontendAttributes frontend_attributes;
-      frontend_attributes.CopyFrom(builder_->frontend_attributes());
-      for (const auto& item : attributes) {
-        frontend_attributes.mutable_map()->insert({item.first, item.second});
-      }
-      save_ = builder->SwapFrontendAttributes(frontend_attributes);
-    }
-  }
-  ~FrontendAttributeSetter() {
-    if (set_) {
-      builder_->ClearOpMetadata();
-      builder_->SetFrontendAttributes(save_);
-    }
-  }
-  std::string Dump() {
-    std::stringstream ss;
-    for (const auto& item : builder_->frontend_attributes().map()) {
-      ss << item.first << " -> " << item.second << ", ";
-    }
-    return ss.str();
-  }
-
- private:
-  xla::XlaBuilder* builder_;
-  xla::FrontendAttributes save_;
-  bool set_ = false;
-};
-
 class HloMetadataSetter {
  public:
-  HloMetadataSetter(LoweringContext* loctx, const Node* node)
-      : frontend_attribute_scope_(loctx->builder(),
-                                  node->metadata().frontend_attributes) {
+  HloMetadataSetter(LoweringContext* loctx, const Node* node) {
     if (ShouldPopulateXlaOpMetadata()) {
       PopulateXlaOpMetadata(loctx, node);
       loctx_ = loctx;
@@ -107,7 +71,6 @@ class HloMetadataSetter {
     }
     loctx->builder()->SetOpMetadata(std::move(metadata));
   }
-  FrontendAttributeSetter frontend_attribute_scope_;
   LoweringContext* loctx_ = nullptr;
 };
 
@@ -218,7 +181,7 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
     //        }
     //    }
     HloMetadataSetter meta_setter(this, node);
-
+    ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(builder(), node->metadata().frontend_attributes);
     result_ops = node->Lower(this);
   } catch (const std::exception& ex) {
     ReportBuilderError(node, ex.what());

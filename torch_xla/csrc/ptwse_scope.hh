@@ -177,4 +177,46 @@ private:
 #define DECLARE_PARTITION() ((void)0)
 #endif
 
+/**
+ * @brief Apply during lowering
+ */
+template<typename NODE_TYPE>
+class FrontendAttributeSetter {
+public:
+    FrontendAttributeSetter(xla::XlaBuilder* builder,
+                            const std::map<std::string, std::string>& attributes)
+        : builder_(builder) {
+        if (!attributes.empty()) {
+            set_ = true;
+            xla::FrontendAttributes frontend_attributes;
+            frontend_attributes.CopyFrom(builder_->frontend_attributes());
+            for (const auto& item : attributes) {
+                frontend_attributes.mutable_map()->insert({item.first, item.second});
+            }
+            save_ = builder->SwapFrontendAttributes(frontend_attributes);
+        }
+    }
+    FrontendAttributeSetter(xla::XlaBuilder* builder, const NODE_TYPE *node)
+        : FrontendAttributeSetter(builder, node->GetFrontendAttributes()) {}
+    ~FrontendAttributeSetter() {
+        if (set_) {
+            builder_->ClearOpMetadata();
+            builder_->SetFrontendAttributes(save_);
+        }
+    }
+    std::string Dump() {
+        std::stringstream ss;
+        for (const auto& item : builder_->frontend_attributes().map()) {
+            ss << item.first << " -> " << item.second << ", ";
+        }
+        return ss.str();
+    }
+
+private:
+    xla::XlaBuilder* builder_;
+    xla::FrontendAttributes save_;
+    bool set_ = false;
+};
+
+
 }  // end of ptwse namespace

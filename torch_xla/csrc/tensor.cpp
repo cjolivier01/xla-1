@@ -49,10 +49,6 @@ extern "C" {
 extern int is_autograd_thread();
 }
 
-namespace aten_tensor_ops {
-void ResetMatchedScope();
-}
-
 namespace torch_xla {
 #ifdef USE_PTWSE_SENTINEL
 std::shared_ptr<Sentinel> Sentinel::sentinel_ = std::make_shared<Sentinel>();
@@ -1419,7 +1415,7 @@ void XLATensor::MarkStep(const Device& device) {
   DeviceContextArena::Get()->MarkStep(device);
   ir::ScopePusher::ResetScopes();
   ptwse::FrontendAttributePusher::Reset();
-  aten_tensor_ops::ResetMatchedScope();
+  ptwse::PartitionScope::app.Reset();
   g_tls_data.Reset();
 }
 
