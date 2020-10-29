@@ -32,6 +32,7 @@ def run(
     batch_size,
     minibatch_size,
     megabatch_multiplier,
+    steps_per_epoch,
     closure,
     closure_args=(),
     output_closure=None,
@@ -82,8 +83,8 @@ def run(
         # Could actually output closure here
         print('Batch sent')
 
-
-    if torch_xla._XLAC._xla_was_previous_mark_step_on_proxy():
+    did_execute_on_proxy = torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
+    if did_execute_on_proxy:
       print(f'----------------------------------------')
       print(f'{batch_count}')
       print(f'----------------------------------------')
@@ -96,6 +97,7 @@ def run(
         pre_closure(tensors)
       outputs = torch_xla._XLAC._xla_execute_compiled_graph(
         flatten_xla_tensors(batch), steady_graph)
+      assert torch_xla._XLAC._xla_was_previous_mark_step_on_proxy()
       batch_count += 1
       if minibatch is not None:
         send_batch(minibatch, steady_graph)
@@ -147,6 +149,8 @@ def run(
         pre_closure(list(outputs))
 
     xm.mark_step_trail()
+    if step >= steps_per_epoch:
+      break
 
   if tensors is not None and pre_closure:
     # Set outputs

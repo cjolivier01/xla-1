@@ -11,6 +11,7 @@ namespace torch_xla {
 struct HashingState {
   explicit HashingState(const xla::hash_t& start_hash)
       : start_hash_(start_hash) {};
+  std::vector<size_t> original_indices_;
   const xla::hash_t start_hash_;
   xla::hash_t pre_prune_hash_ = 0;
   std::size_t pass_ = 0;

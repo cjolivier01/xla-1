@@ -795,6 +795,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
                 coll.hash = state.start_hash_;
                 --state.pass_;
                 std::cout << "Pruned outputs on unknown executable.";
+                mark_step_was_on_proxy = true;
                 return true;  // need to recalculate postorder with new
                               // inputs/outputs
               } else {
@@ -851,10 +852,10 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       ex_cache->activate_hash(coll.hash);
       if (PruneTensors(tensors, coll)) {
         state.fabric_run_ = true;
-        mark_step_was_on_proxy = true;
         assert(!state.pre_prune_hash_);
         state.pre_prune_hash_ = coll.hash;
         coll.hash = state.start_hash_;
+        mark_step_was_on_proxy = true;
         return true;  // need to recalculate postorder with new inputs
       }
       // Do we need to hash this differently for *our* executable
@@ -904,6 +905,7 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
     ex_cache->set_adjusted_hash(state.pre_prune_hash_, proxy_hash);
     coll.hash = proxy_hash;
     coll.config.allow_custom_lowering = true;
+    mark_step_was_on_proxy = true;
     return false;
   }
   return false;

@@ -1683,7 +1683,9 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(
 
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
-
+//    if (state.abort_proxy_) {
+//        break;
+//    }
   } while (Sentinel::GetSentinel()->OnHashingComplete(state, tensors, coll));
   return std::move(po_data);
 }
