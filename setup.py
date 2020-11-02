@@ -323,6 +323,7 @@ extra_compile_args = [
     '-Wno-deprecated-declarations',
     '-Wno-return-type',
     '-Dtensorflow=ptxla_tf',
+    '-DEigen=ptxla_Eigen',
 ]
 
 if re.match(r'clang', os.getenv('CC', '')):
