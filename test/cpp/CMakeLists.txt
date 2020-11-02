@@ -38,6 +38,7 @@ if (NOT TF_RENAME_NAMESPACE)
   set(TF_RENAME_NAMESPACE ptxla_tf)
 endif()
 add_definitions(-Dtensorflow=${TF_RENAME_NAMESPACE})
+add_definitions(-DEigen=ptxla_Eigen)
 
 set(TORCH_XLA_TEST_SOURCES
   main.cpp
