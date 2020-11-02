@@ -672,7 +672,8 @@ def generate_entry_debug_code(t, fname, params, fname_ns=None):
     fname_ns, fname)
   if GENERATE_FRONTEND_ATTRIBUTES:
     #code += '  ptwse::FrontendAttributePusher fattr(torch_xla::__partition_match_name(true), torch_xla::__make_partition_name("{}_{}"), true);\n'.format(fname_ns, fname)
-    code += '  DECLARE_PARTITION();\n'
+    #code += '  DECLARE_PARTITION();\n'
+    pass
   code += '  TF_VLOG(3) << "XLA {} :"'.format(fname)
   for p in params:
     ptype = param_type(p)
