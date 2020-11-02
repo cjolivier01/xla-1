@@ -12,7 +12,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
     int64_t C, int64_t HxW, int64_t group, std::array<bool, 3> output_mask) {
 //  torch_xla::FrontendAttributePusher fattr(
 //      __partition_match_name(true), "native_group_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
-//  DECLARE_PARTITION();
+  DECLARE_PARTITION();
   at::Tensor grad_input = grad_out;
   std::vector<int64_t> affine_param_shape(input.dim(), 1);
   affine_param_shape[1] = C;

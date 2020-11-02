@@ -3,7 +3,7 @@
 #include "torch_xla/csrc/aten_xla_bridge.h"
 #include "torch_xla/csrc/aten_xla_type_default.h"  // move to cpp
 #include "torch_xla/csrc/helpers.h"
-#include "torch_xla/csrc/torch_util.h"
+#include "torch_xla/csrc/ptwse_scope.hh"
 
 namespace torch_xla {
 
@@ -19,6 +19,7 @@ torch::Tensor MaxPool2dAutogradFunction::forward(
     torch::autograd::AutogradContext* ctx, torch::Tensor self,
     torch::IntArrayRef kernel_size, torch::IntArrayRef stride,
     torch::IntArrayRef padding, torch::IntArrayRef dilation, bool ceil_mode) {
+  DECLARE_PARTITION();
   ctx->saved_data["kernel_size"] = kernel_size;
   ctx->saved_data["stride"] = stride;
   ctx->saved_data["padding"] = padding;
@@ -42,6 +43,7 @@ torch::Tensor MaxPool2dAutogradFunction::forward(
 torch::autograd::variable_list MaxPool2dAutogradFunction::backward(
     torch::autograd::AutogradContext* ctx,
     torch::autograd::variable_list grad_output) {
+  DECLARE_PARTITION();
   auto kernel_size = ctx->saved_data["kernel_size"].toIntList().vec();
   auto stride = ctx->saved_data["stride"].toIntList().vec();
   auto padding = ctx->saved_data["padding"].toIntList().vec();
@@ -72,6 +74,7 @@ torch::Tensor MaxPool3dAutogradFunction::forward(
     torch::autograd::AutogradContext* ctx, torch::Tensor self,
     torch::IntArrayRef kernel_size, torch::IntArrayRef stride,
     torch::IntArrayRef padding, torch::IntArrayRef dilation, bool ceil_mode) {
+  DECLARE_PARTITION();
   ctx->saved_data["kernel_size"] = kernel_size;
   ctx->saved_data["stride"] = stride;
   ctx->saved_data["padding"] = padding;
@@ -95,6 +98,7 @@ torch::Tensor MaxPool3dAutogradFunction::forward(
 torch::autograd::variable_list MaxPool3dAutogradFunction::backward(
     torch::autograd::AutogradContext* ctx,
     torch::autograd::variable_list grad_output) {
+  DECLARE_PARTITION();
   auto kernel_size = ctx->saved_data["kernel_size"].toIntList().vec();
   auto stride = ctx->saved_data["stride"].toIntList().vec();
   auto padding = ctx->saved_data["padding"].toIntList().vec();

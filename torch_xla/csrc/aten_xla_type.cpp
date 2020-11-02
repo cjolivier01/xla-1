@@ -24,6 +24,7 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
+#include "torch_xla/csrc/ptwse_scope.hh"
 
 // [Implementation Guidelines]
 // - If you want to call a at::func which doesn't exist in AtenXlaType,
@@ -35,7 +36,7 @@
 #define XLA_FN_COUNTER(ns)                        \
   XLA_COUNTER(absl::StrCat(ns, __FUNCTION__), 1); \
   torch_xla::ir::ScopePusher _scope_push(absl::StrCat(ns, __FUNCTION__)); \
-  /*DECLARE_PARTITION()*/
+  DECLARE_PARTITION()
 
 namespace torch_xla {
 namespace {
