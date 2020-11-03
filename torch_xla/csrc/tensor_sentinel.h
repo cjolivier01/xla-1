@@ -114,8 +114,10 @@ public:
    * @brief Set the Sentinel to use
    * @param sentinel
    */
-  static void SetSentinel(std::shared_ptr<Sentinel> sentinel) {
+  static std::shared_ptr<Sentinel> SetSentinel(std::shared_ptr<Sentinel> sentinel) {
+    auto old_sentinel = sentinel_;
     sentinel_ = std::move(sentinel);
+    return std::move(old_sentinel);
   }
 
 private:
