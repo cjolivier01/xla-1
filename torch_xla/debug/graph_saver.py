@@ -17,8 +17,6 @@ def save_tensors_graph(save_dir, name, tensors):
     graph = torch_xla._XLAC._get_xla_tensors_dot(tensors)
   elif fmt == 'hlo':
     graph = torch_xla._XLAC._get_xla_tensors_hlo(tensors)
-  elif fmt == 'json':
-    graph = torch_xla._XLAC._get_xla_tensors_json(tensors)
   else:
     raise RuntimeError('Invalid save graph format: {}'.format(fmt))
   tid = threading.current_thread().ident

@@ -23,7 +23,7 @@ class LoweringContext {
   explicit LoweringContext(const std::string& name, Device device);
   LoweringContext(const std::string& name, Device device,
                   absl::Span<const Node* const> post_order,
-                  Util::EmissionMap emit_status, bool allow_custom_lowering);
+                  Util::EmissionMap emit_status);
 
   xla::XlaBuilder* builder() { return &builder_; }
 
@@ -75,8 +75,6 @@ class LoweringContext {
 
   size_t GetEmittedNodeCount() const { return emit_status_.size(); }
 
-  bool AllowCustomLowering() { return allow_custom_lowering_; }
-
  private:
   struct Parameter {
     xla::XlaOp param;
@@ -96,10 +94,7 @@ class LoweringContext {
   std::vector<xla::XlaOp> root_tuple_;
   OutputMap<xla::XlaOp> emitted_outputs_;
   Util::EmissionMap emit_status_;
-  const bool allow_custom_lowering_;
 };
 
 }  // namespace ir
 }  // namespace torch_xla
-
-#include "lower_custom.h"

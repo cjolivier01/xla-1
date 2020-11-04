@@ -47,7 +47,6 @@ class HloMetadataSetter {
 
     std::stringstream ss;
     if (node->IsAutograd()) {
-      // raise(SIGTRAP);
       ss << "@autograd";
       if (!nmeta.scope.empty()) {
         ss << "/";
@@ -55,7 +54,6 @@ class HloMetadataSetter {
     }
     ss << nmeta.scope;
     if (!ss.str().empty()) {
-      // if (!nmeta.scope.empty()) {
       metadata.set_op_name(ss.str());
     }
     if (!nmeta.frame_info.empty()) {
@@ -71,28 +69,21 @@ class HloMetadataSetter {
     }
     loctx->builder()->SetOpMetadata(std::move(metadata));
   }
+
   LoweringContext* loctx_ = nullptr;
 };
 
 }  // namespace
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
-    : builder_(name),
-      device_(std::move(device)),
-      allow_custom_lowering_(
-          Sentinel::GetSentinel()->IsForcingCustomLowering()) {}
+    : builder_(name), device_(std::move(device)) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,
-                                 Util::EmissionMap emit_status,
-                                 bool allow_custom_lowering)
+                                 Util::EmissionMap emit_status)
     : builder_(name),
       device_(std::move(device)),
-      emit_status_(std::move(emit_status)),
-      allow_custom_lowering_(
-          Sentinel::GetSentinel()->IsForcingCustomLowering() ||
-          (allow_custom_lowering &&
-           Sentinel::GetSentinel()->IsSpecialLoweringEnabled())) {
+      emit_status_(std::move(emit_status)) {
   for (auto node : post_order) {
     LowerNode(node);
   }
@@ -172,14 +163,6 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
 XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
-    //    if (node->IsAutograd()) {
-    //        std::cout << "lowering autograd node" << std::endl;
-    //        if (node->metadata().frontend_attributes.size()) {
-    //          std::cout << "\twith frontend attribute: " <<
-    //          node->metadata().frontend_attributes.begin()->first <<
-    //          std::endl;
-    //        }
-    //    }
     HloMetadataSetter meta_setter(this, node);
     ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(builder(), node->metadata().frontend_attributes);
     result_ops = node->Lower(this);

@@ -248,7 +248,6 @@ class ClusterResolver(object):
       self._zone = self._parse_resource_url(zone_path, 'zones')
     self._vm_master = self.get_instance_metadata('instance/name')
 
-
   def _get_instance_group(self):
     """Gets the instance group that the current VM belongs to."""
     resp = self._compute_service.instances().get(

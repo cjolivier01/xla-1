@@ -19,7 +19,6 @@
 #include "torch_xla/csrc/python_util.h"
 
 namespace torch_xla {
-
 namespace ir {
 
 class Node;
