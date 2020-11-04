@@ -170,8 +170,7 @@ class XLATensor {
 
   // Dumps the XLA HLO text of the computation accumulated in the graph which is
   // attached the tensors.
-  static std::string DumpHloComputation(const std::vector<XLATensor>& tensors,
-                                        bool json = false);
+  static std::string DumpHloComputation(const std::vector<XLATensor>& tensors);
 
   // Retrieves the set of XLA tensors which are currently live in the system,
   // for the given device. If device is nullptr, the live tensors for all
