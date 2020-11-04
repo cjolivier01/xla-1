@@ -41,14 +41,6 @@ inline NodePtr GenericOp(OpKind op, absl::Span<const Value> operands,
                            std::move(lower_fn), num_outputs, hash_seed);
 }
 
-inline NodePtr SpecialGenericOp(OpKind op, absl::Span<const Value> operands,
-                         const std::function<xla::Shape()>& shape_fn,
-                         Generic::LowerFn lower_fn, size_t num_outputs = 1,
-                         xla::hash_t hash_seed = 0x5a2d296e9) {
-  return MakeNode<SpecialGeneric>(std::move(op), operands, shape_fn,
-                           std::move(lower_fn), num_outputs, hash_seed);
-}
-
 inline NodePtr GenericOp(OpKind op, xla::Shape shape, Generic::LowerFn lower_fn,
                          size_t num_outputs, xla::hash_t hash_seed) {
   return MakeNode<Generic>(std::move(op), std::move(shape), std::move(lower_fn),

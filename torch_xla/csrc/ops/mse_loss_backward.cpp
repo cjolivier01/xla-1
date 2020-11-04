@@ -41,26 +41,11 @@ NodePtr MseLossBackward::Clone(OpList operands) const {
 }
 
 XlaOpVector MseLossBackward::Lower(LoweringContext* loctx) const {
-  if (loctx->AllowCustomLowering()) {
-    return ReturnOp(CustomLowerOp(
-        "WSE_MseLossBWD", this,
-        "wse_mse_loss_bwd", "wse_mse_loss_bwd_float16_NAT_",
-        {
-          {"reduction", std::to_string(xla::util::GetEnumValue(reduction_))},
-          {"in0", "grad_output"},
-          {"in1", "input"},
-          {"in2", "target"}
-        }, loctx), loctx);
-  } else {
-    ir::ScopePusher("WSE_MseLossBWD");
-    xla::XlaOp grad_output = loctx->GetOutputOp(operand(0));
-    xla::XlaOp input = loctx->GetOutputOp(operand(1));
-    xla::XlaOp target = loctx->GetOutputOp(operand(2));
-    return ReturnOp(
-        BuildMseLossBackward(grad_output, input, target, reduction_),
-        loctx
-    );
-  }
+  xla::XlaOp grad_output = loctx->GetOutputOp(operand(0));
+  xla::XlaOp input = loctx->GetOutputOp(operand(1));
+  xla::XlaOp target = loctx->GetOutputOp(operand(2));
+  return ReturnOp(BuildMseLossBackward(grad_output, input, target, reduction_),
+                  loctx);
 }
 
 std::string MseLossBackward::ToString() const {

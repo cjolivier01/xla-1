@@ -151,14 +151,6 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       node_hash_(xla::util::HashCombine(op_.hash(), hash_seed)),
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
-  //  if (is_autograd_) {
-  //    std::cout << "creating autograd node" << std::endl;
-  //  } else {
-  //    std::cout << "not autograd node" << std::endl;
-  //  }
-  //  if (op == ir::OpKind(at::aten::native_batch_norm_backward)) {
-  //      std::cout << "Kind" << std::endl;
-  //  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   const auto &fa_map = ptwse::FrontendAttributePusher::GetFrontendAttributes();
@@ -186,11 +178,6 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       node_hash_(GetOpHash(op_, shape_, hash_seed)),
       hash_(node_hash_),
       is_autograd_(is_autograd_thread()) {
-  //  if (is_autograd_) {
-  //    std::cout << "creating autograd node" << std::endl;
-  //  } else {
-  //    std::cout << "not autograd node" << std::endl;
-  //  }
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   const auto &fa_map = ptwse::FrontendAttributePusher::GetFrontendAttributes();
@@ -198,13 +185,6 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
 }
 
 Node::~Node() {
-  //  if (op_ == ir::OpKind(at::aten::native_batch_norm_backward)) {
-  //      std::cout << "Kind" << std::endl;
-  //  }
-  //  if (is_autograd_ && metadata_.frontend_attributes.size()) {
-  //    std::cout << "Destroying node: " <<
-  //    metadata_.frontend_attributes.begin()->first << std::endl;
-  //  }
   for (size_t i = 0; i < operands_as_outputs_.size(); ++i) {
     operands_[i]->RemoveUse(Use(this, i, operands_as_outputs_[i].index));
   }

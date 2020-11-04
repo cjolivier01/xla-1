@@ -38,15 +38,7 @@ NodePtr MseLoss::Clone(OpList operands) const {
 XlaOpVector MseLoss::Lower(LoweringContext* loctx) const {
   xla::XlaOp input = loctx->GetOutputOp(operand(0));
   xla::XlaOp target = loctx->GetOutputOp(operand(1));
-  if (loctx->AllowCustomLowering()) {
-    return ReturnOp(CustomLowerOp(
-        "WSE_MseLossFWD", this,
-        "wse_mse_loss_fwd", "wse_mse_loss_fwd_float16_NAT_",
-        {{"reduction", std::to_string(xla::util::GetEnumValue(reduction_))}}, loctx), loctx);
-  } else {
-    ir::ScopePusher("WSE_MseLossFWD");
-    return ReturnOp(BuildMseLoss(input, target, reduction_), loctx);
-  }
+  return ReturnOp(BuildMseLoss(input, target, reduction_), loctx);
 }
 
 std::string MseLoss::ToString() const {

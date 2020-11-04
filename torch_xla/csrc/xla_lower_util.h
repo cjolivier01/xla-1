@@ -9,8 +9,6 @@
 
 namespace torch_xla {
 
-#define SCOPE_INSTRUCTION InstructionScope __iscope$(__PRETTY_FUNCTION__);
-
 xla::XlaOp PadToSize(xla::XlaOp input, absl::Span<const xla::int64> size,
                      absl::optional<xla::XlaOp> pad_value = absl::nullopt);
 

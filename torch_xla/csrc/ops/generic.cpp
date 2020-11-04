@@ -34,12 +34,6 @@ XlaOpVector Generic::Lower(LoweringContext* loctx) const {
   return lower_fn_(*this, loctx);
 }
 
-XlaOpVector SpecialGeneric::Lower(LoweringContext* loctx) const {
-  auto result = Generic::Lower(loctx);
-  return std::move(result);
-}
-
-
 }  // namespace ops
 }  // namespace ir
 }  // namespace torch_xla

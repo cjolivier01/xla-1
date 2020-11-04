@@ -1,6 +1,5 @@
 #include "torch_xla/csrc/aten_tensor_ops.h"
 
-#include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/ptwse_scope.hh"
 
@@ -10,8 +9,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
     const at::Tensor& grad_out, const at::Tensor& input, const at::Tensor& mean,
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t N,
     int64_t C, int64_t HxW, int64_t group, std::array<bool, 3> output_mask) {
-//  torch_xla::FrontendAttributePusher fattr(
-//      __partition_match_name(true), "native_group_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
   DECLARE_PARTITION();
   at::Tensor grad_input = grad_out;
   std::vector<int64_t> affine_param_shape(input.dim(), 1);
@@ -40,8 +37,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_group_norm_backward(
 std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm(
     const at::Tensor& input, const c10::optional<at::Tensor>& weight,
     const c10::optional<at::Tensor>& bias, int64_t M, int64_t N, double eps) {
-//    ptwse::FrontendAttributePusher fattr(
-//        ptwse::PartitionScope::PartitionMatchName(true), "native_layer_norm<float16>(NAT,NAT)", /*prefix_depth=*/true);
   DECLARE_PARTITION();
   auto input_shape = input.sizes();
   at::Tensor input_reshaped = input.view({1, M, -1});
@@ -68,8 +63,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> native_layer_norm_backward(
     const at::Tensor& grad_out, const at::Tensor& input, const at::Tensor& mean,
     const at::Tensor& rstd, const c10::optional<at::Tensor>& weight, int64_t M,
     int64_t N, std::array<bool, 3> output_mask) {
-//  ptwse::FrontendAttributePusher fattr(
-//      ptwse::PartitionScope::PartitionMatchName(false), "native_layer_norm_backward<float16>(NAT,NAT)", /*prefix_depth=*/true);
   DECLARE_PARTITION();
   at::Tensor grad_input = grad_out;
   if (torch_xla::IsDefined(weight)) {

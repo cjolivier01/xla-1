@@ -19,7 +19,6 @@ torch::Tensor MaxPool2dAutogradFunction::forward(
     torch::autograd::AutogradContext* ctx, torch::Tensor self,
     torch::IntArrayRef kernel_size, torch::IntArrayRef stride,
     torch::IntArrayRef padding, torch::IntArrayRef dilation, bool ceil_mode) {
-  //DECLARE_PARTITION();
   ctx->saved_data["kernel_size"] = kernel_size;
   ctx->saved_data["stride"] = stride;
   ctx->saved_data["padding"] = padding;

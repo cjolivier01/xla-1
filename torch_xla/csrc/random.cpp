@@ -31,8 +31,6 @@ xla::BitGeneratorTy GetBitGenerator() {
     };
   } else if (*bit_generator == "three_fry") {
     return xla::ThreeFryBitGenerator;
-  } else if (*bit_generator == "stateful") {
-    assert(false);
   }
   XLA_ERROR() << "Unknown random bit generator: " << *bit_generator;
 }
