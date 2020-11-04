@@ -324,6 +324,7 @@ extra_compile_args = [
     '-Wno-return-type',
     '-Dtensorflow=ptxla_tf',
     '-DEigen=ptxla_Eigen',
+    '-Dgrpc=ptxla_grpc',
 ]
 
 if re.match(r'clang', os.getenv('CC', '')):

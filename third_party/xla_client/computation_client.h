@@ -165,7 +165,8 @@ class ComputationClient {
     int64 kb_total = 0;
   };
 
-  static void SetFactory(std::shared_ptr<ComputationClientFactory> factory);
+  static std::shared_ptr<ComputationClientFactory> SetFactory(
+    std::shared_ptr<ComputationClientFactory> factory);
 
   static std::unique_ptr<ComputationClient> Create();
 

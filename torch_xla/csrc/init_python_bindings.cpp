@@ -957,35 +957,32 @@ void InitXlaModuleBindings(py::module m) {
   });
   m.def("_xla_metrics_report",
         []() { return xla::metrics_reader::CreateMetricReport(); });
-  m.def(
-      "_xla_tensors_report",
-      [](size_t nodes_threshold, const std::string& device) {
-        return GetLiveTensorsReport(nodes_threshold, device);
-      },
-      py::arg("nodes_threshold") = 100, py::arg("device") = "");
+  m.def("_xla_tensors_report",
+        [](size_t nodes_threshold, const std::string& device) {
+          return GetLiveTensorsReport(nodes_threshold, device);
+        },
+        py::arg("nodes_threshold") = 100, py::arg("device") = "");
   m.def("_xla_memory_info", [](const std::string& device) -> py::object {
     return GetMemoryInfo(device);
   });
-  m.def(
-      "_xla_set_use_full_mat_mul_precision",
-      [](bool use_full_mat_mul_precision) {
-        XlaHelpers::set_mat_mul_precision(use_full_mat_mul_precision
-                                              ? xla::PrecisionConfig::HIGHEST
-                                              : xla::PrecisionConfig::DEFAULT);
-      },
-      py::arg("use_full_mat_mul_precision") = true);
+  m.def("_xla_set_use_full_mat_mul_precision",
+        [](bool use_full_mat_mul_precision) {
+          XlaHelpers::set_mat_mul_precision(
+              use_full_mat_mul_precision ? xla::PrecisionConfig::HIGHEST
+                                         : xla::PrecisionConfig::DEFAULT);
+        },
+        py::arg("use_full_mat_mul_precision") = true);
 
   py::class_<xla::util::RecordReader, std::shared_ptr<xla::util::RecordReader>>(
       m, "RecordReader");
-  m.def(
-      "_xla_create_tfrecord_reader",
-      [](const std::string& path, const std::string& compression,
-         xla::int64 buffer_size) {
-        NoGilSection nogil;
-        return CreateRecordReader(path, compression, buffer_size);
-      },
-      py::arg("path"), py::arg("compression") = "",
-      py::arg("buffer_size") = 16 * 1024 * 1024);
+  m.def("_xla_create_tfrecord_reader",
+        [](const std::string& path, const std::string& compression,
+           xla::int64 buffer_size) {
+          NoGilSection nogil;
+          return CreateRecordReader(path, compression, buffer_size);
+        },
+        py::arg("path"), py::arg("compression") = "",
+        py::arg("buffer_size") = 16 * 1024 * 1024);
   m.def(
       "_xla_tfrecord_read",
       [](const std::shared_ptr<xla::util::RecordReader>& reader) -> py::object {
@@ -1144,6 +1141,14 @@ void InitXlaModuleBindings(py::module m) {
 }
 
 }  // namespace
+
+void XlaStepMarker(const std::string& device_str,
+                const std::vector<std::string>& devices, bool wait) {
+    StepMarker(device_str, devices, wait);
+}
+
+std::vector<XLATensor> GetXlaTensors(const std::vector<at::Tensor>& tensors,
+                                     bool want_all);
 
 void InitXlaBindings(py::module m) { InitXlaModuleBindings(m); }
 

@@ -541,8 +541,16 @@ class ComputationClientFactory {
  public:
   virtual std::unique_ptr<ComputationClient> Create(
       XrtComputationClient::Options options,
+      std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto) = 0;
+};
+
+template <typename COMPUTATION_CLIENT_TYPE>
+class TComputationClientFactory : public ComputationClientFactory {
+ public:
+  virtual std::unique_ptr<ComputationClient> Create(
+      XrtComputationClient::Options options,
       std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto) {
-    return std::make_unique<XrtComputationClient>(std::move(options),
+    return std::make_unique<COMPUTATION_CLIENT_TYPE>(std::move(options),
                                                   std::move(topology_proto));
   }
 };
