@@ -501,16 +501,6 @@ XLATensor::XLATensor(ir::Value ir_value, const Device& device,
                      c10::optional<at::ScalarType> logical_element_type)
     : data_(std::make_shared<Data>(std::move(ir_value), device,
                                    logical_element_type)) {
-  //  if (data_.get()->tensor_data.has_value()) {
-  //    const bool is_weight =
-  //        data_.get()->tensor_data->is_leaf() &&
-  //        data_.get()->tensor_data->requires_grad();
-  //    if (is_weight) {
-  //      std::cout << "WEIGHT" << std::endl << std::flush;
-  //    } else {
-  //      std::cout << "NOT WEIGHT" << std::endl << std::flush;
-  //    }
-  //  }
   TryLimitGraphSize();
 }
 
@@ -616,8 +606,8 @@ xla::ComputationClient::DataPtr XLATensor::CurrentXlaData() const {
   return data()->xla_data;
 }
 
-std::string XLATensor::DumpHloComputation(const std::vector<XLATensor>& tensors,
-                                          bool json) {
+std::string XLATensor::DumpHloComputation(
+    const std::vector<XLATensor>& tensors) {
   std::vector<ir::Value> ir_values;
   for (auto& tensor : tensors) {
     ir::Value ir_value = tensor.CurrentIrValue();
@@ -625,10 +615,8 @@ std::string XLATensor::DumpHloComputation(const std::vector<XLATensor>& tensors,
       ir_values.push_back(std::move(ir_value));
     }
   }
-  return !ir_values.empty()
-             ? (json ? ir::DumpUtil::ToJson(ir_values, GetCurrentDevice())
-                     : ir::DumpUtil::ToHlo(ir_values, GetCurrentDevice()))
-             : std::string();
+  return !ir_values.empty() ? ir::DumpUtil::ToHlo(ir_values, GetCurrentDevice())
+                            : std::string();
 }
 
 void XLATensor::SetXlaData(xla::ComputationClient::DataPtr xla_data) {
