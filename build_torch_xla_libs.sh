@@ -29,7 +29,7 @@ if [[ "$XLA_DEBUG" == "1" ]]; then
   MODE="dbg"
 fi
 
-VERBOSE=ThreadPoolDeviceFactory::CreateDevices
+VERBOSE=
 if [[ "$XLA_BAZEL_VERBOSE" == "1" ]]; then
   VERBOSE="-s"
 fi
