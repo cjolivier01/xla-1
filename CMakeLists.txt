@@ -227,7 +227,6 @@ add_custom_command(
 
 add_custom_target(
         xlac ALL
-        #COMMAND "ln" "-s" "-f" "$<TARGET_FILE:${XLAC_EXTENSION_TARGET}>" "${CMAKE_CURRENT_LIST_DIR}/build/${ARCH_BUILD_DIR_NAME}/${XLAC_EXTENSION_TARGET}.so"
         COMMAND echo  "xlac built"
         DEPENDS ${XLAC_EXTENSION_TARGET}
 )
