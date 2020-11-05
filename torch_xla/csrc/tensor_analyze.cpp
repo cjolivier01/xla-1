@@ -773,7 +773,6 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
         coll.hash = state.start_hash_;
         return true;  // need to recalculate postorder with new inputs/outputs
       }
-      coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
     } else if (prune_tensors_if_outputs_set) {
       if (is_in_mark_step) {
@@ -870,7 +869,6 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
       coll.hash = proxy_hash;
       state.fabric_run_ = true;
       mark_step_was_on_proxy = true;
-      coll.config.allow_custom_lowering = true;
       return false;  // Nothing removed, so keep going (on fabric)
     }
   } else {
@@ -904,7 +902,6 @@ bool XLASentinel::OnHashingComplete(HashingState& state,
     // ex_cache->modify_adjusted_hash(coll.hash, proxy_hash);
     ex_cache->set_adjusted_hash(state.pre_prune_hash_, proxy_hash);
     coll.hash = proxy_hash;
-    coll.config.allow_custom_lowering = true;
     mark_step_was_on_proxy = true;
     return false;
   }
