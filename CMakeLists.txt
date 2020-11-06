@@ -64,6 +64,7 @@ include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/eigen_archive)
 include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/com_google_absl/)
 include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/com_github_grpc_grpc/include)
 include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/llvm-project/llvm/include)
+include_directories(BEFORE ${TFDIR}/bazel-out/host/bin/external/llvm-project/llvm/include)
 include_directories(BEFORE ${TFDIR}/bazel-out/k8-opt/bin/external/llvm-project/llvm/include)
 
 #include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/sdk-x86_64/x86_64-buildroot-linux-gnu/sysroot/usr/include)
