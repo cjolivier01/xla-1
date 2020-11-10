@@ -35,7 +35,7 @@
 #define XLA_FN_COUNTER(ns)                        \
   XLA_COUNTER(absl::StrCat(ns, __FUNCTION__), 1); \
   torch_xla::ir::ScopePusher _scope_push(absl::StrCat(ns, __FUNCTION__)); \
-  DECLARE_PARTITION()
+  /*DECLARE_PARTITION()*/
 
 namespace torch_xla {
 namespace {

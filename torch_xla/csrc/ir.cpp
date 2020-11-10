@@ -153,8 +153,7 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
-  const auto &fa_map = ptwse::FrontendAttributePusher::GetFrontendAttributes();
-  metadata_.frontend_attributes.insert(fa_map.begin(), fa_map.end());
+  ptwse::FrontendAttributePusher::CopyFrontendAttributesToMap(metadata_.frontend_attributes);
   for (auto &operand : operands) {
     AddOperand(operand.node, operand.index);
     hash_ = xla::util::HashCombine(hash_, operand.hash());
@@ -180,8 +179,7 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
-  const auto &fa_map = ptwse::FrontendAttributePusher::GetFrontendAttributes();
-  metadata_.frontend_attributes.insert(fa_map.begin(), fa_map.end());
+  ptwse::FrontendAttributePusher::CopyFrontendAttributesToMap(metadata_.frontend_attributes);
 }
 
 Node::~Node() {

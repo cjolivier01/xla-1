@@ -1403,7 +1403,6 @@ void XLATensor::MarkStep(const Device& device) {
   DeviceContextArena::Get()->MarkStep(device);
   ir::ScopePusher::ResetScopes();
   ptwse::FrontendAttributePusher::Reset();
-  ptwse::PartitionScope::app.Reset();
   g_tls_data.Reset();
 }
 

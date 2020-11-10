@@ -1031,17 +1031,14 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
-//  m.def("_xla_push_python_state",
-//        [](const int state) { PushPythonState((EPythonState)state); });
-//  m.def("_xla_pop_python_state", []() { PopPythonState(); });
   m.def("_xla_push_ir_scope",
         [](std::string scope) { ir::PythonPushScope(std::move(scope)); });
   m.def("_xla_pop_ir_scope", []() { ir::PythonPopScope(); });
-  m.def("_xla_add_frontend_attribute", [](std::string key, std::string value) {
-      ptwse::FrontendAttributePusher::PythonAddFrontendAttribute(std::move(key), std::move(value));
+  m.def("_xla_add_frontend_attribute", [](std::string key, std::string value) -> std::string {
+      return ptwse::FrontendAttributePusher::PushFrontendAttribute(std::move(key), std::move(value));
   });
   m.def("_xla_remove_frontend_attribute",
-        [](const std::string& key) { ptwse::FrontendAttributePusher::PythonRemoveFrontendAttribute(key); });
+        [](const std::string& key) { ptwse::FrontendAttributePusher::PopFrontendAttribute(key); });
   m.def("_xla_trap", []() { raise(SIGTRAP); });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");
