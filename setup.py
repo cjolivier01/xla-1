@@ -287,11 +287,17 @@ include_dirs = [
 ]
 for ipath in [
     'tensorflow/bazel-tensorflow',
+    'third_party/tensorflow/bazel-tensorflow',
     'tensorflow/bazel-bin',
-    'tensorflow/bazel-tensorflow/external/protobuf_archive/src',
+    'third_party/tensorflow/tensorflow',
     'tensorflow/bazel-tensorflow/external/com_google_protobuf/src',
+    'tensorflow/bazel-tensorflow/external/protobuf_archive/src',
     'tensorflow/bazel-tensorflow/external/eigen_archive',
     'tensorflow/bazel-tensorflow/external/com_google_absl',
+    'bazel-tensorflow/external/com_github_grpc_grpc/include',
+    'bazel-tensorflow/external/llvm-project/llvm/include',
+    'bazel-out/host/bin/external/llvm-project/llvm/include',
+    'bazel-out/k8-opt/bin/external/llvm-project/llvm/include',
 ]:
   include_dirs.append(os.path.join(third_party_path, ipath))
 include_dirs += [
@@ -305,7 +311,7 @@ library_dirs.append(lib_path)
 
 extra_link_args = []
 
-DEBUG = _check_env_flag('DEBUG')
+DEBUG = True # _check_env_flag('DEBUG')
 IS_DARWIN = (platform.system() == 'Darwin')
 IS_LINUX = (platform.system() == 'Linux')
 
@@ -319,6 +325,8 @@ def make_relative_rpath(path):
 
 extra_compile_args = [
     '-std=c++14',
+    '-fPIC',
+    '-fwrapv',
     '-Wno-sign-compare',
     '-Wno-deprecated-declarations',
     '-Wno-return-type',
@@ -326,6 +334,7 @@ extra_compile_args = [
     '-DEigen=ptxla_Eigen',
     '-Dgrpc=ptxla_grpc',
     '-Dgoogle=ptxla_google',
+    '-Dllvm=ptxla_llvm',
 ]
 
 if re.match(r'clang', os.getenv('CC', '')):

@@ -59,11 +59,15 @@ else
   pushd $THIRD_PARTY_DIR/tensorflow
   bazel $BAZELOPTS build $MAX_JOBS $VERBOSE --define framework_shared_object=false -c "$MODE" "${OPTS[@]}" \
     $XLA_CUDA_CFG \
+    --copt=-fdiagnostics-color=always \
+    --cxxopt=-fdiagnostics-color=always \
+    --config=mkl \
     --copt=-Dtensorflow=ptxla_tf --cxxopt=-Dtensorflow=ptxla_tf \
     --cxxopt=-DEigen=ptxla_Eigen \
     --copt=-Dgrpc=ptxla_grpc --cxxopt=-Dgrpc=ptxla_grpc \
     --copt=-Dgoogle=ptxla_google --cxxopt=-Dgoogle=ptxla_google \
     --cxxopt=-Dllvm=ptxla_llvm \
+    --strip=never \
     //tensorflow/compiler/xla/xla_client:libxla_computation_client.so
   popd
   mkdir -p torch_xla/lib
