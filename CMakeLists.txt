@@ -51,7 +51,6 @@ include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-tensorflow)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/bazel-bin)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow)
@@ -66,6 +65,7 @@ include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/com_github_grpc_gr
 include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/llvm-project/llvm/include)
 include_directories(BEFORE ${TFDIR}/bazel-out/host/bin/external/llvm-project/llvm/include)
 include_directories(BEFORE ${TFDIR}/bazel-out/k8-opt/bin/external/llvm-project/llvm/include)
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
 
 #include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/sdk-x86_64/x86_64-buildroot-linux-gnu/sysroot/usr/include)
 

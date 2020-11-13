@@ -286,20 +286,27 @@ include_dirs = [
     base_dir,
 ]
 for ipath in [
+    'tensorflow',
     'tensorflow/bazel-tensorflow',
-    'third_party/tensorflow/bazel-tensorflow',
     'tensorflow/bazel-bin',
-    'third_party/tensorflow/tensorflow',
     'tensorflow/bazel-tensorflow/external/com_google_protobuf/src',
     'tensorflow/bazel-tensorflow/external/protobuf_archive/src',
     'tensorflow/bazel-tensorflow/external/eigen_archive',
     'tensorflow/bazel-tensorflow/external/com_google_absl',
-    'bazel-tensorflow/external/com_github_grpc_grpc/include',
-    'bazel-tensorflow/external/llvm-project/llvm/include',
-    'bazel-out/host/bin/external/llvm-project/llvm/include',
-    'bazel-out/k8-opt/bin/external/llvm-project/llvm/include',
+    'tensorflow/bazel-tensorflow/external/com_github_grpc_grpc/include',
+    'tensorflow/bazel-tensorflow/external/llvm-project/llvm/include',
+    'tensorflow/bazel-out/host/bin/external/llvm-project/llvm/include',
+    'tensorflow/bazel-out/k8-opt/bin/external/llvm-project/llvm/include',
+    # 'tensorflow',
+    # 'tensorflow/bazel-tensorflow',
+    # 'tensorflow/bazel-bin',
+    # 'tensorflow/bazel-tensorflow/external/protobuf_archive/src',
+    # 'tensorflow/bazel-tensorflow/external/com_google_protobuf/src',
+    # 'tensorflow/bazel-tensorflow/external/eigen_archive',
+    # 'tensorflow/bazel-tensorflow/external/com_google_absl',
 ]:
   include_dirs.append(os.path.join(third_party_path, ipath))
+  print(f'INCLUDE={os.path.join(third_party_path, ipath)}')
 include_dirs += [
     pytorch_source_path,
     os.path.join(pytorch_source_path, 'torch/csrc'),
