@@ -17,7 +17,6 @@
 #include "tensorflow/compiler/xla/xla_client/mesh_service.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/xrt_computation_client.h"
-#include "tensorflow/compiler/xla/xla_client/xla_computation_proxy.h"
 #include "tensorflow/core/platform/net.h"
 #include "tensorflow/core/platform/stacktrace_handler.h"
 #include "tensorflow/core/util/device_name_utils.h"
@@ -30,7 +29,7 @@ namespace {
 
 bool verbose = false;
 
-//#define USE_PTWSE_FACTORY
+#define USE_PTWSE_FACTORY
 
 #ifdef USE_PTWSE_FACTORY
 std::shared_ptr<ComputationClientFactory> computation_client_factory =
@@ -339,8 +338,11 @@ std::shared_ptr<ComputationClientFactory> ComputationClient::SetFactory(
     return std::move(old_factory);
 }
 
+std::shared_ptr<ComputationClientFactory> ComputationClient::GetFactory() {
+    return computation_client_factory;
+}
+
 std::unique_ptr<ComputationClient> ComputationClient::Create() {
-  print_environment_config();
   XrtComputationClient::Options options;
   std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto;
   if (!ParseEnvBasedTpuClusterConfig(&options) &&
@@ -349,12 +351,7 @@ std::unique_ptr<ComputationClient> ComputationClient::Create() {
     XLA_ERROR() << "Missing XLA configuration";
   }
   PopulateLocalDevices(&options);
-#if 1
   return computation_client_factory->Create(options, std::move(topology_proto));
-#else
-  return std::unique_ptr<ComputationClient>(
-      new XlaComputationProxy(options, std::move(topology_proto)));
-#endif
 }
 
 std::shared_ptr<ComputationClient::Computation> ComputationClient::Compile(

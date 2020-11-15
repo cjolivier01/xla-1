@@ -168,6 +168,8 @@ class ComputationClient {
   static std::shared_ptr<ComputationClientFactory> SetFactory(
     std::shared_ptr<ComputationClientFactory> factory);
 
+  static std::shared_ptr<ComputationClientFactory> GetFactory();
+
   static std::unique_ptr<ComputationClient> Create();
 
   virtual ~ComputationClient() {}
@@ -310,6 +312,7 @@ class ComputationClient {
   static metrics::Metric* InboundDataMetric();
   static metrics::Metric* OutboundDataMetric();
 };
+
 
 }  // namespace xla
 
