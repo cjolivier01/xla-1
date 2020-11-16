@@ -1397,6 +1397,10 @@ protected:
       const std::unordered_map<xla::int64, xla::ComputationClient::DataPtr>*
           uid_data_map = nullptr);
 
+  static std::vector<at::Tensor> FetchTensors(
+      std::vector<XLATensor>* tensors, absl::Span<const xla::Literal> literals,
+      const std::vector<size_t>* indices);
+
   // Schedules the execution of a sync tensors operation in background. The
   // asynchronous operation will hold the device locks by capturing the ones
   // present within the coll structure.

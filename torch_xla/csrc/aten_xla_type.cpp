@@ -83,6 +83,24 @@ std::pair<XLATensor, XLATensor> GetBinaryOperands(const at::Tensor& self,
   return std::pair<XLATensor, XLATensor>(self_tensor, other_tensor);
 }
 
+// The input is in format of {N, C, H, W} and the output will be {H, W}.
+std::vector<xla::int64> GetOutputSizeWithScale(
+    absl::Span<const xla::int64> input_size,
+    const c10::optional<at::ArrayRef<double>>& scale_factors,
+    const c10::optional<at::IntArrayRef>& output_size) {
+  if (!output_size) {
+    XLA_CHECK(scale_factors);
+    XLA_CHECK_EQ(scale_factors->size(), 2);
+    // Calculate the output size from input_shape and scale_factors
+    XLA_CHECK_EQ(input_size.size(), 4);
+    xla::int64 output_h = input_size[2] * (*scale_factors)[0];
+    xla::int64 output_w = input_size[3] * (*scale_factors)[1];
+    return {output_h, output_w};
+  }
+  XLA_CHECK(!scale_factors);
+  return xla::util::ToVector<xla::int64>(*output_size);
+}
+
 template <typename B>
 at::Tensor DoBinaryOp(const at::Tensor& self, const at::Tensor& other,
                       const B& bin_op) {
@@ -1154,7 +1172,9 @@ at::Tensor AtenXlaType::embedding_dense_backward(const at::Tensor& grad_output,
 }
 
 at::Tensor AtenXlaType::empty(
-    at::IntArrayRef size, const at::TensorOptions& options,
+    at::IntArrayRef size, c10::optional<at::ScalarType> dtype,
+    c10::optional<at::Layout> layout, c10::optional<at::Device> device,
+    c10::optional<bool> pin_memory,
     c10::optional<at::MemoryFormat> /* memory_format */) {
   XLA_FN_COUNTER("xla::");
   // PT empty*() are optimizations to avoid initializing the data when it is
@@ -1163,8 +1183,8 @@ at::Tensor AtenXlaType::empty(
   // avoid going to CPU for it. A common PT pattern is indeed doing empty() plus
   // s_copy_().
   return bridge::AtenFromXlaTensor(XLATensor::full(
-      XlaHelpers::I64List(size), 0, GetXlaDeviceOrCurrent(options.device()),
-      GetScalarTypeOrFloat(c10::typeMetaToScalarType(options.dtype()))));
+      XlaHelpers::I64List(size), 0, GetXlaDeviceOrCurrent(device),
+      GetScalarTypeOrFloat(dtype)));
 }
 
 at::Tensor AtenXlaType::empty_strided(at::IntArrayRef size,
@@ -1174,12 +1194,7 @@ at::Tensor AtenXlaType::empty_strided(at::IntArrayRef size,
                                       c10::optional<at::Device> device,
                                       c10::optional<bool> pin_memory) {
   XLA_FN_COUNTER("xla::");
-  at::TensorOptions options = at::TensorOptions()
-                                  .dtype(dtype)
-                                  .layout(layout)
-                                  .pinned_memory(pin_memory)
-                                  .device(device);
-  at::Tensor t = empty(size, options, c10::nullopt);
+  at::Tensor t = empty(size, dtype, layout, device, pin_memory, c10::nullopt);
   return as_strided(t, size, stride, /*storage_offset=*/0);
 }
 
@@ -3275,6 +3290,44 @@ at::Tensor AtenXlaType::upsample_bilinear2d_backward(
   return bridge::AtenFromXlaTensor(XLATensor::upsample_bilinear2d_backward(
       grad_output_tensor, xla::util::ToVector<xla::int64>(output_size),
       xla::util::ToVector<xla::int64>(input_size), align_corners));
+}
+
+at::Tensor AtenXlaType::upsample_nearest2d(
+    const at::Tensor& input, c10::optional<at::IntArrayRef> output_size,
+    c10::optional<at::ArrayRef<double>> scale_factors) {
+  XLA_FN_COUNTER("xla::");
+  XLATensor input_tensor = bridge::GetXlaTensor(input);
+  // Only the XLA TPU backend for now implements the CustomCall required by our
+  // XLA lowering.
+  if (input_tensor.GetDevice().hw_type != DeviceType::TPU) {
+    return AtenXlaTypeDefault::upsample_nearest2d(input, output_size,
+                                                  scale_factors);
+  }
+  absl::Span<const xla::int64> input_dims =
+      input_tensor.shape().get().dimensions();
+  return bridge::AtenFromXlaTensor(XLATensor::upsample_nearest2d(
+      input_tensor,
+      GetOutputSizeWithScale(input_dims, scale_factors, output_size)));
+}
+
+at::Tensor AtenXlaType::upsample_nearest2d_backward(
+    const at::Tensor& grad_output, c10::optional<at::IntArrayRef> output_size,
+    at::IntArrayRef input_size,
+    c10::optional<at::ArrayRef<double>> scale_factors) {
+  XLA_FN_COUNTER("xla::");
+  XLATensor grad_output_tensor = bridge::GetXlaTensor(grad_output);
+  // Only the XLA TPU backend for now implements the CustomCall required by our
+  // XLA lowering.
+  if (grad_output_tensor.GetDevice().hw_type != DeviceType::TPU) {
+    return AtenXlaTypeDefault::upsample_nearest2d_backward(
+        grad_output, output_size, input_size, scale_factors);
+  }
+  std::vector<xla::int64> input_dim =
+      xla::util::ToVector<xla::int64>(input_size);
+  return bridge::AtenFromXlaTensor(XLATensor::upsample_nearest2d_backward(
+      grad_output_tensor,
+      GetOutputSizeWithScale(input_dim, scale_factors, output_size),
+      input_dim));
 }
 
 at::Tensor AtenXlaType::upsample_nearest2d(const at::Tensor& self,

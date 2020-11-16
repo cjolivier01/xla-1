@@ -250,6 +250,7 @@ def _pre_fork_setup(num_devices):
   return PreForkConfig(dev_kind=dev_kind, num_devices=num_devices)
 
 
+<<<<<<< HEAD
 def _no_localservice():  # cjolivier01
   """
   Force multi-device and no local worker
@@ -287,7 +288,7 @@ def _get_mp_local_service():
   return '{}:{}'.format(job_name, task_id)
 
 
-def _setup_gpu_worker(index, gindex, pf_cfg):
+def _setup_gpu_worker(index, gindex):
   os.environ[xenv.MP_DEVICE] = 'GPU:{}'.format(
       _get_mp_device_ordinal(index, gindex))
   os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
@@ -304,7 +305,7 @@ def _is_wse_tpu_mode():
   return int(os.environ.get("WSE_TPU_MODE", "0")) != 0
 
 
-def _setup_cpu_worker(index, gindex, pf_cfg):
+def _setup_cpu_worker(index, gindex):
   task_no = 0
   dev_index = _get_mp_device_ordinal(index, gindex)
   os.environ[xenv.MP_DEVICE] = 'CPU:{}'.format(dev_index)
@@ -330,8 +331,7 @@ def _wants_tpu_env_config(index, gindex):
   return gindex == 0
 
 
-def _setup_tpu_worker(index, gindex, pf_cfg, tpu_env_config):
-  assert index >= 0 and gindex >= 0
+def _setup_tpu_worker(index, gindex, tpu_env_config):
   os.environ[xenv.MP_DEVICE] = 'TPU:{}'.format(
       _get_mp_device_ordinal(index, gindex))
   if xenv.LOCAL_WORKER not in os.environ:
@@ -398,8 +398,7 @@ def _prepare_env_for_index(index, pf_cfg):
   os.environ[xenv.LOCAL_ORDINAL] = str(index)
 
   if pf_cfg.dev_kind == 'TPU':
-    _setup_tpu_worker(index, gindex, pf_cfg,
-                      os.environ.get(xenv.TPU_CONFIG, None))
+    _setup_tpu_worker(index, gindex, os.environ.get(xenv.TPU_CONFIG, None))
     if xenv.HOST_ORDINAL in os.environ:
       # If xenv.HOST_ORDINAL is set, we are in a sea-of-devices TPU setup, where
       # each host has local TPU devices, but not interconnected with the fast TPU
@@ -437,9 +436,9 @@ def _prepare_env_for_index(index, pf_cfg):
       assert False, "Probably don't want this"
       _setup_torch_distributed()
   elif pf_cfg.dev_kind == 'GPU':
-    _setup_gpu_worker(index, gindex, pf_cfg)
+    _setup_gpu_worker(index, gindex)
   elif pf_cfg.dev_kind == 'CPU':
-    _setup_cpu_worker(index, gindex, pf_cfg)
+    _setup_cpu_worker(index, gindex)
     _setup_torch_distributed()
   return gindex
 

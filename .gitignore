@@ -20,5 +20,10 @@ torch_xla/csrc/aten_xla_type_default.cpp
 # Below files are not deleted by "setup.py clean".
 
 third_party/tensorflow/
+
 sources.cmake
 .idea
+
+# Visual Studio Code files
+.vscode
+.vs

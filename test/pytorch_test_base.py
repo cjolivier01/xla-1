@@ -185,6 +185,8 @@ DISABLED_TORCH_TESTS_ANY = {
         'test_index_add_mem_overlap',  # doesn't raise
         'test_shift_mem_overlap',  # doesn't raise
         'test_matrix_exp_analytic_xla',  # server side crash
+        'test_muldiv_scalar_xla_bfloat16',  # FIXME
+        'test_kthvalue_xla_.*',  # FIXME
     },
     'TestViewOpsXLA': {
         'test_contiguous_nonview',
@@ -308,6 +310,8 @@ DISABLED_TORCH_TESTS_TPU_ONLY = {
         'test_i0_range1_xla_bfloat16',  # precision, 52480.0 vs. 54016.0
         'test_i0_range2_xla_bfloat16',  # precision, 7.019985352739087e+36 vs. 5.815372481559007e+36
         'test_bucketization_xla',  # server side crash
+        'test_median_real_values_xla_int64',  # TPU X64Rewriter doesn't support sort
+        'test_copysign_xla.*bfloat16.*',  # precision
     },
 
     # test_indexing.py
@@ -318,6 +322,7 @@ DISABLED_TORCH_TESTS_TPU_ONLY = {
     # test_nn.py
     'TestNNDeviceTypeXLA': {
         'test_embedding_bag_empty_input_xla',  # server side crash
+        'test_EmbeddingBag_empty_per_sample_weights_and_offsets_xla',  # server side crash
     },
 
     # test_type_promotion.py
@@ -330,6 +335,11 @@ DISABLED_TORCH_TESTS_GPU_ONLY = {
     # test_torch.py
     'TestTorchDeviceTypeXLA': {
         'test_maximum_minimum_float_nan_and_inf',  # maximum(nan,inf) = inf on GPU
+    },
+
+    # test_indexing.py
+    'TestIndexingXLA': {
+        'test_index_put_accumulate_large_tensor_xla',  # illegal memory access was encountered
     },
 }
 

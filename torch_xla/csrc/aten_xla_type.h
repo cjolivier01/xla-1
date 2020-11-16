@@ -330,7 +330,10 @@ class AtenXlaType {
                                              bool scale_grad_by_freq);
 
   static at::Tensor empty(at::IntArrayRef size,
-                          const at::TensorOptions& options,
+                          c10::optional<at::ScalarType> dtype,
+                          c10::optional<at::Layout> layout,
+                          c10::optional<at::Device> device,
+                          c10::optional<bool> pin_memory,
                           c10::optional<at::MemoryFormat> memory_format);
 
   static at::Tensor empty_strided(at::IntArrayRef size, at::IntArrayRef stride,
@@ -1043,6 +1046,15 @@ class AtenXlaType {
       const at::Tensor& grad_output, at::IntArrayRef output_size,
       at::IntArrayRef input_size, bool align_corners,
       c10::optional<double> scales_h, c10::optional<double> scales_w);
+
+  static at::Tensor upsample_nearest2d(
+      const at::Tensor& input, c10::optional<at::IntArrayRef> output_size,
+      c10::optional<at::ArrayRef<double>> scale_factors);
+
+  static at::Tensor upsample_nearest2d_backward(
+      const at::Tensor& grad_output, c10::optional<at::IntArrayRef> output_size,
+      at::IntArrayRef input_size,
+      c10::optional<at::ArrayRef<double>> scale_factors);
 
   static at::Tensor upsample_nearest2d(const at::Tensor& self,
                                        at::IntArrayRef output_size,
