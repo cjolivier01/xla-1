@@ -22,17 +22,14 @@ struct HashingState {
 
 class Sentinel {
 public:
-  // TO BE MOVED TO PTWSE OUT OF SENTINEL INTERFACE
   virtual void SetDeviceProxyAddress(const std::string& device,
-                             const std::string& proxy_address) {}
-  // TOP BE MOVED TO PTWSE OUT OF SENTINEL INTERFACE
+                                     const std::string& proxy_address) {}
+
   virtual bool WasMarkStepOnProxy() { return false; }
 
-  // TOP BE MOVED TO PTWSE OUT OF SENTINEL INTERFACE
   virtual bool IsInitialized() { return false; }
 
   virtual void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {}
-  //bool IsInitialized();
 
   /**
    * @brief Notification that a MarkStep is beginning
@@ -99,10 +96,6 @@ public:
                      const XLATensor::SyncTensorCollection& coll) {
     return false;
   }
-
-  virtual bool IsSpecialLoweringEnabled() { return false; }
-
-  virtual bool IsForcingCustomLowering() { return false; }
 
   /**
    * @brief Get the current Sentinel
