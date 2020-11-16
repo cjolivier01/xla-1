@@ -916,11 +916,11 @@ void InitXlaModuleBindings(py::module m) {
         SyncLiveTensors(device, devices, wait);
       },
       py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
-  m.def("_xla_is_initialized", []() {
-    // TODO: move to ptwse
-    NoGilSection nogil;
-    return Sentinel::GetSentinel()->IsInitialized();
-  });
+//  m.def("_xla_is_initialized", []() {
+//    // TODO: move to ptwse
+//    NoGilSection nogil;
+//    return Sentinel::GetSentinel()->IsInitialized();
+//  });
   m.def(
       "_xla_step_marker",
       [](const std::string& device, const std::vector<std::string>& devices,

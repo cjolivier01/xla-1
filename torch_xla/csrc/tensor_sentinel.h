@@ -22,15 +22,6 @@ struct HashingState {
 
 class Sentinel {
 public:
-  virtual void SetDeviceProxyAddress(const std::string& device,
-                                     const std::string& proxy_address) {}
-
-  virtual bool WasMarkStepOnProxy() { return false; }
-
-  virtual bool IsInitialized() { return false; }
-
-  virtual void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {}
-
   /**
    * @brief Notification that a MarkStep is beginning
    * @param instances
