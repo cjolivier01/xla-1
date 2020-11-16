@@ -250,7 +250,6 @@ def _pre_fork_setup(num_devices):
   return PreForkConfig(dev_kind=dev_kind, num_devices=num_devices)
 
 
-<<<<<<< HEAD
 def _no_localservice():  # cjolivier01
   """
   Force multi-device and no local worker
