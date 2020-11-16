@@ -40,7 +40,6 @@
 #include "torch_xla/csrc/torch_util.h"
 #include "torch_xla/csrc/version.h"
 #include "torch_xla/csrc/xla_op_builder.h"
-#include "torch_xla/csrc/ptwse_scope.hh"
 
 namespace torch_xla {
 namespace {
@@ -250,84 +249,84 @@ xla::uint64 GetRngSeed(const std::string& device_str) {
   return XLATensor::GetRunningSeed(GetDeviceOrCurrent(device_str));
 }
 
-py::object CreateOutputTensors(const XLATensor::CompiledGraph& compiled_graph) {
-  auto outputs = py::tuple(compiled_graph.outputs_mapping.size());
-  for (size_t i = 0; i < compiled_graph.outputs_mapping.size(); ++i) {
-    auto& output_mapping = compiled_graph.outputs_mapping[i];
-    xla::ComputationClient::DataPtr xla_data =
-        compiled_graph.tensors_data[output_mapping.index];
-    XLATensor xtensor = XLATensor::Create(std::move(xla_data),
-                                          output_mapping.logical_element_type);
-    outputs[i] = torch::autograd::make_variable(
-        bridge::AtenFromXlaTensor(std::move(xtensor)), /*requires_grad=*/false);
-  }
-  return outputs;
-}
+//py::object CreateOutputTensors(const XLATensor::CompiledGraph& compiled_graph) {
+//  auto outputs = py::tuple(compiled_graph.outputs_mapping.size());
+//  for (size_t i = 0; i < compiled_graph.outputs_mapping.size(); ++i) {
+//    auto& output_mapping = compiled_graph.outputs_mapping[i];
+//    xla::ComputationClient::DataPtr xla_data =
+//        compiled_graph.tensors_data[output_mapping.index];
+//    XLATensor xtensor = XLATensor::Create(std::move(xla_data),
+//                                          output_mapping.logical_element_type);
+//    outputs[i] = torch::autograd::make_variable(
+//        bridge::AtenFromXlaTensor(std::move(xtensor)), /*requires_grad=*/false);
+//  }
+//  return outputs;
+//}
 
-py::object CompileExecuteGraph(
-    const std::vector<at::Tensor>& input_tensors,
-    const std::vector<at::Tensor>& output_tensors,
-    const std::string& device_str, const std::vector<std::string>& devices,
-    const XLATensor::CompiledGraph::DataHandleMap* data_handle_map) {
-  std::unique_ptr<XLATensor::CompiledGraph> compiled_graph;
-  {
-    NoGilSection nogil;
-    Device device = bridge::AtenDeviceToXlaDevice(c10::Device(device_str));
-    std::vector<XLATensor> xtensors = XLATensor::GetLiveTensors(&device);
-    std::vector<XLATensor> xinput_tensors =
-        GetXlaTensors(input_tensors, /*want_all=*/true);
-    std::vector<XLATensor> xoutput_tensors =
-        GetXlaTensors(output_tensors, /*want_all=*/true);
-    compiled_graph = XLATensor::CompileExecuteGraph(
-        &xtensors, xinput_tensors, xoutput_tensors, devices, data_handle_map);
-  }
-  if (compiled_graph == nullptr) {
-    return py::none();
-  }
-
-  auto compile_dict = py::dict();
-  compile_dict["outputs"] = CreateOutputTensors(*compiled_graph);
-  std::stringstream ss;
-  ss << compiled_graph->hash;
-  compile_dict["hash"] = ss.str();
-  //compile_dict["hash"] = compiled_graph->hash;
-  compile_dict["handle_map"] =
-      py::cast(compiled_graph->data_handle_map.release(),
-               pybind11::return_value_policy::take_ownership);
-  compile_dict["graph"] = py::cast(
-      compiled_graph.release(), pybind11::return_value_policy::take_ownership);
-  return compile_dict;
-}
-
-py::object ExecuteCompiledGraph(
-    const std::vector<at::Tensor>& input_tensors,
-    const XLATensor::CompiledGraph& compiled_graph) {
-  {
-    NoGilSection nogil;
-    std::vector<XLATensor> xinput_tensors =
-        GetXlaTensors(input_tensors, /*want_all=*/true);
-    XLATensor::ExecuteCompiledGraph(xinput_tensors, compiled_graph,
-                                    /*wait=*/
-                                    false
-                                    //true
-                                    );
-  }
-  return CreateOutputTensors(compiled_graph);
-}
+//py::object CompileExecuteGraph(
+//    const std::vector<at::Tensor>& input_tensors,
+//    const std::vector<at::Tensor>& output_tensors,
+//    const std::string& device_str, const std::vector<std::string>& devices,
+//    const XLATensor::CompiledGraph::DataHandleMap* data_handle_map) {
+//  std::unique_ptr<XLATensor::CompiledGraph> compiled_graph;
+//  {
+//    NoGilSection nogil;
+//    Device device = bridge::AtenDeviceToXlaDevice(c10::Device(device_str));
+//    std::vector<XLATensor> xtensors = XLATensor::GetLiveTensors(&device);
+//    std::vector<XLATensor> xinput_tensors =
+//        GetXlaTensors(input_tensors, /*want_all=*/true);
+//    std::vector<XLATensor> xoutput_tensors =
+//        GetXlaTensors(output_tensors, /*want_all=*/true);
+//    compiled_graph = XLATensor::CompileExecuteGraph(
+//        &xtensors, xinput_tensors, xoutput_tensors, devices, data_handle_map);
+//  }
+//  if (compiled_graph == nullptr) {
+//    return py::none();
+//  }
+//
+//  auto compile_dict = py::dict();
+//  compile_dict["outputs"] = CreateOutputTensors(*compiled_graph);
+//  std::stringstream ss;
+//  ss << compiled_graph->hash;
+//  compile_dict["hash"] = ss.str();
+//  //compile_dict["hash"] = compiled_graph->hash;
+//  compile_dict["handle_map"] =
+//      py::cast(compiled_graph->data_handle_map.release(),
+//               pybind11::return_value_policy::take_ownership);
+//  compile_dict["graph"] = py::cast(
+//      compiled_graph.release(), pybind11::return_value_policy::take_ownership);
+//  return compile_dict;
+//}
+//
+//py::object ExecuteCompiledGraph(
+//    const std::vector<at::Tensor>& input_tensors,
+//    const XLATensor::CompiledGraph& compiled_graph) {
+//  {
+//    NoGilSection nogil;
+//    std::vector<XLATensor> xinput_tensors =
+//        GetXlaTensors(input_tensors, /*want_all=*/true);
+//    XLATensor::ExecuteCompiledGraph(xinput_tensors, compiled_graph,
+//                                    /*wait=*/
+//                                    false
+//                                    //true
+//                                    );
+//  }
+//  return CreateOutputTensors(compiled_graph);
+//}
 
 std::string GetTensorsHloGraph(const std::vector<at::Tensor>& tensors) {
   std::vector<XLATensor> xtensors = GetXlaTensors(tensors, /*want_all=*/false);
   return XLATensor::DumpHloComputation(xtensors);
 }
 
-void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
-  Sentinel::GetSentinel()->SetOutputs(output_tensors, append);
-}
-
-void SetDeviceAddress(const std::string& device,
-                      const std::string& proxy_address) {
-  Sentinel::GetSentinel()->SetDeviceProxyAddress(device, proxy_address);
-}
+//void SetOutputs(const std::vector<at::Tensor>& output_tensors, bool append) {
+//  Sentinel::GetSentinel()->SetOutputs(output_tensors, append);
+//}
+//
+//void SetDeviceAddress(const std::string& device,
+//                      const std::string& proxy_address) {
+//  Sentinel::GetSentinel()->SetDeviceProxyAddress(device, proxy_address);
+//}
 
 std::string GetLiveTensorsReport(size_t nodes_threshold,
                                  const std::string& device_str) {
@@ -732,16 +731,16 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::vector<at::Tensor>& tensors) -> std::string {
           return GetTensorsHloGraph(tensors);
         });
-  m.def(
-      "_xla_set_outputs",
-      [](const std::vector<at::Tensor>& output_tensors, bool append) {
-        SetOutputs(output_tensors, append);
-      },
-      py::arg("output_tensors"), py::arg("append") = false);
-  m.def("_xla_was_previous_mark_step_on_proxy", [](){
-    // TODO: move to ptwse
-      return Sentinel::GetSentinel()->WasMarkStepOnProxy();
-  });
+//  m.def(
+//      "_xla_set_outputs",
+//      [](const std::vector<at::Tensor>& output_tensors, bool append) {
+//        SetOutputs(output_tensors, append);
+//      },
+//      py::arg("output_tensors"), py::arg("append") = false);
+//  m.def("_xla_was_previous_mark_step_on_proxy", [](){
+//    // TODO: move to ptwse
+//      return Sentinel::GetSentinel()->WasMarkStepOnProxy();
+//  });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;
@@ -1031,15 +1030,15 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
-  m.def("_xla_push_ir_scope",
-        [](std::string scope) { ir::PythonPushScope(std::move(scope)); });
-  m.def("_xla_pop_ir_scope", []() { ir::PythonPopScope(); });
-  m.def("_xla_add_frontend_attribute", [](std::string key, std::string value) -> std::string {
-      return ptwse::FrontendAttributePusher::PushFrontendAttribute(std::move(key), std::move(value));
-  });
-  m.def("_xla_remove_frontend_attribute",
-        [](const std::string& key) { ptwse::FrontendAttributePusher::PopFrontendAttribute(key); });
-  m.def("_xla_trap", []() { raise(SIGTRAP); });
+//  m.def("_xla_push_ir_scope",
+//        [](std::string scope) { ir::PythonPushScope(std::move(scope)); });
+//  m.def("_xla_pop_ir_scope", []() { ir::PythonPopScope(); });
+//  m.def("_xla_add_frontend_attribute", [](std::string key, std::string value) -> std::string {
+//      return ptwse::FrontendAttributePusher::PushFrontendAttribute(std::move(key), std::move(value));
+//  });
+//  m.def("_xla_remove_frontend_attribute",
+//        [](const std::string& key) { ptwse::FrontendAttributePusher::PopFrontendAttribute(key); });
+//  m.def("_xla_trap", []() { raise(SIGTRAP); });
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");
   py::class_<Computation, ComputationPtr>(m, "XlaComputation");
@@ -1095,48 +1094,50 @@ void InitXlaModuleBindings(py::module m) {
            const std::vector<op_builder::OpPtr>& operands, py::dict args) {
           return op_builder::CreateOp(builder, opname, operands, args);
   });
-  py::class_<XLATensor::CompiledGraph>(m, "CompiledGraph");
-  py::class_<XLATensor::CompiledGraph::DataHandleMap>(m, "CompiledGraphDataHandleMap");
-  py::class_<xla::hash_t>(m, "HashValue")
-      .def(py::self == py::self)
-      .def(py::self != py::self)
-      .def("__str__", [](const xla::hash_t& self){
-        std::stringstream ss;  ss << self; return ss.str();
-      })
-      .def("__repr__", [](const xla::hash_t& self){
-        std::stringstream ss;  ss << self; return ss.str();
-      });
-  m.def("_xla_compile_execute_graph",
-        [](const std::vector<at::Tensor>& input_tensors,
-           const std::vector<at::Tensor>& output_tensors,
-           const std::string& device, const std::vector<std::string>& devices,
-           const XLATensor::CompiledGraph::DataHandleMap* data_handle_map) {
-          return CompileExecuteGraph(input_tensors, output_tensors, device,
-                                     devices, data_handle_map);
-        });
-  m.def("_xla_execute_compiled_graph",
-        [](const std::vector<at::Tensor>& input_tensors,
-           const XLATensor::CompiledGraph& compiled_graph) {
-          return ExecuteCompiledGraph(input_tensors, compiled_graph);
-        });
-  m.def(
-      "_xla_device_proxy_interface",
-      [](const std::string& device, const std::string& proxy_address) {
-        NoGilSection nogil;
-        SetDeviceAddress(device, proxy_address);
-      },
-      py::arg("device"), py::arg("proxy_address"));
+//  py::class_<XLATensor::CompiledGraph>(m, "CompiledGraph");
+//  py::class_<XLATensor::CompiledGraph::DataHandleMap>(m, "CompiledGraphDataHandleMap");
+//  py::class_<xla::hash_t>(m, "HashValue")
+//      .def(py::self == py::self)
+//      .def(py::self != py::self)
+//      .def("__str__", [](const xla::hash_t& self){
+//        std::stringstream ss;  ss << self; return ss.str();
+//      })
+//      .def("__repr__", [](const xla::hash_t& self){
+//        std::stringstream ss;  ss << self; return ss.str();
+//      });
+//  m.def("_xla_compile_execute_graph",
+//        [](const std::vector<at::Tensor>& input_tensors,
+//           const std::vector<at::Tensor>& output_tensors,
+//           const std::string& device, const std::vector<std::string>& devices,
+//           const XLATensor::CompiledGraph::DataHandleMap* data_handle_map) {
+//          return CompileExecuteGraph(input_tensors, output_tensors, device,
+//                                     devices, data_handle_map);
+//        });
+//  m.def("_xla_execute_compiled_graph",
+//        [](const std::vector<at::Tensor>& input_tensors,
+//           const XLATensor::CompiledGraph& compiled_graph) {
+//          return ExecuteCompiledGraph(input_tensors, compiled_graph);
+//        });
+//  m.def(
+//      "_xla_device_proxy_interface",
+//      [](const std::string& device, const std::string& proxy_address) {
+//        NoGilSection nogil;
+//        SetDeviceAddress(device, proxy_address);
+//      },
+//      py::arg("device"), py::arg("proxy_address"));
 }
 
 }  // namespace
 
-void XlaStepMarker(const std::string& device_str,
+void ptxla_StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
     StepMarker(device_str, devices, wait);
 }
 
-std::vector<XLATensor> GetXlaTensors(const std::vector<at::Tensor>& tensors,
-                                     bool want_all);
+std::vector<XLATensor> ptxla_GetXlaTensors(const std::vector<at::Tensor>& tensors,
+                                     bool want_all) {
+    return GetXlaTensors(tensors, want_all);
+}
 
 void InitXlaBindings(py::module m) { InitXlaModuleBindings(m); }
 

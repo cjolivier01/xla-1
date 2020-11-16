@@ -313,7 +313,6 @@ class ComputationClient {
   static metrics::Metric* OutboundDataMetric();
 };
 
-
 }  // namespace xla
 
 #define PIDSTR "[PID=" << getpid() << "] "

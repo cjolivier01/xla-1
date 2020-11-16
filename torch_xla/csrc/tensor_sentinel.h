@@ -4,7 +4,7 @@
 
 #include "torch_xla/csrc/tensor.h"
 
-//#define USE_PTWSE_SENTINEL
+#define USE_PTWSE_SENTINEL
 
 namespace torch_xla {
 

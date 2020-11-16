@@ -164,7 +164,8 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
     HloMetadataSetter meta_setter(this, node);
-    ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(builder(), node->metadata().frontend_attributes);
+    ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(
+        builder(), node->metadata().frontend_attributes);
     result_ops = node->Lower(this);
   } catch (const std::exception& ex) {
     ReportBuilderError(node, ex.what());

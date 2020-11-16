@@ -94,6 +94,7 @@ add_compile_options(-Dtensorflow=ptxla_tf)
 add_compile_options(-Dtensorflow=ptxla_tf)
 add_compile_options(-DEigen=ptxla_Eigen)
 add_compile_options(-Dgrpc=ptxla_grpc)
+add_compile_options(-Dgrpc_impl=ptxla_grpc_impl)
 add_compile_options(-Dgoogle=ptxla_google)
 add_compile_options(-Dllvm=ptxla_llvm)
 # Namespaces-
@@ -114,8 +115,8 @@ set(CMAKE_CXX_FLAGS "-DTORCH_EXTENSION_NAME=_XLAC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 #set(CMAKE_CXX_FLAGS "-DTF_HAS_WSE_DEVICE=1 ${CMAKE_CXX_FLAGS}")
 
-add_compile_options(-fvisibility=hidden)
-add_link_options(-fvisibility=hidden)
+#add_compile_options(-fvisibility=hidden)
+#add_link_options(-fvisibility=hidden)
 add_compile_options(-Wno-ignored-qualifiers)
 
 
@@ -214,11 +215,6 @@ set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES BUILD_RPATH "$ORIGIN/l
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# how to set RTLD_DEEPBIND# How to force RTLD_DEEPBIND?
-# -Wl,--copy-dt-needed-entries
-#add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
-#add_library(${XLAC_EXTENSION_TARGET} SHARED ${CMAKE_CURRENT_LIST_DIR}/torch_xla/csrc/stub.cpp)
-##set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES OUTPUT_NAME "${XLAC_EXTENSION_TARGET}")
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES PREFIX "")
 #target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ptxla)

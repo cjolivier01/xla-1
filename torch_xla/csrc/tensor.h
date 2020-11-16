@@ -24,43 +24,50 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
 
+
+namespace ptwse {
+class XLASentinel;
+class WSETensor;
+}
+
 namespace torch_xla {
 
 class XLATensor {
+protected:
   class DeviceContextArena;
   struct Data;
-  friend class THelper;
-  friend class XLASentinel;
+  friend class ptwse::XLASentinel;
+  friend class ptwse::WSETensor;
   struct CachedComputation;
 
  public:
-  struct CompiledGraph {
-    enum MapLocation {
-      kInvalid,
-      kInput,
-      kExtra,
-    };
-    struct ParameterMapping {
-      MapLocation location = MapLocation::kInvalid;
-      size_t index = 0;
-    };
-    struct OutputMapping {
-      size_t index = 0;
-      c10::optional<at::ScalarType> logical_element_type;
-    };
-    using DataHandleMap =
-        std::unordered_map<xla::ComputationClient::Data::OpaqueHandle,
-                           xla::int64>;
-
-    Device device;
-    xla::hash_t hash = 0;
-    std::shared_ptr<CachedComputation> computation;
-    std::vector<ParameterMapping> parameters_mapping;
-    std::vector<OutputMapping> outputs_mapping;
-    std::unique_ptr<DataHandleMap> data_handle_map;
-    std::vector<xla::ComputationClient::DataPtr> extra_parameters_data;
-    std::vector<xla::ComputationClient::DataPtr> tensors_data;
-  };
+//  struct CompiledGraph {
+//    enum MapLocation {
+//      kInvalid,
+//      kInput,
+//      kExtra,
+//    };
+//    struct ParameterMapping {
+//      MapLocation location = MapLocation::kInvalid;
+//      size_t index = 0;
+//    };
+//    struct OutputMapping {
+//      size_t index = 0;
+//      c10::optional<at::ScalarType> logical_element_type;
+//    };
+//    using DataHandleMap =
+//        std::unordered_map<xla::ComputationClient::Data::OpaqueHandle,
+//                           xla::int64>;
+//
+//    Device device;
+//    xla::hash_t hash = 0;
+//    std::shared_ptr<CachedComputation> computation;
+//    std::vector<ParameterMapping> parameters_mapping;
+//    std::vector<OutputMapping> outputs_mapping;
+//    std::unique_ptr<DataHandleMap> data_handle_map;
+//    std::vector<xla::ComputationClient::DataPtr> extra_parameters_data;
+//    std::vector<xla::ComputationClient::DataPtr> tensors_data;
+//  };
 
   static XLATensor Create(const at::Tensor& tensor, const Device& device);
   static XLATensor Create(
@@ -132,6 +139,9 @@ class XLATensor {
 
   // Applies the queue of operations in preparation for using the data.
   void ApplyPendingGraph();
+
+  static std::vector<xla::util::ExceptionCleanup> LockDevices(
+      const std::set<Device>& devices);
 
   static ir::Value GetDeviceDataIrValue(at::Scalar value,
                                         xla::PrimitiveType type,
@@ -206,42 +216,22 @@ class XLATensor {
   // All the tensors must be on the same device.
   static std::vector<at::Tensor> GetTensors(std::vector<XLATensor>* tensors);
 
-  static std::unique_ptr<XLATensor::CompiledGraph> CompileExecuteGraph(
-      std::vector<XLATensor>* tensors,
-      const std::vector<XLATensor>& input_tensors,
-      const std::vector<XLATensor>& output_tensors,
-      absl::Span<const std::string> devices,
-      const CompiledGraph::DataHandleMap* dhandle_map);
-
-  static void ExecuteCompiledGraph(const std::vector<XLATensor>& input_tensors,
-                                   const CompiledGraph& compiled_graph,
-                                   bool wait);
+//  static std::unique_ptr<XLATensor::CompiledGraph> CompileExecuteGraph(
+//      std::vector<XLATensor>* tensors,
+//      const std::vector<XLATensor>& input_tensors,
+//      const std::vector<XLATensor>& output_tensors,
+//      absl::Span<const std::string> devices,
+//      const CompiledGraph::DataHandleMap* dhandle_map);
+//
+//  static void ExecuteCompiledGraph(const std::vector<XLATensor>& input_tensors,
+//                                   const CompiledGraph& compiled_graph,
+//                                   bool wait);
 
   // Operation which creates XLA tensors out of PyTorch CPU tensors by batching
   // the requests to the computation servers.
   static std::vector<XLATensor> CreateTensors(
       const std::vector<at::Tensor>& tensors,
       const std::vector<std::string>& devices);
-
-  static void print_tensor(const std::string& label, const XLATensor& tensor);
-  static void print_tensor(const std::string& label,
-                           const XLATensor::Data* data, bool assert,
-                           ptrdiff_t alias_id);
-
-  static void print_tensor_ex(const std::string& label,
-                              const XLATensor& tensor);
-  static void print_tensor_ex(const std::string& label,
-                              const XLATensor::Data* data, bool assert,
-                              ptrdiff_t alias_id);
-
-  static void print_all_tensors(const std::string& label,
-                                const std::vector<XLATensor>& tensors);
-
-  template <typename CB>
-  static void print_tensors(const std::string& label,
-                            const std::vector<XLATensor>& tensors, CB cb);
-
-  static int get_rank(const XLATensor::Data* data);
 
   //////////////////////////////////////////////////////////////////////////////
   // XLA dedicated operators follows here, listed in alphabetical order.
@@ -1201,7 +1191,7 @@ class XLATensor {
   static XLATensor where(const XLATensor& condition, const XLATensor& input,
                          const XLATensor& other);
 
- private:
+ protected:
   friend class Sentinel;
   struct SyncTensorsConfig {
     // Whether we want to force XLA data on the target tensors (hence trimming
@@ -1443,14 +1433,14 @@ class XLATensor {
                                    const SyncTensorCollection& coll,
                                    PostOrderData* po_data);
 
-  static std::unique_ptr<XLATensor::CompiledGraph> CreateCompiledGraph(
-      std::vector<XLATensor>* tensors,
-      const std::shared_ptr<CachedComputation>& cached_computation,
-      SyncTensorCollection& coll, const SyncTensorsConfig& config,
-      const std::vector<XLATensor>& input_tensors,
-      const std::vector<XLATensor>& output_tensors,
-      const std::vector<xla::ComputationClient::DataPtr>& parameters_data,
-      const CompiledGraph::DataHandleMap* dhandle_map);
+//  static std::unique_ptr<XLATensor::CompiledGraph> CreateCompiledGraph(
+//      std::vector<XLATensor>* tensors,
+//      const std::shared_ptr<CachedComputation>& cached_computation,
+//      SyncTensorCollection& coll, const SyncTensorsConfig& config,
+//      const std::vector<XLATensor>& input_tensors,
+//      const std::vector<XLATensor>& output_tensors,
+//      const std::vector<xla::ComputationClient::DataPtr>& parameters_data,
+//      const CompiledGraph::DataHandleMap* dhandle_map);
 
   static std::shared_ptr<Async> SyncTensorsGraphInternal(
       std::vector<XLATensor>* tensors, absl::Span<const std::string> devices,

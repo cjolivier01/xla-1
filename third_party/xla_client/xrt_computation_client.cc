@@ -138,7 +138,6 @@ class TensorAllocator : public tensorflow::Allocator {
   void* NewBlock(AllocBlocks* alloc_blocks) {
     // We allocate an extra alignment sized area to store the AllocBlocks
     // pointer.
-//    void *ptr = tensorflow::port::AlignedMalloc(alloc_blocks->alloc_key.alignment + alloc_blocks->alloc_key.num_bytes, alloc_blocks->alloc_key.alignment);
     void* ptr = ::aligned_alloc(
         alloc_blocks->alloc_key.alignment,
         alloc_blocks->alloc_key.alignment + alloc_blocks->alloc_key.num_bytes);
@@ -153,9 +152,6 @@ class TensorAllocator : public tensorflow::Allocator {
   void FreeBlock(void* ptr, AllocBlocks* alloc_blocks) {
     size_ -= alloc_blocks->alloc_key.num_bytes;
     std::free(reinterpret_cast<char*>(ptr) - alloc_blocks->alloc_key.alignment);
-//    tensorflow::port::AlignedFree(
-//        reinterpret_cast<char *>(ptr) - alloc_blocks->alloc_key.alignment
-//    );
   }
 
   void TrimCache(size_t num_bytes) {
@@ -270,7 +266,6 @@ XrtComputationClient::XrtComputationClient(
               << options_.default_device
               << "\" from global_device_map:"
               << std::endl << std::flush;
-    //raise(SIGTRAP);
     for (const auto& item : options_.global_device_map) {
       std::cout << "\t" << item.first << " -> " << item.second
                 << std::endl << std::flush;
@@ -1972,9 +1967,6 @@ std::string XrtComputationClient::GetLocalTarget(const Options& options) {
 }
 
 void XrtComputationClient::MaybeCreateLocalService(const Options& options) {
-//  if (sys_util:GetEnvBool("WSE_TPU_MODE", false)) {
-//    return;
-//  }
   std::string grpc_root("grpc://");
   std::string local_worker = sys_util::GetEnvString(env::kEnvLocalWorker, "");
   XrtComputationClient::Worker worker("", -1);

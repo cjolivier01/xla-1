@@ -38,7 +38,7 @@ struct MetaData {
   std::string scope;
   std::vector<SourceLocation> frame_info;
   // Frontend attributes use a map for determinism
-  std::map<std::string, std::string> frontend_attributes;
+  std::unordered_map<std::string, std::string> frontend_attributes;
 };
 
 // Represents a use of the output of a given node.

@@ -11,6 +11,8 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/ptwse_scope.hh"
 
+PTWSE_INSTANTIATE_PARTITIONS()
+
 namespace torch_xla {
 namespace ir {
 
@@ -33,7 +35,7 @@ struct ScopeContext {
 
 thread_local ScopeContext g_scope_context;
 
-void PushScope(const std::string &name) {
+void PushScope(const std::string& name) {
   size_t id = g_scope_context.next_id;
   g_scope_context.scopes.push_back(
       {absl::StrCat(name, ".", id), g_scope_context.next_id + 1});
@@ -58,7 +60,7 @@ std::size_t ScopeDepth() {
 
 std::string GetCurrentScope() {
   std::string scope;
-  for (auto &scope_entry : g_scope_context.scopes) {
+  for (auto& scope_entry : g_scope_context.scopes) {
     if (scope.empty()) {
       absl::StrAppend(&scope, scope_entry.name);
     } else {
@@ -68,17 +70,17 @@ std::string GetCurrentScope() {
   return scope;
 }
 
-ShapeCache *GetShapeCache() {
+ShapeCache* GetShapeCache() {
   static xla::int64 shape_cache_size =
       xla::sys_util::GetEnvInt("XLA_IR_SHAPE_CACHE_SIZE", 4096);
-  static ShapeCache *cache = new ShapeCache(shape_cache_size);
+  static ShapeCache* cache = new ShapeCache(shape_cache_size);
   return cache;
 }
 
-void EmitShortFrameInfo(std::ostream &stream,
-                        const std::vector<SourceLocation> &frames) {
+void EmitShortFrameInfo(std::ostream& stream,
+                        const std::vector<SourceLocation>& frames) {
   if (!frames.empty()) {
-    const SourceLocation &frame = frames.front();
+    const SourceLocation& frame = frames.front();
     std::string::size_type pos = frame.file.find_last_of('/');
     if (pos == std::string::npos) {
       pos = 0;
@@ -89,9 +91,10 @@ void EmitShortFrameInfo(std::ostream &stream,
            << ":" << frame.line;
   }
 }
+
 }  // namespace
 
-bool Use::operator<(const Use &rhs) const {
+bool Use::operator<(const Use& rhs) const {
   if (node->op() != rhs.node->op()) {
     return node->op() < rhs.node->op();
   }
@@ -108,14 +111,14 @@ std::string Use::ToString() const {
   return ss.str();
 }
 
-size_t Output::Hasher::operator()(const Output &output) const {
+size_t Output::Hasher::operator()(const Output& output) const {
   return xla::util::StdHashCombine(
       reinterpret_cast<std::ptrdiff_t>(output.node), output.index);
 }
 
-const xla::Shape &Output::shape() const { return node->shape(index); }
+const xla::Shape& Output::shape() const { return node->shape(index); }
 
-const xla::Shape &Output::node_shape() const { return node->shape(); }
+const xla::Shape& Output::node_shape() const { return node->shape(); }
 
 xla::hash_t Output::hash() const {
   return xla::util::HashCombine(node->hash(), index);
@@ -127,15 +130,15 @@ std::string Output::ToString() const {
   return ss.str();
 }
 
-const xla::Shape &Value::shape() const { return node->shape(index); }
+const xla::Shape& Value::shape() const { return node->shape(index); }
 
-const xla::Shape &Value::node_shape() const { return node->shape(); }
+const xla::Shape& Value::node_shape() const { return node->shape(); }
 
 xla::hash_t Value::hash() const {
   return xla::util::HashCombine(node->hash(), index);
 }
 
-OpKind OpKind::Get(const std::string &name) {
+OpKind OpKind::Get(const std::string& name) {
   return OpKind(c10::Symbol::fromQualString(name));
 }
 
@@ -153,7 +156,8 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
-  ptwse::FrontendAttributePusher::CopyFrontendAttributesToMap(metadata_.frontend_attributes);
+  metadata_.frontend_attributes =
+      ptwse::FrontendAttributePusher::GetFrontendAttributes();
   for (auto &operand : operands) {
     AddOperand(operand.node, operand.index);
     hash_ = xla::util::HashCombine(hash_, operand.hash());
@@ -161,7 +165,7 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
 }
 
 Node::Node(OpKind op, OpList operands,
-           const std::function<xla::Shape()> &shape_fn, size_t num_outputs,
+           const std::function<xla::Shape()>& shape_fn, size_t num_outputs,
            xla::hash_t hash_seed)
     : Node(std::move(op), operands, xla::Shape(), num_outputs, hash_seed) {
   // Forward the constructor to the one above (with empty shape), so we have the
@@ -179,7 +183,8 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       is_autograd_(is_autograd_thread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
-  ptwse::FrontendAttributePusher::CopyFrontendAttributesToMap(metadata_.frontend_attributes);
+  metadata_.frontend_attributes =
+      ptwse::FrontendAttributePusher::GetFrontendAttributes();
 }
 
 Node::~Node() {
@@ -188,7 +193,7 @@ Node::~Node() {
   }
 }
 
-const xla::Shape &Node::shape(size_t output_index) const {
+const xla::Shape& Node::shape(size_t output_index) const {
   if (shape_.IsTuple()) {
     return shape_.tuple_shapes(output_index);
   }
@@ -205,7 +210,7 @@ void Node::AddOperand(NodePtr node, size_t index) {
 
 void Node::ReplaceOperand(size_t operand_no, NodePtr node, size_t index) {
   XLA_CHECK_LT(index, node->num_outputs());
-  Output *output = &operands_as_outputs_.at(operand_no);
+  Output* output = &operands_as_outputs_.at(operand_no);
   operands_[operand_no]->RemoveUse(Use(this, operand_no, output->index));
   node->AddUse(Use(this, operand_no, index));
   *output = Output(node.get(), index);
@@ -216,19 +221,19 @@ void Node::ReplaceAllUsesWith(NodePtr node, size_t index) {
   // A call to ReplaceOperand() will end up calling RemoveUse() into the
   // current node, so snapshot the current uses and iterate over them.
   std::vector<Use> current_uses(uses_.begin(), uses_.end());
-  for (auto &use : current_uses) {
+  for (auto& use : current_uses) {
     use.node->ReplaceOperand(use.operand_index, node, index);
   }
 }
 
-XlaOpVector Node::ReturnOp(xla::XlaOp op, LoweringContext *loctx) const {
+XlaOpVector Node::ReturnOp(xla::XlaOp op, LoweringContext* loctx) const {
   XLA_CHECK_EQ(num_outputs(), 1);
   loctx->AssignOutputOp(Output(this), op);
   return XlaOpVector({std::move(op)});
 }
 
 XlaOpVector Node::ReturnOps(absl::Span<const xla::XlaOp> ops,
-                            LoweringContext *loctx) const {
+                            LoweringContext* loctx) const {
   XLA_CHECK_EQ(num_outputs(), ops.size());
   XlaOpVector result;
   for (size_t i = 0; i < ops.size(); ++i) {
@@ -255,19 +260,19 @@ NodePtr Node::Clone(OpList operands) const {
   XLA_ERROR() << "Cloning not implemented for node: " << *this;
 }
 
-XlaOpVector Node::Lower(LoweringContext *loctx) const {
+XlaOpVector Node::Lower(LoweringContext* loctx) const {
   XLA_ERROR() << "Lowering not implemented for node: " << *this;
 }
 
-xla::hash_t Node::GetOpHash(OpKind op, const xla::Shape &shape,
+xla::hash_t Node::GetOpHash(OpKind op, const xla::Shape& shape,
                             xla::hash_t hash_seed) {
   xla::hash_t h =
       xla::util::HashCombine(op.hash(), xla::util::Hash(shape.ToString()));
   return xla::util::HashCombine(h, hash_seed);
 }
 
-xla::Shape Node::GetOpShape(const std::function<xla::Shape()> &shape_fn) const {
-  ShapeCache *shape_cache = GetShapeCache();
+xla::Shape Node::GetOpShape(const std::function<xla::Shape()>& shape_fn) const {
+  ShapeCache* shape_cache = GetShapeCache();
   auto shape = shape_cache->Get(hash());
   if (shape == nullptr) {
     shape = shape_cache->Add(hash(), std::make_shared<xla::Shape>(shape_fn()));
@@ -283,7 +288,7 @@ std::vector<SourceLocation> Node::GetFrameInfo() {
   return wants_frames ? GetPythonFrames() : std::vector<SourceLocation>();
 }
 
-ScopePusher::ScopePusher(const std::string &name) { PushScope(name); }
+ScopePusher::ScopePusher(const std::string& name) { PushScope(name); }
 
 ScopePusher::~ScopePusher() { PopScope(); }
 
@@ -300,4 +305,3 @@ void PythonPopScope() { ir::PopScope(); }
 }  // namespace ir
 }  // namespace torch_xla
 
-PTWSE_INSTANTIATE_PARTITIONS()

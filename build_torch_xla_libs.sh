@@ -65,6 +65,7 @@ else
     --copt=-Dtensorflow=ptxla_tf --cxxopt=-Dtensorflow=ptxla_tf \
     --cxxopt=-DEigen=ptxla_Eigen \
     --copt=-Dgrpc=ptxla_grpc --cxxopt=-Dgrpc=ptxla_grpc \
+    --cxxopt=-Dgrpc_impl=ptxla_grpc_impl \
     --copt=-Dgoogle=ptxla_google --cxxopt=-Dgoogle=ptxla_google \
     --cxxopt=-Dllvm=ptxla_llvm \
     --strip=never \

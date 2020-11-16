@@ -8,4 +8,6 @@
 *nsync_*
 *pywrap_xla*
 *xla*
+*ptwse*
+*grpc_impl*
 *ConvBackpropComputeDimensionsV2*
