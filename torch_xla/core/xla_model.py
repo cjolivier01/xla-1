@@ -780,7 +780,7 @@ def _restrict_output_params(optimizer, loss, restrict_output_params):
             if isinstance(restrict_output_params, list):
               outputs.append(restrict_output_params)
             if outputs:
-              torch_xla._XLAC._xla_set_outputs(outputs, append=False)
+              ptwse._PTWSE._ptwse_set_outputs(outputs, append=False)
         break
 
 

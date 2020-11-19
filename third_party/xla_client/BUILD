@@ -38,36 +38,6 @@ tf_proto_library_cc(
     ],
 )
 
-cc_library(
-    name = "libxla_computation_client_static",
-#    linkopts = select({
-#        "//tensorflow:windows": [],
-#        "//conditions:default": [
-#            "-z defs",
-#            "-Wl,-fuse-ld=gold",
-#            "-Wl,--gdb-index",
-#            "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
-#            "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
-#        ],
-#    }),
-    srcs = [
-        "computation_client_impl",
-        "//tensorflow/compiler/xla:literal_util",
-        "//tensorflow/compiler/xla/client",
-        "//tensorflow/compiler/xla/client:global_data",
-        "//tensorflow/compiler/xla/client:xla_builder",
-        "//tensorflow/compiler/xla/client:xla_computation",
-        "//tensorflow/compiler/xla/client/lib:svd",
-        "//tensorflow/compiler/xla/rpc:grpc_stub",
-#        "//tensorflow/core:lib",
-        "//tensorflow/core/platform/cloud:gcs_file_system",
-        "@com_google_absl//absl/strings",
-    ],
-    visibility = ["//visibility:public"],
-    alwayslink = 1,
-    linkstatic = 1,
-)
-
 tf_cc_shared_object(
     name = "libxla_computation_client.so",
     linkopts = select({
@@ -119,6 +89,7 @@ cc_library(
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
+        #"xla_computation_proxy.cc",
     ],
     hdrs = [
         "cache.h",
@@ -143,6 +114,7 @@ cc_library(
         "xrt_local_service.h",
         "xrt_session.h",
         "xrt_session_cache.h",
+        #"xla_computation_proxy.h"
     ],
     copts = [ "-ggdb3", "-O0" ],
     deps = [

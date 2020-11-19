@@ -37,6 +37,9 @@ bool verbose_mp = false;
 bool verbose_transfers = false;
 bool verbose_pull = false;
 bool all_devices_meshable = false;
+
+bool NO_HLO_PASS = true;
+
 static const char* const kLocalService = "localservice";
 
 bool IsDistributedDevice(std::string device) {
