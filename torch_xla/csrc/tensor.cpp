@@ -1417,7 +1417,7 @@ void XLATensor::MarkStep(const Device& device) {
   XLA_COUNTER("MarkStep", 1);
   DeviceContextArena::Get()->MarkStep(device);
   ir::ScopePusher::ResetScopes();
-  ptwse::FrontendAttributePusher::Reset();
+  pytorch_ptwse::FrontendAttributePusher::Reset();
   g_tls_data.Reset();
 }
 

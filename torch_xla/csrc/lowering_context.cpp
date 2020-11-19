@@ -8,7 +8,6 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
-#include "torch_xla/csrc/tensor_sentinel.h"
 #include "torch_xla/csrc/ptwse_scope.hh"
 
 extern "C" {
@@ -164,7 +163,7 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
     HloMetadataSetter meta_setter(this, node);
-    ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(
+    pytorch_ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(
         builder(), node->metadata().frontend_attributes);
     result_ops = node->Lower(this);
   } catch (const std::exception& ex) {

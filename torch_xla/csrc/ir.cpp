@@ -11,7 +11,9 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/ptwse_scope.hh"
 
+#ifdef PTWSE_INSTANTIATE_PARTITIONS
 PTWSE_INSTANTIATE_PARTITIONS()
+#endif
 
 namespace torch_xla {
 namespace ir {
@@ -157,7 +159,7 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   metadata_.frontend_attributes =
-      ptwse::FrontendAttributePusher::GetFrontendAttributes();
+      pytorch_ptwse::FrontendAttributePusher::GetFrontendAttributes();
   for (auto &operand : operands) {
     AddOperand(operand.node, operand.index);
     hash_ = xla::util::HashCombine(hash_, operand.hash());
@@ -184,7 +186,7 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   metadata_.frontend_attributes =
-      ptwse::FrontendAttributePusher::GetFrontendAttributes();
+      pytorch_ptwse::FrontendAttributePusher::GetFrontendAttributes();
 }
 
 Node::~Node() {

@@ -5,6 +5,7 @@
 *tf_*
 *TF_*
 *TFE_*
+*ptxla*
 *nsync_*
 *pywrap_xla*
 *xla*
