@@ -89,7 +89,7 @@ cc_library(
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
-        #"xla_computation_proxy.cc",
+        "xla_computation_proxy.cc",
     ],
     hdrs = [
         "cache.h",
@@ -114,7 +114,7 @@ cc_library(
         "xrt_local_service.h",
         "xrt_session.h",
         "xrt_session_cache.h",
-        #"xla_computation_proxy.h"
+        "xla_computation_proxy.h",
     ],
     copts = [ "-ggdb3", "-O0" ],
     deps = [

@@ -8,7 +8,7 @@ MODEL_OPTS = {
 }
 FLAGS = args_parse.parse_common_options(
     datadir='/tmp/cifar-data',
-    batch_size=128,
+    batch_size=1,
     num_epochs=25,
     momentum=0.9,
     lr=0.1,
@@ -262,5 +262,13 @@ class TrainCIFAR10(unittest.TestCase):
 
 # Run the tests.
 if __name__ == '__main__':
+  import argparse
+  import ptwse.args
+
+  parser = argparse.ArgumentParser(description='Run PyTorch test')
+  parser = ptwse.args.add_all_arguments(parser)
+  args = parser.parse_args()
+  ptwse.initialize(args)
+
   torch.set_default_tensor_type('torch.FloatTensor')
   unittest.main()
