@@ -926,6 +926,8 @@ protected:
 
   static std::tuple<XLATensor, XLATensor> qr(const XLATensor& input, bool some);
 
+  static void random_(XLATensor& input, int64_t from, int64_t to);
+
   static XLATensor randperm(xla::int64 n, const Device& device,
                             at::ScalarType scalar_type);
 
