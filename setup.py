@@ -318,7 +318,7 @@ library_dirs.append(lib_path)
 
 extra_link_args = []
 
-DEBUG = True # _check_env_flag('DEBUG')
+DEBUG = _check_env_flag('DEBUG')
 IS_DARWIN = (platform.system() == 'Darwin')
 IS_LINUX = (platform.system() == 'Linux')
 
