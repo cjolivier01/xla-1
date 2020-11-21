@@ -10,10 +10,6 @@
 #include "torch_xla/csrc/python_util.h"
 #include "torch_xla/csrc/ptwse_scope.hh"
 
-extern "C" {
-extern int is_autograd_thread();
-}
-
 namespace torch_xla {
 namespace ir {
 namespace {

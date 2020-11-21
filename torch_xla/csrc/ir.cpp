@@ -18,8 +18,6 @@ PTWSE_INSTANTIATE_PARTITIONS()
 namespace torch_xla {
 namespace ir {
 
-extern "C" int is_autograd_thread();
-
 namespace {
 
 using ShapeCache =
@@ -155,7 +153,7 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       shape_(std::move(shape)),
       node_hash_(xla::util::HashCombine(op_.hash(), hash_seed)),
       hash_(node_hash_),
-      is_autograd_(is_autograd_thread()) {
+      is_autograd_(pytorch_ptwse::FrontendAttributePusher::IsAutogradThread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   metadata_.frontend_attributes =
@@ -182,7 +180,7 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       shape_(std::move(shape)),
       node_hash_(GetOpHash(op_, shape_, hash_seed)),
       hash_(node_hash_),
-      is_autograd_(is_autograd_thread()) {
+      is_autograd_(pytorch_ptwse::FrontendAttributePusher::IsAutogradThread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
   metadata_.frontend_attributes =

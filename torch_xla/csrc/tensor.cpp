@@ -46,10 +46,6 @@
 #include "torch_xla/csrc/tensor_analyze.h"
 #endif
 
-extern "C" {
-extern int is_autograd_thread();
-}
-
 namespace torch_xla {
 #ifdef USE_PTWSE_SENTINEL
 __attribute__((visibility("default"))) std::shared_ptr<Sentinel>
