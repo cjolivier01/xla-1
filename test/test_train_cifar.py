@@ -199,6 +199,11 @@ def train_cifar():
       loss = loss_fn(output, target)
       loss.backward()
       xm.optimizer_step(optimizer)
+
+      ptwse._PTWSE._ptwse_set_outputs(
+        [loss] + list(model.parameters())
+      )
+
       tracker.add(FLAGS.batch_size)
       if x % FLAGS.log_steps == 0:
         test_utils.print_training_update(
