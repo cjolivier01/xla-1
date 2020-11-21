@@ -25,6 +25,7 @@ def _is_xla_config():
   for env in [
       xenv.TPU_CONFIG, xenv.LOCAL_WORKER, xenv.GPU_NUM_DEVICES,
       xenv.CPU_NUM_DEVICES,
+      xenv.WSE_NUM_DEVICES,
   ]:
     if os.environ.get(env, None) is not None:
       return True
