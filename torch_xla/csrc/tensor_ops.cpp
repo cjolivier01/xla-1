@@ -4,7 +4,6 @@
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "torch_xla/csrc/helpers.h"
 #include "torch_xla/csrc/ir.h"
-#include "torch_xla/csrc/ptwse_scope.hh"
 
 namespace torch_xla {
 namespace tensor_ops {
@@ -15,7 +14,6 @@ namespace {
 // squeezed out.
 XLATensor IndexAcrossDims(const XLATensor& input, xla::int64 dim,
                           xla::int64 index) {
-  DECLARE_PARTITION();
   return XLATensor::squeeze(XLATensor::slice(input, dim, index, index + 1, 1),
                             dim);
 }
@@ -24,7 +22,6 @@ XLATensor IndexAcrossDims(const XLATensor& input, xla::int64 dim,
 
 XLATensor Cross(const XLATensor& input, const XLATensor& other,
                 c10::optional<xla::int64> dim) {
-  DECLARE_PARTITION();
   xla::int64 canonical_dim;
   if (dim) {
     canonical_dim = XlaHelpers::GetCanonicalDimensionIndex(
@@ -65,7 +62,6 @@ XLATensor Cross(const XLATensor& input, const XLATensor& other,
 XLATensor KlDivBackward(const XLATensor& grad_output, const XLATensor& input,
                         const XLATensor& target, ReductionMode reduction,
                         bool log_target) {
-  DECLARE_PARTITION();
   auto input_shape_ref = input.shape();
   XLATensor expanded_grad_output = XLATensor::expand(
       grad_output,
@@ -89,7 +85,6 @@ XLATensor KlDivBackward(const XLATensor& grad_output, const XLATensor& input,
 }
 
 XLATensor MakeMatrixWithDiagonal(const XLATensor& input, xla::int64 diagonal) {
-  DECLARE_PARTITION();
   xla::int64 size = input.shape().get().dimensions(0);
   XLATensor identity =
       XLATensor::eye(size, size, input.GetDevice(), input.dtype());
@@ -102,7 +97,6 @@ XLATensor MakeMatrixWithDiagonal(const XLATensor& input, xla::int64 diagonal) {
 
 XLATensor SmoothL1Loss(const XLATensor& input, const XLATensor& target,
                        ReductionMode reduction, double beta) {
-  DECLARE_PARTITION();
   torch_xla::ir::ScopePusher ir_scope(at::aten::smooth_l1_loss.toQualString());
   auto broadcasted_inputs = XLATensor::broadcast_tensors({input, target});
   XLA_CHECK_EQ(broadcasted_inputs.size(), 2);
@@ -139,7 +133,6 @@ XLATensor SmoothL1Loss(const XLATensor& input, const XLATensor& target,
 XLATensor SmoothL1LossBackward(const XLATensor& grad_output,
                                const XLATensor& input, const XLATensor& target,
                                ReductionMode reduction, double beta) {
-  DECLARE_PARTITION();
   torch_xla::ir::ScopePusher ir_scope(
       at::aten::smooth_l1_loss_backward.toQualString());
   auto broadcasted_inputs = XLATensor::broadcast_tensors({input, target});
@@ -180,7 +173,6 @@ XLATensor SmoothL1LossBackward(const XLATensor& grad_output,
 
 XLATensor Softplus(const XLATensor& input, at::Scalar beta,
                    at::Scalar threshold) {
-  DECLARE_PARTITION();
   return XLATensor::where(
       XLATensor::gt(XLATensor::mul(input, beta), threshold), input,
       XLATensor::div(
@@ -190,7 +182,6 @@ XLATensor Softplus(const XLATensor& input, at::Scalar beta,
 XLATensor SoftplusBackward(const XLATensor& grad_output, const XLATensor& input,
                            at::Scalar beta, at::Scalar threshold,
                            const XLATensor& output) {
-  DECLARE_PARTITION();
   XLATensor scaled_output = XLATensor::mul(output, beta);
   XLATensor z = XLATensor::exp(scaled_output);
   return XLATensor::where(
@@ -199,7 +190,6 @@ XLATensor SoftplusBackward(const XLATensor& grad_output, const XLATensor& input,
 }
 
 XLATensor Select(const XLATensor& input, xla::int64 dim, xla::int64 index) {
-  DECLARE_PARTITION();
   auto shape = input.shape();
   dim = XlaHelpers::GetCanonicalDimensionIndex(dim, shape.get().rank());
   XLATensor result = XLATensor::narrow(input, dim, index, 1);
@@ -211,7 +201,6 @@ XLATensor EmbeddingDenseBackward(const XLATensor& grad_output,
                                  const XLATensor& indices,
                                  xla::int64 num_weights, xla::int64 padding_idx,
                                  bool scale_grad_by_freq) {
-  DECLARE_PARTITION();
   XLA_CHECK_EQ(indices.dtype(), at::ScalarType::Long)
       << "Embedding indices are expected to be of scalar type Long";
   auto indices_shape_ref = indices.shape();

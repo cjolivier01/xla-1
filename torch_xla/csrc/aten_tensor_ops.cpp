@@ -1,7 +1,6 @@
 #include "torch_xla/csrc/aten_tensor_ops.h"
 
 #include "torch_xla/csrc/torch_util.h"
-#include "torch_xla/csrc/ptwse_scope.hh"
 
 namespace aten_tensor_ops {
 
