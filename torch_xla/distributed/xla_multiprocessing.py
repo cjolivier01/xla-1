@@ -266,7 +266,6 @@ def _get_mp_local_service():
     return '{}:{}'.format(_LOCAL_WORKER, gindex)
 
   mp_device = os.environ.get(xenv.MP_DEVICE)
-  #print(f"os.environ.get(xenv.MP_DEVICE) == {os.environ.get(xenv.MP_DEVICE)}")
   if not mp_device:
     return None
 
@@ -365,10 +364,6 @@ def _setup_wse_worker(index, gindex, pf_cfg,  tpu_env_config, like_tpu=True):
       # always have one.
       assert tpu_env_config, '{} environment must be populated'.format(
         xenv.TPU_CONFIG)
-      # tpu_config = _parse_tpu_config(tpu_env_config)
-      # worker = list(tpu_config.values())[0]
-      # os.environ[xenv.LOCAL_WORKER] = '{}:{}'.format(worker.worker_name,
-      #                                                worker.ordinal)
       os.environ["XRT_NO_LOCALSERVICE"] = "1"
       os.environ[xenv.LOCAL_WORKER] = _get_mp_local_service()
     if not _wants_tpu_env_config(index, gindex):
