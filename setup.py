@@ -297,13 +297,6 @@ for ipath in [
     'tensorflow/bazel-tensorflow/external/llvm-project/llvm/include',
     'tensorflow/bazel-out/host/bin/external/llvm-project/llvm/include',
     'tensorflow/bazel-out/k8-opt/bin/external/llvm-project/llvm/include',
-    # 'tensorflow',
-    # 'tensorflow/bazel-tensorflow',
-    # 'tensorflow/bazel-bin',
-    # 'tensorflow/bazel-tensorflow/external/protobuf_archive/src',
-    # 'tensorflow/bazel-tensorflow/external/com_google_protobuf/src',
-    # 'tensorflow/bazel-tensorflow/external/eigen_archive',
-    # 'tensorflow/bazel-tensorflow/external/com_google_absl',
 ]:
   include_dirs.append(os.path.join(third_party_path, ipath))
   print(f'INCLUDE={os.path.join(third_party_path, ipath)}')
