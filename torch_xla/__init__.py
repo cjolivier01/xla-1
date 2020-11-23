@@ -47,7 +47,6 @@ _setup_grpc()
 _setup_xla_flags()
 
 import sys
-import ctypes
 import atexit
 import torch
 from ._patched_functions import _apply_patches
@@ -58,7 +57,6 @@ _use_rtld_global = hasattr(sys, 'getdlopenflags') and hasattr(sys, 'setdlopenfla
 if _use_rtld_global:
   _default_dlopen_flags = sys.getdlopenflags()
   RTLD_DEEPBIND = 0x8
-  RTLD_NOW = 2
   sys.setdlopenflags(_default_dlopen_flags | RTLD_DEEPBIND)
 
 import _XLAC
