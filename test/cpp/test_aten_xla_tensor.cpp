@@ -7049,7 +7049,7 @@ TEST_F(AtenXlaTensorTest, TestAvgPool3DNoBatch) {
 TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2D) {
   torch::Tensor input =
       torch::rand({4, 1, 28, 28}, torch::TensorOptions(torch::kFloat));
-  for (int64_t output_size : {7, 8}) {
+  for (int64_t output_size : {7, 4}) {
     torch::Tensor output =
         torch::adaptive_avg_pool2d(input, {output_size, output_size});
     ForEachDevice([&](const torch::Device& device) {
@@ -7059,11 +7059,50 @@ TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2D) {
       AllClose(output, xla_output);
     });
   }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_adaptive_avg_pool2d",
+                       cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool3D) {
+  torch::Tensor input =
+      torch::rand({9, 4, 56, 28, 28}, torch::TensorOptions(torch::kFloat));
+  for (int64_t output_size : {7, 4}) {
+    torch::Tensor output = torch::adaptive_avg_pool3d(
+        input, {output_size, output_size, output_size});
+    ForEachDevice([&](const torch::Device& device) {
+      torch::Tensor xla_input = CopyToDevice(input, device);
+      torch::Tensor xla_output = torch::adaptive_avg_pool3d(
+          xla_input, {output_size, output_size, output_size});
+      AllClose(output, xla_output);
+    });
+  }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::adaptive_avg_pool3d",
+                       cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool3DNoBatch) {
+  torch::Tensor input =
+      torch::rand({3, 56, 28, 28}, torch::TensorOptions(torch::kFloat));
+  for (int64_t output_size : {7, 4}) {
+    torch::Tensor output = torch::adaptive_avg_pool3d(
+        input, {output_size, output_size, output_size});
+    ForEachDevice([&](const torch::Device& device) {
+      torch::Tensor xla_input = CopyToDevice(input, device);
+      torch::Tensor xla_output = torch::adaptive_avg_pool3d(
+          xla_input, {output_size, output_size, output_size});
+      AllClose(output, xla_output);
+    });
+  }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::adaptive_avg_pool3d",
+                       cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DNoBatch) {
   torch::Tensor input =
-      torch::rand({1, 28, 28}, torch::TensorOptions(torch::kFloat));
+      torch::rand({1, 56, 56}, torch::TensorOptions(torch::kFloat));
   for (int64_t output_size : {7, 8}) {
     torch::Tensor output =
         torch::adaptive_avg_pool2d(input, {output_size, output_size});
@@ -7074,6 +7113,9 @@ TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DNoBatch) {
       AllClose(output, xla_output);
     });
   }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_adaptive_avg_pool2d",
+                       cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestMaxUnpool2D) {
@@ -8881,6 +8923,46 @@ TEST_F(AtenXlaTensorTest, TestAvgPool3DNoBatchBackward) {
   }
 }
 
+TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool3DNoBatchBackward) {
+  for (int64_t output_size : {7, 4}) {
+    auto testfn =
+        [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+      return torch::adaptive_avg_pool3d(
+          inputs[0], {output_size, output_size, output_size});
+    };
+    ForEachDevice([&](const torch::Device& device) {
+      TestBackward(
+          {torch::rand(
+              {1, 56, 28, 28},
+              torch::TensorOptions(torch::kFloat).requires_grad(true))},
+          device, testfn);
+    });
+  }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::adaptive_avg_pool3d",
+                       cpp_test::GetIgnoredCounters());
+}
+
+TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool3DBackward) {
+  for (int64_t output_size : {7, 4}) {
+    auto testfn =
+        [&](const std::vector<torch::Tensor>& inputs) -> torch::Tensor {
+      return torch::adaptive_avg_pool3d(
+          inputs[0], {output_size, output_size, output_size});
+    };
+    ForEachDevice([&](const torch::Device& device) {
+      TestBackward(
+          {torch::rand(
+              {4, 1, 56, 28, 28},
+              torch::TensorOptions(torch::kFloat).requires_grad(true))},
+          device, testfn);
+    });
+  }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::adaptive_avg_pool3d",
+                       cpp_test::GetIgnoredCounters());
+}
+
 TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DBackward) {
   for (int64_t output_size : {7, 8}) {
     auto testfn =
@@ -8890,11 +8972,14 @@ TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DBackward) {
     ForEachDevice([&](const torch::Device& device) {
       TestBackward(
           {torch::rand(
-              {4, 1, 28, 28},
+              {4, 1, 56, 56},
               torch::TensorOptions(torch::kFloat).requires_grad(true))},
           device, testfn);
     });
   }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_adaptive_avg_pool2d",
+                       cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DNoBatchBackward) {
@@ -8904,11 +8989,14 @@ TEST_F(AtenXlaTensorTest, TestAdaptiveAvgPool2DNoBatchBackward) {
       return torch::adaptive_avg_pool2d(inputs[0], {output_size, output_size});
     };
     ForEachDevice([&](const torch::Device& device) {
-      TestBackward({torch::rand({1, 28, 28}, torch::TensorOptions(torch::kFloat)
+      TestBackward({torch::rand({1, 56, 56}, torch::TensorOptions(torch::kFloat)
                                                  .requires_grad(true))},
                    device, testfn);
     });
   }
+  ExpectCounterNotChanged("aten::.*", cpp_test::GetIgnoredCounters());
+  ExpectCounterChanged("xla::_adaptive_avg_pool2d",
+                       cpp_test::GetIgnoredCounters());
 }
 
 TEST_F(AtenXlaTensorTest, TestConv2DBackward) {
