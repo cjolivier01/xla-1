@@ -166,6 +166,7 @@ if (BUILD_PTXLA_LIB)
   # Link into develop dir position
   add_custom_command(
           TARGET ptxla POST_BUILD
+          COMMAND mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7
           COMMAND mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib
           COMMAND ln -sf $<TARGET_FILE:ptxla> ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/
   )
