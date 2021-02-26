@@ -268,8 +268,8 @@ if build_mode not in ['clean']:
     # Build the support libraries (ie, TF).
     build_extra_libraries(base_dir, build_mode=build_mode)
 
-    # Generate the proto C++/python files only after third_party has built.
-    generate_protos(base_dir, third_party_path)
+  # Generate the proto C++/python files only after third_party has built.
+  generate_protos(base_dir, third_party_path)
 
 # Fetch the sources to be built.
 torch_xla_sources = (
@@ -299,7 +299,6 @@ for ipath in [
     'tensorflow/bazel-out/k8-opt/bin/external/llvm-project/llvm/include',
 ]:
   include_dirs.append(os.path.join(third_party_path, ipath))
-  print(f'INCLUDE={os.path.join(third_party_path, ipath)}')
 include_dirs += [
     pytorch_source_path,
     os.path.join(pytorch_source_path, 'torch/csrc'),
