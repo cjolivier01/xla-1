@@ -8,7 +8,7 @@ MODEL_OPTS = {
 }
 FLAGS = args_parse.parse_common_options(
     datadir='/tmp/cifar-data',
-    batch_size=1,
+    batch_size=128,
     num_epochs=25,
     momentum=0.9,
     lr=0.1,

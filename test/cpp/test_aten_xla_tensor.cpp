@@ -2302,8 +2302,7 @@ TEST_F(AtenXlaTensorTest, TestArgMinDimKeep) {
   ExpectCounterChanged("xla::argmin", cpp_test::GetIgnoredCounters());
 }
 
-// TODO(#2415)
-TEST_F(AtenXlaTensorTest, DISABLED_TestArgMinSameValue) {
+TEST_F(AtenXlaTensorTest, TestArgMinSameValue) {
   torch::Tensor a = torch::ones({4, 4, 4}, torch::TensorOptions(torch::kFloat));
   torch::Tensor b = torch::argmin(a);
   ForEachDevice([&](const torch::Device& device) {
