@@ -209,7 +209,7 @@ def is_master_ordinal(local=True):
   return ordinal == 0
 
 
-def master_print(*args, fd=sys.stdout, local=True, flush=False):
+def master_print(*args, fd=sys.stdout, local=False, flush=False):
   if is_master_ordinal(local=local):
     print(*args, file=fd, flush=flush)
 
@@ -529,8 +529,8 @@ def all_reduce(reduce_type, inputs, scale=1.0, groups=None, cctx=None):
   """Performs an inplace reduce operation on the input tensor(s).
 
   Args:
-    reduce_type (string): One of ``REDUCE_SUM``, ``REDUCE_MUL``, ``REDUCE_AND``,
-      ``REDUCE_OR``, ``REDUCE_MIN`` and ``REDUCE_MIN``.
+    reduce_type (string): One of ``xm.REDUCE_SUM``, ``xm.REDUCE_MUL``,
+    ``xm.REDUCE_AND``, ``xm.REDUCE_OR``, ``xm.REDUCE_MIN`` and ``xm.REDUCE_MAX``.
     inputs: Either a single `torch.Tensor` or a list of `torch.Tensor` to
       perform the all reduce op to.
     scale (float): A default scaling value to be applied after the reduce.

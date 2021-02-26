@@ -170,7 +170,7 @@ Training on pods can be broken down to largely 3 different steps:
 
 1. Create an instance template.
 * During creation, make sure to go to section "Identity and API access" → "Access Scopes" and select "Allow full access to all Cloud APIs".
-* If you have already have a VM instance running that you used to train PyTorch/TPU workloads and want to use that exact setup for distributed training: [instructions](https://cloud.google.com/compute/docs/instance-templates/create-instance-templates#based-on-existing-instance).
+* If you already have a VM instance running that you used to train PyTorch/TPU workloads and want to use that exact setup for distributed training: [instructions](https://cloud.google.com/compute/docs/instance-templates/create-instance-templates#based-on-existing-instance).
 * Or, you can create an instance template using the PyTorch/XLA VM image we provide: [instructions](https://cloud.google.com/compute/docs/instance-templates/create-instance-templates#creating_a_new_instance_template).
 2. Create an instance group to drive the TPU pod.
 * This instance group is where all the input pipeline happens and where we feed all the tensors into the TPUs for training.
@@ -209,11 +209,28 @@ As mentioned in the tutorial linked above, one option is to take your VM that yo
 Here are the steps:
 
 #### Create the empty persistent disk
+Choose either a regular persistent disk or a SSD persistent disk. In our
+experiments on Imagenet, SSD was significantly faster for the first epoch (e.g. 1 hour 15
+minutes for regular PD vs. 6 minutes for SSD PD) but later epochs are similar
+once the dataset has been cached into the VM.
+
+Regular PD:
 ```
 gcloud compute disks create --size=200GB --zone=$ZONE $PD_NAME --project=$PROJECT_ID
 ```
 
-#### Create a VM to populate the persistent disk and SSH into it
+SSD PD:
+```
+gcloud compute disks create --size=200GB --zone=$ZONE $PD_NAME --project=$PROJECT_ID --type=pd-ssd
+```
+
+#### Create (or reuse) a VM to populate the persistent disk and SSH into it
+To attach a disk to an existing VM:
+```
+gcloud compute instances attach-disk $VM_NAME --disk $PD_NAME --zone $ZONE --mode=rw
+```
+
+To create a new VM with a disk attached:
 ```
 gcloud compute instances create pd-filler \
 --zone=$ZONE \
@@ -221,7 +238,7 @@ gcloud compute instances create pd-filler \
 --image-family=torch-xla \
 --image-project=ml-images  \
 --boot-disk-size=200GB \
---scopes=https://www.googleapis.com/auth/cloud-platform
+--scopes=https://www.googleapis.com/auth/cloud-platform \
 --disk=name=$PD_NAME,auto-delete=no
 gcloud compute ssh pd-filler --zone=$ZONE
 ```

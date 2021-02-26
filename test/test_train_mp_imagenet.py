@@ -33,6 +33,7 @@ FLAGS = args_parse.parse_common_options(
     momentum=None,
     lr=None,
     target_accuracy=None,
+    profiler_port=9012,
     opts=MODEL_OPTS.items(),
 )
 

@@ -95,6 +95,11 @@ _FN_AUTOGRAD_XLA = set([
 _FN_BLACKLIST_REGEX = [
     # ATEN functions
     r'[^(]*cudnn',
+    r'slow_conv_transpose2d_backward_out',
+    r'slow_conv_transpose3d_backward_out',
+    r'slow_conv3d_backward_out',
+    r'thnn_conv2d_backward_out',
+    r'thnn_conv_depthwise2d_backward_out',
     # XLA/TPU functions
 ]
 
@@ -270,7 +275,7 @@ class Context(object):
 
   def get_function(self, name):
     if self.functions_data.find(' {}('.format(name)) >= 0:
-      return 'at::{}'.format(name)
+      return 'at::{}'.format(name + "f" if is_out_fn(name) else name)
 
 
 class StringEmit(object):
@@ -543,6 +548,10 @@ def get_template_type_list(t):
   return extract_list(c.children[1], types)
 
 
+def is_out_fn(fname):
+  return fname.endswith('_out')
+
+
 def get_function_name(t):
   assert isinstance(t, lark.tree.Tree)
   fname = t.children[1]
@@ -640,16 +649,25 @@ def get_reference_param(params, fnopts=None):
   return ref_param or other
 
 
-def get_tuple_return(rtype, rtype_str, rname, params, param_vars, ref_param,
-                     fnopts):
+def get_tuple_return(rtype,
+                     rtype_str,
+                     rname,
+                     params,
+                     param_vars,
+                     ref_param,
+                     fnopts,
+                     out_fn=False):
   types = get_template_type_list(rtype)
   retstr = '{}('.format(rtype_str)
-  for i, ttype in enumerate(types):
+  n = len(types)
+  for i in range(0, n):
     if i > 0:
       retstr += ', '
     tuple_var = 'std::get<{}>({})'.format(i, rname)
-    retstr += get_return_value(ttype, tuple_var, list_get(params, i),
-                               list_get(param_vars, i), ref_param, fnopts)
+    ti = i - n if out_fn else i
+    ttype = types[ti]
+    retstr += get_return_value(ttype, tuple_var, list_get(params, ti),
+                               list_get(param_vars, ti), ref_param, fnopts)
   return retstr + ')'
 
 
@@ -698,15 +716,24 @@ def generate_return_stmt(t, rtype_str, fname, rname, params, param_vars,
   assert isinstance(t, lark.tree.Tree)
   rtype = t.children[0]
   ctype = type_core(rtype)
+  out_fn = is_out_fn(fname)
   if ctype == 'std::tuple':
-    retstr = get_tuple_return(rtype, rtype_str, rname, params, param_vars,
-                              ref_param, fnopts)
+    retstr = get_tuple_return(
+        rtype,
+        rtype_str,
+        rname,
+        params,
+        param_vars,
+        ref_param,
+        fnopts,
+        out_fn=out_fn)
   elif ctype == 'std::vector':
     retstr = 'bridge::CreateXlaTensors({}, bridge::GetXlaDevice({}))'.format(
         rname, get_optional(fnopts, 'device_param', param_name(ref_param)))
   elif ctype == 'Tensor':
-    retstr = get_return_value(rtype, rname, params[0], param_vars[0], ref_param,
-                              fnopts)
+    ti = -1 if out_fn else 0
+    retstr = get_return_value(rtype, rname, params[ti], param_vars[0],
+                              ref_param, fnopts)
   elif ctype == 'void' and not type_is_refptr(rtype, '*'):
     return ''
   else:
@@ -803,33 +830,35 @@ def generate_aten_out(ctx, tree, rwxtree, fname, sig, rwsig, params, fnopts):
   code += generate_entry_debug_code(tree, fname, params)
 
   param_vars = get_param_names(params)
+
+  out_count = num_outputs if num_outputs is not None else 1
+  # Output arguments are at the end.
+  out_vars = param_vars[-out_count:]
+  non_out_vars = param_vars[:-out_count]
   if fnopts.outfn_template is not None:
     fcall = expand_fn_template(fnopts.outfn_template, param_vars)
   else:
     m = re.match(r'(.*)_out$', fname)
     assert m is not None, fname
-    out_count = num_outputs if num_outputs is not None else 1
-    fcall = create_call('AtenXlaType::{}'.format(m.group(1)),
-                        param_vars[out_count:])
+    fcall = create_call('AtenXlaType::{}'.format(m.group(1)), non_out_vars)
 
   tmp_result = '{}_tmp'.format(fname)
   code += '  auto {} = {};\n'.format(tmp_result, fcall)
   if num_outputs is None:
-    code += generate_outfn_result_copy(param_vars[0], tmp_result)
-    code += generate_exit_debug_code(tree, fname, param_vars[0], params,
+    code += generate_outfn_result_copy(out_vars[0], tmp_result)
+    code += generate_exit_debug_code(tree, fname, out_vars[0], params,
                                      param_vars)
-    code += '  return {};\n'.format(param_vars[0])
+    code += '  return {};\n'.format(out_vars[0])
   else:
     for i in range(0, num_outputs):
       code += generate_outfn_result_copy(
-          param_vars[i], 'std::get<{}>({})'.format(i, tmp_result))
-    code += generate_exit_debug_code(tree, fname, param_vars[0:num_outputs],
-                                     params, param_vars)
+          out_vars[i], 'std::get<{}>({})'.format(i, tmp_result))
+    code += generate_exit_debug_code(tree, fname, out_vars, params, param_vars)
     code += '  return {}('.format(get_return_type_str(rwxtree, rwsig))
     for i in range(0, num_outputs):
       if i > 0:
         code += ', '
-      code += param_vars[i]
+      code += out_vars[i]
     code += ');\n'
   code += '}'
   return code
@@ -1018,8 +1047,8 @@ def parse_local_overrides(path):
   return overrides
 
 
-def generate_unboxed(aten_sig, overload, override_fn):
-  code = '  m.impl_UNBOXED("{}", static_cast<{}>(&{}));\n'.format(
+def generate_impl(aten_sig, overload, override_fn):
+  code = '  m.impl("{}", static_cast<{}>(&{}));\n'.format(
       aten_sig.split('(')[0].split('::')[1], overload, override_fn)
   return code
 
@@ -1040,11 +1069,11 @@ def generate_registrations(fgens, overrides):
     if override_fn:
       pos = fgen.funsig.find('(')
       overload = fgen.funsig[:pos] + ' (*)' + fgen.funsig[pos:]
-      unboxed = generate_unboxed(fgen.aten_sig, overload, override_fn)
+      impl = generate_impl(fgen.aten_sig, overload, override_fn)
       if fgen.mapsig in _FN_AUTOGRAD_XLA:
-        autogradxla_code += unboxed
+        autogradxla_code += impl
       else:
-        aten_code += unboxed
+        aten_code += impl
   return aten_code + '\n}\n' + autogradxla_code + '\n}\n', overridden
 
 

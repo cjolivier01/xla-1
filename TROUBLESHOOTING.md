@@ -6,7 +6,7 @@ since many of them are peculiar to a given internal implementation which might c
 To diagnose issues, we can use the execution metrics and counters provided by _PyTorch/XLA_
 The **first thing** to check when model is slow is to generate a metrics report.
 
-Metrics report is extremely helpful in diagonsing issues. Please try to include it in your bug
+Metrics report is extremely helpful in diagnosing issues. Please try to include it in your bug
 report sent to us if you have it.
 
 ## Get A Metrics Report
@@ -71,7 +71,7 @@ If your model shows bad performance, keep in mind the following caveats:
     XLA compilation is expensive. PyTorch/XLA automatically recompiles the graph every time new shapes are encountered.
     Usually models should stabilize within a few steps and you can see huge speedup for the rest of training.
 
-    In order to avoid recompilations, not only shapes must be constant, but also computations accross XLA devices in all hosts.
+    In order to avoid recompilations, not only must shapes be constant, but computations across XLA devices in all hosts should also be constant.
 
     _Possible sources_:
     * Direct or indirect uses of `nonzero` introduce dynamic shapes; for example, masked indexing `base[index]` where `index` is a mask tensor.
@@ -83,7 +83,7 @@ If your model shows bad performance, keep in mind the following caveats:
 
 1.  **Certain operations don't have native translations to XLA.**
 
-    For these operations PyTorch/XLA automatically transfer to the CPU memory, evaluate on CPU, and transfer the result back to XLA device.
+    For these operations PyTorch/XLA automatically transfers to the CPU memory, evaluates on CPU, and transfers the result back to the XLA device.
     Doing too many such operations during the training step can lead to significant slowdowns.
 
     _Possible sources_:
@@ -157,8 +157,8 @@ software stack.
 Setting such variables will cause different degrees of performance degradation, so they should
 only be enabled for debugging.
 
-* ```XLA_IR_DEBUG```: Enables the _Python_ stack trace to be catpured where creating IR nodes,
-  hence allowing to understand which _PyTorch_ operation was responsible of generating such IR.
+* ```XLA_IR_DEBUG```: Enables the _Python_ stack trace to be captured where creating IR nodes,
+  hence allowing to understand which _PyTorch_ operation was responsible for generating the IR.
 
 * ```XLA_HLO_DEBUG```: Enables the _Python_ stack frame captured when _XLA_IR_DEBUG_ is active,
   to be propagated to the _XLA_ _HLO_ metadata.
@@ -196,7 +196,7 @@ only be enabled for debugging.
   when sending to the _TPU_ device. Note that when using `XLA_USE_BF16=1` tensor arithmetic will
   be done in reduced precision and so tensors will not be accurate if accumulated over time.
   For example:
-  
+
   ```
   # In reduced bfloat16 precision
   >>> torch.tensor(4096, dtype=torch.bfloat16) + torch.tensor(1, dtype=torch.bfloat16)
@@ -237,6 +237,9 @@ only be enabled for debugging.
 * ```TF_CPP_MIN_LOG_LEVEL```: Level to print messages for. `TF_CPP_MIN_LOG_LEVEL=0` will turn
   on INFO logging, `TF_CPP_MIN_LOG_LEVEL=1` WARNING and so on. Our PyTorch/XLA `TF_VLOG` uses
   `tensorflow::INFO` level by default so to see VLOGs set `TF_CPP_MIN_LOG_LEVEL=0`.
+
+* ```XLA_DUMP_HLO_GRAPH```: If set to `=1` in case of a compilation or execution error the
+  offending HLO graph will be dumped as part of the runtime error raised by `xla_util.cc`.
 
 ### Retrieving Stack Traces
 
@@ -286,6 +289,7 @@ The `debug_run.tar.gz` file should then be attached to bug reports when necessar
 
 Since the script will collect a lot of data, it should usually be let run for no more
 than hundred steps or so.
+
 If the SCRIPT has arguments to control the number of steps, those should be used,
 otherwise hitting `CTRL^C` will interrupt the run.
 

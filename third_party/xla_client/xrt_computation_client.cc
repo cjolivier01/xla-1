@@ -23,9 +23,10 @@
 #include "tensorflow/compiler/xla/xla_client/unique.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
-#include "tensorflow/compiler/xla/xla_client/xrt_local_service.h"
 #include "tensorflow/compiler/xrt/xrt_util.h"
 #include "tensorflow/core/framework/allocator.h"
+#include "tensorflow/core/profiler/lib/traceme.h"
+#include "tensorflow/core/tpu/tpu_api_dlsym_initializer.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/util.h"
 
@@ -175,6 +176,17 @@ class TensorAllocator : public tensorflow::Allocator {
   std::unordered_map<AllocKey, AllocList::iterator, AllocKey::Hash> allocs_;
 };
 
+bool ShouldStartLocalService(const std::set<std::string>& devices) {
+  // Only the process with CPU device and GPU device should start the local
+  // service.
+  for (const std::string& device : devices) {
+    if (device.find("CPU", 0) == 0 || device.find("GPU", 0) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::string StripPrefix(const std::string& value, const std::string& prefix) {
   return value.find(prefix) == 0 ? value.substr(prefix.size()) : value;
 }
@@ -294,7 +306,9 @@ XrtComputationClient::XrtComputationClient(
                << "/replica:0/task:" << worker_target.first.task_no;
   }
   TF_VLOG(1) << "XRT default device: " << options_.default_device;
-  MaybeCreateLocalService(options_);
+  if (ShouldStartLocalService(options_.devices)) {
+    MaybeCreateLocalService(options_);
+  }
   InitializeDevices(std::move(topology_proto));
   StartHandleReleaser();
 }
@@ -375,6 +389,8 @@ std::vector<ComputationClient::DataPtr>
 XrtComputationClient::TransferToServerInternal(
     absl::Span<const TensorSource> tensors) {
   metrics::TimedSection timed(TransferToServerMetric());
+  tensorflow::profiler::TraceMe activity(
+      "TransferToServerInternal", tensorflow::profiler::TraceMeLevel::kInfo);
 
   std::mutex lock;
   XrtSessionCache::SessionMap session_map;
@@ -382,6 +398,8 @@ XrtComputationClient::TransferToServerInternal(
   auto mwait = std::make_shared<util::MultiWait>(tensors.size());
   std::map<XrtSession*, SessionWork> session_work_map;
   {
+    tensorflow::profiler::TraceMe activity(
+        "TransferToServerTransform", tensorflow::profiler::TraceMeLevel::kInfo);
     metrics::TimedSection timed(TransferToServerTransformMetric());
 
     for (size_t i = 0; i < tensors.size(); ++i) {
@@ -421,27 +439,38 @@ XrtComputationClient::TransferToServerInternal(
 
   mwait->Reset(session_work_map.size());
   std::vector<DataPtr> results(tensors.size());
-  for (auto& session_session_work : session_work_map) {
-    XrtSession* session = session_session_work.first;
-    SessionWork* session_work = &session_session_work.second;
-    auto runner = [&, session, session_work]() {
-      std::vector<tensorflow::Tensor> outputs;
-      XLA_CHECK_OK(session->session()->Run(
-          session_work->feed_inputs, session_work->outputs_handles, &outputs));
-      XLA_CHECK_EQ(outputs.size(), session_work->outputs_handles.size());
+  {
+    tensorflow::profiler::TraceMe activity(
+        [&] {
+          return tensorflow::profiler::TraceMeEncode(
+              "TransferToServerExecute",
+              {{"total_size", absl::StrCat(std::to_string(total_size), "B")},
+               {"num_tensors", std::to_string(tensors.size())}});
+        },
+        tensorflow::profiler::TraceMeLevel::kInfo);
+    for (auto& session_session_work : session_work_map) {
+      XrtSession* session = session_session_work.first;
+      SessionWork* session_work = &session_session_work.second;
+      auto runner = [&, session, session_work]() {
+        std::vector<tensorflow::Tensor> outputs;
+        XLA_CHECK_OK(session->session()->Run(session_work->feed_inputs,
+                                             session_work->outputs_handles,
+                                             &outputs));
+        XLA_CHECK_EQ(outputs.size(), session_work->outputs_handles.size());
 
-      for (size_t i = 0; i < outputs.size(); ++i) {
-        size_t li = session_work->index_mapping[i];
-        results[li] = std::make_shared<XrtData>(this, tensors[li].device,
-                                                tensors[li].shape,
-                                                outputs[i].scalar<int64>()());
-      }
-      CreateDataHandlesCounter()->AddValue(outputs.size());
-    };
-    env::ScheduleIoClosure(
-        util::MultiWait::Completer(mwait, std::move(runner)));
+        for (size_t i = 0; i < outputs.size(); ++i) {
+          size_t li = session_work->index_mapping[i];
+          results[li] = std::make_shared<XrtData>(this, tensors[li].device,
+                                                  tensors[li].shape,
+                                                  outputs[i].scalar<int64>()());
+        }
+        CreateDataHandlesCounter()->AddValue(outputs.size());
+      };
+      env::ScheduleIoClosure(
+          util::MultiWait::Completer(mwait, std::move(runner)));
+    }
+    mwait->Wait();
   }
-  mwait->Wait();
   return results;
 }
 
@@ -462,6 +491,8 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
   }
 
   metrics::TimedSection timed(TransferFromServerMetric());
+  tensorflow::profiler::TraceMe activity(
+      "TransferFromServer", tensorflow::profiler::TraceMeLevel::kInfo);
 
   int64 max_partition_size = GetMaxTensorsPartitionSize();
   std::list<XrtSessionCache::SessionMap> session_maps;
@@ -493,6 +524,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
 
   auto mwait = std::make_shared<util::MultiWait>(session_work_map.size());
   std::atomic<int64> total_size(0);
+  std::atomic<int64> num_tensors(0);
   std::vector<Literal> results(handles.size());
   for (auto& session_session_work : session_work_map) {
     XrtSession* session = session_session_work.first;
@@ -502,6 +534,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
       XLA_CHECK_OK(session->session()->Run(
           session_work->feed_inputs, session_work->outputs_handles, &outputs));
       XLA_CHECK_EQ(outputs.size(), session_work->outputs_handles.size());
+      num_tensors += outputs.size();
 
       for (size_t i = 0; i < outputs.size(); ++i) {
         size_t li = session_work->index_mapping[i];
@@ -516,12 +549,19 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
   }
   mwait->Wait();
   InboundDataMetric()->AddSample(total_size.load());
+  activity.AppendMetadata([&total_size, &num_tensors]() {
+    return tensorflow::profiler::TraceMeEncode(
+        {{"total_size", absl::StrCat(std::to_string(total_size), "B")},
+         {"num_tensors", std::to_string(num_tensors)}});
+  });
   return results;
 }
 
 std::vector<ComputationClient::ComputationPtr> XrtComputationClient::Compile(
     std::vector<CompileInstance> instances) {
   metrics::TimedSection timed(CompileMetric());
+  tensorflow::profiler::TraceMe activity(
+      "Compile", tensorflow::profiler::TraceMeLevel::kInfo);
 
   std::mutex lock;
   auto mwait = std::make_shared<util::MultiWait>(instances.size());
@@ -624,6 +664,8 @@ XrtComputationClient::ExecuteComputation(
     const Computation& computation, absl::Span<const DataPtr> arguments,
     const std::string& device, const ExecuteComputationOptions& options) {
   metrics::TimedSection timed(ExecuteMetric());
+  tensorflow::profiler::TraceMe activity(
+      "ExecuteComputation", tensorflow::profiler::TraceMeLevel::kInfo);
 
   XrtSessionCache::SessionMap session_map;
   tensorflow::ClientSession::FeedType feed_inputs;
@@ -651,6 +693,8 @@ XrtComputationClient::ExecuteReplicated(
     absl::Span<const std::string> devices,
     const ExecuteReplicatedOptions& options) {
   metrics::TimedSection timed(ExecuteReplicatedMetric());
+  tensorflow::profiler::TraceMe activity(
+      "ExecuteReplicated", tensorflow::profiler::TraceMeLevel::kInfo);
 
   XrtSessionCache::SessionMap session_map;
   tensorflow::ClientSession::FeedType feed_inputs;
@@ -671,6 +715,8 @@ XrtComputationClient::RunComputations(
     absl::Span<const Computation* const> computations,
     absl::Span<const std::string> devices,
     const tensorflow::ClientSession::FeedType& feed_inputs) {
+  tensorflow::profiler::TraceMe activity(
+      "RunComputations", tensorflow::profiler::TraceMeLevel::kInfo);
   // In the PyTorch/XRT interface we keep a map (options_.workers_map) from a
   // worker+taskno, to the GRPC server which is the entry point for that worker.
   // Since XRT could re-distribute ops internally, if we have N hosts
@@ -735,6 +781,8 @@ XrtComputationClient::ExecuteParallel(
     absl::Span<const std::string> devices,
     const ExecuteParallelOptions& options) {
   metrics::TimedSection timed(ExecuteParallelMetric());
+  tensorflow::profiler::TraceMe activity(
+      "ExecuteParallel", tensorflow::profiler::TraceMeLevel::kInfo);
 
   XrtSessionCache::SessionMap session_map;
   tensorflow::ClientSession::FeedType feed_inputs;
@@ -768,6 +816,8 @@ void XrtComputationClient::SetupExecConfig(const Device& device,
 
 std::vector<ComputationClient::DataPtr> XrtComputationClient::ExecuteChained(
     absl::Span<const ExecuteChainedOp> ops, const std::string& device) {
+  tensorflow::profiler::TraceMe activity(
+      "ExecuteChained", tensorflow::profiler::TraceMeLevel::kInfo);
   static int64 split_mode = sys_util::GetEnvInt("XRT_SPLIT_CHAINED_EXEC", 0);
   return split_mode ? ExecuteChainedSplit(ops, device)
                     : ExecuteChainedXrt(ops, device);
@@ -1149,6 +1199,8 @@ void XrtComputationClient::ReleaseHandles(
         XrtSession*, const tensorflow::Scope&, const std::string&)>&
         op_generator,
     metrics::Metric* timed_metric, metrics::Counter* destroy_counter) {
+  tensorflow::profiler::TraceMe activity(
+      "ReleaseHandles", tensorflow::profiler::TraceMeLevel::kInfo);
   std::vector<DeviceHandle> released_handles;
   {
     std::lock_guard<std::mutex> lock(lock_);
@@ -1970,6 +2022,10 @@ std::string XrtComputationClient::GetLocalTarget(const Options& options) {
 }
 
 void XrtComputationClient::MaybeCreateLocalService(const Options& options) {
+  if (local_service_ != nullptr) {
+    TF_VLOG(1) << "Local service has been created, return";
+    return;
+  }
   std::string grpc_root("grpc://");
   std::string local_worker = sys_util::GetEnvString(env::kEnvLocalWorker, "");
   XrtComputationClient::Worker worker("", -1);
@@ -1996,9 +2052,9 @@ void XrtComputationClient::MaybeCreateLocalService(const Options& options) {
     std::string cluster_spec =
         absl::StrCat(job_name, "|", absl::StrJoin(hosts, ";"));
     TF_VLOG(2) << "Local Service Cluster Spec: " << cluster_spec;
-    XrtLocalService* service =
-        new XrtLocalService(cluster_spec, job_name, task_index);
-    service->Start();
+    local_service_ = absl::make_unique<XrtLocalService>(
+        cluster_spec, job_name, task_index);
+    local_service_->Start();
   }
 }
 

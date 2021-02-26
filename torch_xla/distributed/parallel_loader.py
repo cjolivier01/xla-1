@@ -5,6 +5,7 @@ from six import iteritems, itervalues
 import threading
 import torch
 import torch_xla
+import torch_xla.debug.profiler as xp
 import torch_xla.utils.keyd_queue as kq
 import torch_xla.utils.utils as xu
 import torch_xla.core.xla_model as xm
@@ -23,6 +24,8 @@ class PerDeviceLoader(object):
     self._loader = loader
     self._device = device
     self._disable_mark_step_after_first = enable_minibatch or enable_megabatch
+    self._mark_step_batch_count = loader.batches_per_execution - 1
+    self._batches_yielded = 0
 
   def __iter__(self):
     return self
@@ -34,9 +37,19 @@ class PerDeviceLoader(object):
     return self._loader.per_device_samples()
 
   def next(self):
-    xm.mark_step()
+    if xp.get_tracer_marked_step():
+      xp.set_tracer_marked_step(False)
+      self._batches_yielded += 1
+    else:
+      if self._mark_step_batch_count <= self._batches_yielded:
+        self._batches_yielded = 0
+        xm.mark_step()
+      else:
+        self._batches_yielded += 1
+
     item = self._loader.next_item(self._device)
     if item is None:
+      xm.mark_step()
       raise StopIteration
     return item
 
@@ -57,10 +70,6 @@ class ParallelLoader(object):
       % len(devices)]`.
     batchdim (int, optional): The dimension which is holding the batch size.
       Default: 0
-    fixed_batch_size (bool, optional): Ensures that all the batch sizes sent to
-      the devices are of the same size. The original `loader` iteration stops as
-      soon as a not matching batch size is found.
-      Default: False
     loader_prefetch_size (int, optional): The max capacity of the queue used by
       the thread which is reading samples from the `loader`, to be processed by
       the worker threads which upload data to the devices.
@@ -75,14 +84,14 @@ class ParallelLoader(object):
                loader,
                devices,
                batchdim=0,
-               fixed_batch_size=False,
+               batches_per_execution=1,
                loader_prefetch_size=8,
                device_prefetch_size=4,
                minibatch_size=None):
     self._loader = loader
     self._devices = [torch.device(x) for x in devices]
     self._batchdim = batchdim
-    self._fixed_batch_size = fixed_batch_size
+    self._batches_per_execution = batches_per_execution
     self._per_device_samples = len(loader) // len(devices)
     self._done = False
     self._queues = dict()
@@ -143,24 +152,14 @@ class ParallelLoader(object):
       dqueue.queue.close()
       dqueue.loader_queue.close()
 
-  def _get_batch_size(self, data, dim):
-    size = []
-
-    def fn(v):
-      csize = v.size()[dim]
-      if not size:
-        size.append(csize)
-      else:
-        assert csize == size[0]
-
-    xu.for_each_instance(data, lambda x: type(x) == torch.Tensor, fn)
-    return size[0] if size else None
+  @property
+  def batches_per_execution(self):
+    return self._batches_per_execution
 
   def _loader_worker(self):
     queues = list(self._queues.values())
     mgb_queues = list(self._minibatch_queues.values())
     data_iter = enumerate(self._loader)
-    batch_size = None
     batch = []
     mgb_batch = []
     field_towers = list()
@@ -191,11 +190,6 @@ class ParallelLoader(object):
 
       except StopIteration:
         break
-      if self._fixed_batch_size:
-        if batch_size is None:
-          batch_size = self._get_batch_size(data, self._batchdim)
-        elif batch_size != self._get_batch_size(data, self._batchdim):
-          break
       batch.append(data)
       if mgb_data:
         mgb_batch.append(mgb_data)

@@ -42,12 +42,16 @@ function run_opbyop {
 }
 
 function run_dynamic {
-  echo "Running in DynamicShape mode: $@"
-  XLA_EXPERIMENTAL="nonzero:masked_select" run_test "$@"
+  if [[ "$TPUVM_MODE" == "1" ]]; then
+    run_test "$@"
+  else
+    echo "Running in DynamicShape mode: $@"
+    XLA_EXPERIMENTAL="nonzero:masked_select" run_test "$@"
+  fi
 }
 
 function run_all_tests {
-  run_dynamic python3 "$CDIR/../../test/test_torch.py" "$@" -v TestViewOpsXLA
+  run_dynamic python3 "$CDIR/../../test/test_view_ops.py" "$@" -v TestViewOpsXLA
   run_test python3 "$CDIR/../../test/test_torch.py" "$@" -v TestTorchDeviceTypeXLA
   run_dynamic python3 "$CDIR/../../test/test_torch.py" "$@" -v TestDevicePrecisionXLA
   run_test python3 "$CDIR/../../test/test_torch.py" "$@" -v TestTensorDeviceOpsXLA
@@ -65,6 +69,8 @@ function run_all_tests {
   run_test python3 "$CDIR/test_mp_rendezvous.py"
   run_test python3 "$CDIR/test_mp_save.py"
   run_test python3 "$CDIR/test_mp_mesh_reduce.py"
+  run_test python3 "$CDIR/test_xla_dist.py"
+  run_test python3 "$CDIR/test_profiler.py"
 }
 
 if [ "$LOGFILE" != "" ]; then

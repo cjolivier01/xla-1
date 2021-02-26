@@ -1,3 +1,4 @@
+#include <Python.h>
 #include <c10/core/Device.h>
 #include <c10/util/Optional.h>
 
@@ -6,21 +7,30 @@
 #include <stack>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/variant.h"
 #include "tensorflow/compiler/xla/xla_client/computation_client.h"
 #include "tensorflow/compiler/xla/xla_client/mesh_service.h"
 #include "tensorflow/compiler/xla/xla_client/metrics.h"
+#include "tensorflow/compiler/xla/xla_client/metrics_analysis.h"
 #include "tensorflow/compiler/xla/xla_client/metrics_reader.h"
 #include "tensorflow/compiler/xla/xla_client/multi_wait.h"
+#include "tensorflow/compiler/xla/xla_client/profiler.h"
 #include "tensorflow/compiler/xla/xla_client/record_reader.h"
+#include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/thread_pool.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "tensorflow/compiler/xla/xla_client/xla_util.h"
 #include "tensorflow/core/example/example.pb.h"
 #include "tensorflow/core/example/feature.pb.h"
 #include "tensorflow/core/platform/env.h"
+#include "tensorflow/core/profiler/lib/traceme.h"
+#include "tensorflow/python/profiler/internal/profiler_pywrap_impl.h"
+#include "tensorflow/python/profiler/internal/traceme_wrapper.h"
 #include "torch/csrc/autograd/utils/wrap_outputs.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch/csrc/jit/python/pybind.h"
@@ -234,10 +244,25 @@ void SyncLiveTensors(const std::string& device_str,
 
 void StepMarker(const std::string& device_str,
                 const std::vector<std::string>& devices, bool wait) {
+  tensorflow::profiler::TraceMe activity(
+      "StepMarker", tensorflow::profiler::TraceMeLevel::kInfo);
   Device device = GetDeviceOrCurrent(device_str);
   MarkStepScope mark_step_scope(device_str, devices);
   XLATensor::SyncLiveTensorsGraph(&device, devices, wait);
   XLATensor::MarkStep(device);
+  bool debug_mode = xla::sys_util::GetEnvBool("PT_XLA_DEBUG", false);
+  if (TF_PREDICT_FALSE(debug_mode)) {
+    std::string report = xla::metrics::CreatePerformanceReport();
+    if (!report.empty()) {
+      std::string fout = xla::sys_util::GetEnvString("PT_XLA_DEBUG_FILE", "");
+      if (TF_PREDICT_FALSE(!fout.empty())) {
+        std::ofstream out_file(fout, std::ios_base::app);
+        out_file << report;
+      } else {
+        std::cout << report;
+      }
+    }
+  }
 }
 
 void SetRngSeed(xla::uint64 seed, const std::string& device_str) {
@@ -612,6 +637,78 @@ py::dict GetMemoryInfo(const std::string& device_str) {
   py_dict["kb_free"] = mem_info.kb_free;
   py_dict["kb_total"] = mem_info.kb_total;
   return py_dict;
+}
+
+// Must be called holding GIL as it reads Python objects. Also, Python objects
+// are reference counted; reading py::dict will increase its reference count.
+absl::flat_hash_map<std::string, absl::variant<int>> ConvertDictToMap(
+    const py::dict& dict) {
+  absl::flat_hash_map<std::string, absl::variant<int>> map;
+  for (const auto& kw : dict) {
+    if (!kw.second.is_none()) {
+      map.emplace(kw.first.cast<std::string>(), kw.second.cast<int>());
+    }
+  }
+  return map;
+}
+
+void BuildProfilerSubmodule(py::module* m) {
+  py::module profiler = m->def_submodule("profiler", "Profiler integration");
+  py::class_<xla::profiler::ProfilerServer,
+             std::unique_ptr<xla::profiler::ProfilerServer>>
+      profiler_server_class(profiler, "ProfilerServer");
+  profiler.def("start_server",
+               [](int port) -> std::unique_ptr<xla::profiler::ProfilerServer> {
+                 auto server =
+                     absl::make_unique<xla::profiler::ProfilerServer>();
+                 server->Start(port);
+                 return server;
+               },
+               py::arg("port"));
+
+  profiler.def("trace",
+               [](const char* service_addr, const char* logdir, int duration_ms,
+                  int num_tracing_attempts, py::dict options) {
+                 absl::flat_hash_map<std::string, absl::variant<int>> opts =
+                     ConvertDictToMap(options);
+                 tensorflow::Status status;
+                 {
+                   NoGilSection nogil;
+                   status = tensorflow::profiler::pywrap::Trace(
+                       service_addr, logdir, /*worker_list=*/"",
+                       /*include_dataset_ops=*/false, duration_ms,
+                       num_tracing_attempts, opts);
+                 }
+                 if (!status.ok()) {
+                   PyErr_SetString(PyExc_RuntimeError, status.error_message());
+                   throw py::error_already_set();
+                 }
+               },
+               py::arg("service_addr"), py::arg("logdir"),
+               py::arg("duration_ms") = 1000,
+               py::arg("num_tracing_attempts") = 3, py::arg("options"));
+
+  py::class_<tensorflow::profiler::TraceMeWrapper> traceme_class(
+      profiler, "TraceMe", py::module_local());
+  traceme_class.def(py::init<py::str, py::kwargs>())
+      .def("__enter__", [](py::object self) -> py::object { return self; })
+      .def("__exit__",
+           [](py::object self, const py::object& ex_type,
+              const py::object& ex_value,
+              const py::object& traceback) -> py::object {
+             py::cast<tensorflow::profiler::TraceMeWrapper*>(self)->Stop();
+             return py::none();
+           })
+      .def("set_metadata", &tensorflow::profiler::TraceMeWrapper::SetMetadata)
+      .def_static("is_enabled",
+                  &tensorflow::profiler::TraceMeWrapper::IsEnabled);
+
+  py::class_<ir::ScopePusher, std::unique_ptr<ir::ScopePusher>>
+      scope_pusher_class(profiler, "ScopePusher");
+  profiler.def("scope_pusher",
+               [](const std::string& name) -> std::unique_ptr<ir::ScopePusher> {
+                 return absl::make_unique<ir::ScopePusher>(name);
+               });
 }
 
 void InitXlaModuleBindings(py::module m) {
@@ -1011,6 +1108,8 @@ void InitXlaModuleBindings(py::module m) {
            const std::vector<op_builder::OpPtr>& operands, py::dict args) {
           return op_builder::CreateOp(builder, opname, operands, args);
   });
+
+  BuildProfilerSubmodule(&m);
 }
 
 }  // namespace

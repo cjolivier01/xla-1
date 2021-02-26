@@ -21,6 +21,8 @@
 #include "torch_xla/csrc/ops/all.h"
 #include "torch_xla/csrc/ops/all_reduce.h"
 #include "torch_xla/csrc/ops/all_to_all.h"
+#include "torch_xla/csrc/ops/amp_foreach_non_finite_check_and_unscale.h"
+#include "torch_xla/csrc/ops/amp_update_scale.h"
 #include "torch_xla/csrc/ops/any.h"
 #include "torch_xla/csrc/ops/arg_max.h"
 #include "torch_xla/csrc/ops/arg_min.h"
@@ -468,6 +470,36 @@ XLATensor XLATensor::_adaptive_avg_pool2d_backward(const XLATensor& grad_output,
       grad_output.GetIrValue(), input.GetIrValue()));
 }
 
+void XLATensor::_amp_foreach_non_finite_check_and_unscale_(
+    std::vector<XLATensor> self, XLATensor& found_inf,
+    const XLATensor& inv_scale) {
+  std::vector<ir::Value> inputs;
+  XLATensor new_inv_scale = XLATensor::max(inv_scale);
+  for (const auto& x : self) {
+    inputs.push_back(x.GetIrValue());
+  }
+  ir::NodePtr node = ir::MakeNode<ir::ops::AmpForachNonFiniteCheckAndUnscale>(
+      inputs, found_inf.GetIrValue(), new_inv_scale.GetIrValue());
+  for (size_t i = 0; i < self.size(); ++i) {
+    self[i].SetInPlaceIrValue(ir::Value(node, i));
+  }
+  found_inf.SetInPlaceIrValue(ir::Value(node, self.size()));
+}
+
+XLATensor XLATensor::_amp_update_scale(XLATensor growth_tracker,
+                                       const XLATensor& current_scale,
+                                       const XLATensor& found_inf,
+                                       double scale_growth_factor,
+                                       double scale_backoff_factor,
+                                       int growth_interval) {
+  ir::NodePtr node = ir::MakeNode<ir::ops::AmpUpdateScale>(
+      growth_tracker.GetIrValue(), current_scale.GetIrValue(),
+      found_inf.GetIrValue(), scale_growth_factor, scale_backoff_factor,
+      growth_interval);
+  growth_tracker.SetInPlaceIrValue(ir::Value(node, 0));
+  return current_scale.CreateFrom(ir::Value(node, 1));
+}
+
 XLATensor XLATensor::abs(const XLATensor& input) {
   return input.CreateFrom(ir::ops::Abs(input.GetIrValue()));
 }
@@ -570,21 +602,29 @@ XLATensor XLATensor::addmm(const XLATensor& input, const XLATensor& weight,
 XLATensor XLATensor::all(const XLATensor& input,
                          std::vector<xla::int64> dimensions,
                          bool keep_reduced_dimensions) {
+  at::ScalarType result_type = input.dtype() == at::ScalarType::Byte
+                                   ? at::ScalarType::Byte
+                                   : at::ScalarType::Bool;
   return input.CreateFrom(
       ir::MakeNode<ir::ops::All>(input.GetIrValue(),
                                  XlaHelpers::GetCanonicalDimensionIndices(
                                      dimensions, input.shape().get().rank()),
-                                 keep_reduced_dimensions));
+                                 keep_reduced_dimensions),
+      result_type);
 }
 
 XLATensor XLATensor::any(const XLATensor& input,
                          std::vector<xla::int64> dimensions,
                          bool keep_reduced_dimensions) {
+  at::ScalarType result_type = input.dtype() == at::ScalarType::Byte
+                                   ? at::ScalarType::Byte
+                                   : at::ScalarType::Bool;
   return input.CreateFrom(
       ir::MakeNode<ir::ops::Any>(input.GetIrValue(),
                                  XlaHelpers::GetCanonicalDimensionIndices(
                                      dimensions, input.shape().get().rank()),
-                                 keep_reduced_dimensions));
+                                 keep_reduced_dimensions),
+      result_type);
 }
 
 void XLATensor::arange_out(XLATensor& out, at::Scalar start, at::Scalar end,
@@ -1037,6 +1077,7 @@ XLATensor XLATensor::diagonal(const XLATensor& input, xla::int64 offset,
 }
 
 XLATensor XLATensor::div(const XLATensor& input, const XLATensor& other,
+                         std::string rounding_mode,
                          c10::optional<at::ScalarType> logical_element_type) {
   at::ScalarType scalar_type =
       at::typeMetaToScalarType(c10::get_default_dtype());
@@ -1051,14 +1092,25 @@ XLATensor XLATensor::div(const XLATensor& input, const XLATensor& other,
   }
   ir::Value input_value = GetFloatingIrValue(input, scalar_type);
   ir::Value other_value = GetFloatingIrValue(other, scalar_type);
+  ir::Value res = input_value / other_value;
+
+  if (rounding_mode == "trunc") {
+    res = ir::ops::Trunc(res);
+  } else if (rounding_mode == "floor") {
+    res = ir::ops::Floor(res);
+  } else if (rounding_mode != "true") {
+    XLA_CHECK(false)
+        << "rounding_mode must be one of 'true', 'trunc', or 'floor'";
+  }
 
   // Promote the result to the logical_element_type if one of the
   // input and the other is float. If that is not the case logical_element_type
-  // will be non-floating-point type.
-  if (input_is_float || other_is_float) {
-    return input.CreateFrom(input_value / other_value, logical_element_type);
+  // will be non-floating-point type, we should only promote the result to that
+  // when rounding_mode is not "true"
+  if (input_is_float || other_is_float || rounding_mode != "true") {
+    return input.CreateFrom(res, logical_element_type);
   } else {
-    return input.CreateFrom(input_value / other_value, scalar_type);
+    return input.CreateFrom(res, scalar_type);
   }
 }
 
@@ -1071,12 +1123,22 @@ XLATensor XLATensor::div(const XLATensor& input, at::Scalar other) {
   return input.CreateFrom(input_value / other_value, scalar_type);
 }
 
-void XLATensor::div_(XLATensor& input, const XLATensor& other) {
+void XLATensor::div_(XLATensor& input, const XLATensor& other,
+                     std::string rounding_mode) {
   at::ScalarType scalar_type =
       at::typeMetaToScalarType(c10::get_default_dtype());
   ir::Value input_value = GetFloatingIrValue(input, scalar_type);
   ir::Value other_value = GetFloatingIrValue(other, scalar_type);
-  input.SetInPlaceIrValue(input_value / other_value);
+  ir::Value res = input_value / other_value;
+  if (rounding_mode == "trunc") {
+    res = ir::ops::Trunc(res);
+  } else if (rounding_mode == "floor") {
+    res = ir::ops::Floor(res);
+  } else if (rounding_mode != "true") {
+    XLA_CHECK(false)
+        << "rounding_mode must be one of 'true', 'trunc', or 'floor'";
+  }
+  input.SetInPlaceIrValue(res);
 }
 
 void XLATensor::div_(XLATensor& input, at::Scalar other) {
@@ -2335,6 +2397,10 @@ void XLATensor::scatter_add_(XLATensor& input, xla::int64 dim,
 XLATensor XLATensor::select(const XLATensor& input, xla::int64 dim,
                             xla::int64 index) {
   return tensor_ops::Select(input, dim, index);
+}
+
+void XLATensor::silu_out(XLATensor& input, XLATensor& out) {
+  out.SetInPlaceIrValue(ir::ops::SiLU(input.GetIrValue()));
 }
 
 XLATensor XLATensor::sigmoid(const XLATensor& input) {

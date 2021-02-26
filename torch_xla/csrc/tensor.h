@@ -300,6 +300,17 @@ protected:
   static XLATensor _adaptive_avg_pool2d_backward(const XLATensor& grad_output,
                                                  const XLATensor& input);
 
+  static void _amp_foreach_non_finite_check_and_unscale_(
+      std::vector<XLATensor> self, XLATensor& found_inf,
+      const XLATensor& inv_scale);
+
+  static XLATensor _amp_update_scale(XLATensor growth_tracker,
+                                     const XLATensor& current_scale,
+                                     const XLATensor& found_inf,
+                                     double scale_growth_factor,
+                                     double scale_backoff_factor,
+                                     int growth_interval);
+
   static XLATensor abs(const XLATensor& input);
   static void abs_(XLATensor& input);
 
@@ -516,9 +527,11 @@ protected:
 
   static XLATensor div(
       const XLATensor& input, const XLATensor& other,
+      std::string rounding_mode = "true",
       c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
   static XLATensor div(const XLATensor& input, at::Scalar other);
-  static void div_(XLATensor& input, const XLATensor& other);
+  static void div_(XLATensor& input, const XLATensor& other,
+                   std::string rounding_mode = "true");
   static void div_(XLATensor& input, at::Scalar other);
 
   // A generalized contraction between tensors of arbitrary dimension defined by
@@ -1010,6 +1023,7 @@ protected:
   static XLATensor select(const XLATensor& input, xla::int64 dim,
                           xla::int64 index);
 
+  static void silu_out(XLATensor& input, XLATensor& out);
   static XLATensor sigmoid(const XLATensor& input);
   static void sigmoid_(XLATensor& input);
   static XLATensor sigmoid_backward(const XLATensor& grad_output,
