@@ -39,6 +39,7 @@ struct MetaData {
   std::vector<SourceLocation> frame_info;
   // Frontend attributes use a map for determinism
   std::unordered_map<std::string, std::string> frontend_attributes;
+  std::int64_t pytorch_node_seq_nr = 0;
 };
 
 // Represents a use of the output of a given node.
@@ -252,6 +253,8 @@ class Node {
 
   static std::vector<SourceLocation> GetFrameInfo();
 
+  void init_ir_scope();
+
   // The ID of the operation captured by this node.
   OpKind op_;
   size_t num_outputs_ = 1;
@@ -316,5 +319,4 @@ void PythonPushScope(std::string scope);
 void PythonPopScope();
 
 }  // namespace ir
-
 }  // namespace torch_xla

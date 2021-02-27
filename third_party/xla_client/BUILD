@@ -1,6 +1,9 @@
 licenses(["notice"])  # Apache 2.0
 
-package(default_visibility = ["//tensorflow:internal"])
+package(default_visibility = [
+    "//tensorflow:internal",
+    #"//tensorflow/compiler/xla/wse_client:wse_computation_client_impl",
+])
 
 load(
     "//tensorflow:tensorflow.bzl",
@@ -62,6 +65,7 @@ tf_cc_shared_object(
         "//tensorflow/compiler/xla/rpc:grpc_stub",
         "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
         "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
+        "//tensorflow/compiler/xla/wse_client:wse_computation_client_impl",
         "//tensorflow/core:lib",
         "//tensorflow/core/platform/cloud:gcs_file_system",
         "//tensorflow/python/profiler/internal:profiler_pywrap_impl",
@@ -92,7 +96,6 @@ cc_library(
         "xrt_local_service.cc",
         "xrt_session.cc",
         "xrt_session_cache.cc",
-        "xla_computation_proxy.cc",
     ],
     hdrs = [
         "cache.h",
@@ -119,7 +122,6 @@ cc_library(
         "xrt_local_service.h",
         "xrt_session.h",
         "xrt_session_cache.h",
-        "xla_computation_proxy.h",
     ],
     copts = [ "-ggdb3", "-O0" ],
     deps = [
@@ -170,9 +172,14 @@ cc_library(
         "@com_google_absl//absl/container:node_hash_map",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/strings",
+        #"@llvm-project//mlir:IR",
     ] + if_cuda_is_configured([
         "@local_config_nccl//:nccl",
         "//tensorflow/compiler/jit:xla_gpu_device",
     ]),
+    visibility = [
+        "//visibility:public",
+        #"//tensorflow/compiler/xla/wse_client:wse_computation_client_impl"
+    ],
     alwayslink = 1,
 )

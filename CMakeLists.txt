@@ -15,14 +15,7 @@ message( STATUS "Architecture: ${ARCHITECTURE}-${KERNEL_NAME}" )
 set(ARCH_BUILD_DIR_NAME "lib.${KERNEL_NAME}-${ARCHITECTURE}-${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
 set(CPYTHON_STR "cpython-${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}m-${ARCHITECTURE}-${KERNEL_NAME}-gnu")
 
-#message(STATUS "ARCH_BUILD_DIR_NAME=${ARCH_BUILD_DIR_NAME}")
 message(STATUS "CPYTHON_STR=${CPYTHON_STR}")
-
-#if (Torch_DIR STREQUAL "")
-#    set(Torch_DIR "${PYTORCH_DIR}/torch/share/cmake/Torch")
-#endif()
-
-#find_package(Torch REQUIRED)
 
 file(GLOB
         XLA_SOURCES
@@ -35,7 +28,6 @@ file(GLOB
         ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/ops/*.h)
 
 if(NOT TORCH_PATH)
-    #get_filename_component(TORCH_PATH "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
     message(ERROR "TORCH_DIR needs to point to the pytorch source directory")
 endif()
 message(STATUS "TORCH_PATH: ${TORCH_PATH}")
@@ -47,7 +39,6 @@ include_directories(${TORCH_PATH}/torch/csrc)
 include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
 include_directories(${TORCH_PATH}/torch/include)
 include_directories(SYSTEM ${TORCH_PATH}/torch/include/TH)
-#include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/toolchain/rootfs-x86_64/usr/include)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -65,20 +56,15 @@ include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/com_github_grpc_gr
 include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/llvm-project/llvm/include)
 include_directories(BEFORE ${TFDIR}/bazel-out/host/bin/external/llvm-project/llvm/include)
 include_directories(BEFORE ${TFDIR}/bazel-out/k8-opt/bin/external/llvm-project/llvm/include)
+include_directories(BEFORE ${TFDIR}/bazel-tensorflow/external/llvm-project/mlir/include)
+include_directories(BEFORE ${TFDIR}/bazel-out/host/bin/external/llvm-project/mlir/include)
+include_directories(BEFORE ${TFDIR}/bazel-out/k8-opt/bin/external/llvm-project/mlir/include)
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/compiler/mlir/hlo/include)
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow)
-
-#include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/sdk-x86_64/x86_64-buildroot-linux-gnu/sysroot/usr/include)
-
-#get_property(the_include_dirs DIRECTORY ptxla PROPERTY INCLUDE_DIRECTORIES)
-#message(WARNING "the_include_dirs=${the_include_dirs}")
-#string(REPLACE ${what_needs_to_go} "" new_include_dirs ${the_include_dirs})
-#set_property(DIRECTORY foo PROPERTY INCLUDE_DIRECTORIES ${new_include_dirs})
 
 message(STATUS "${XLAC_EXTENSION_TARGET} CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 add_compile_options(-O0)
-#add_compile_options(-O1)
-#add_compile_options(-UNDEBUG)
 add_compile_options(-ggdb3)
 add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=1)
 add_compile_options(-DTORCH_API_INCLUDE_EXTENSION_H)
@@ -86,7 +72,6 @@ add_compile_options(-DTORCH_EXTENSION_NAME=_XLAC)
 add_compile_options(-D_LARGEFILE_SOURCE)
 add_compile_options(-D_LARGEFILE64_SOURCE)
 add_compile_options(-D_FILE_OFFSET_BITS=64)
-#set(CMAKE_VERBOSE_MAKEFILE True)
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS}")
 
 # -Namespaces
@@ -97,6 +82,7 @@ add_compile_options(-Dgrpc=ptxla_grpc)
 add_compile_options(-Dgrpc_impl=ptxla_grpc_impl)
 add_compile_options(-Dgoogle=ptxla_google)
 add_compile_options(-Dllvm=ptxla_llvm)
+add_compile_options(-Dmlir=ptxla_mlir)
 # Namespaces-
 
 set(CMAKE_CXX_FLAGS "-fPIC ${CMAKE_CXX_FLAGS}")
@@ -218,7 +204,6 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES OUTPUT_NAME "${XLAC_EXTENSION_TARGET}")
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES PREFIX "")
-#target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ptxla)
 
 add_custom_command(
         TARGET ${XLAC_EXTENSION_TARGET} POST_BUILD

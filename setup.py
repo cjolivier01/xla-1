@@ -332,8 +332,10 @@ extra_compile_args = [
     '-Dtensorflow=ptxla_tf',
     '-DEigen=ptxla_Eigen',
     '-Dgrpc=ptxla_grpc',
+    '-Dgrpc_impl=ptxla_grpc_impl',
     '-Dgoogle=ptxla_google',
     '-Dllvm=ptxla_llvm',
+    '-Dmlir=ptxla_mlir',
 ]
 
 if re.match(r'clang', os.getenv('CC', '')):

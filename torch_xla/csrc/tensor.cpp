@@ -41,7 +41,6 @@
 #include "torch_xla/csrc/tensor_sentinel.h"
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
-#include "torch_xla/csrc/ptwse_scope.hh"
 
 #ifndef USE_PTWSE_SENTINEL
 #include "torch_xla/csrc/tensor_analyze.h"
@@ -1508,12 +1507,6 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
   for (size_t i = 0; i < indices.size(); ++i) {
     size_t tensor_index = indices[i];
     xla::int64 tensor_id = tensors[tensor_index].GetUniqueId();
-    //    ptrdiff_t view = tensors[tensor_index].GetViewAliasId();
-    //    if (view) {
-    //      std::cout << "Tensor id " << tensor_id
-    //                << " is a view of " << view
-    //                << std::endl << std::flush;
-    //    }
     if (output_tensor_id_map.count(tensor_id) != 0) {
       throw std::runtime_error("More than one alias for tensor");
     }
@@ -1522,18 +1515,12 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
   const std::vector<xla::ComputationClient::DataPtr>& parameters_data =
       lowering_ctx->GetParametersData();
 
-  // std::cout << "PARAM COUNT: " << parameters_data.size() << ", OUTPUT COUNT:
-  // " << indices.size() << std::endl << std::flush;
-
   std::vector<ssize_t> alias_map(indices.size(), -1);
   for (size_t i = 0; i < parameters_data.size(); ++i) {
     DeviceDataInfo* data_info =
         dynamic_cast<DeviceDataInfo*>(parameters_data[i]->info());
     if (data_info != nullptr && !data_info->read_only) {
       auto it = output_tensor_id_map.find(data_info->tensor_id);
-      //      if (it == output_tensor_id_map.end()) {
-      //        const ptrdiff_t view_of =
-      //      }
       if (it != output_tensor_id_map.end()) {
         size_t output_index = it->second;
         xla::XlaOp root = lowering_ctx->GetResult(output_index);
@@ -1544,10 +1531,8 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
             reported = true;
             std::cout << "Alias not same shape..." << std::endl << std::flush;
           }
-          // raise(SIGTRAP);
         } else if (alias_map[output_index] >= 0) {
           std::cout << "Found duplicate aliases." << std::endl << std::flush;
-          // raise(SIGTRAP);
         }
         if (parameters_data[i]->shape() == root_shape &&
             alias_map[output_index] < 0) {
@@ -1557,22 +1542,10 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
 
           TF_VLOG(6) << "Aliased parameter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
-          //          std::cout << "Aliased parameter " << i
-          //                    << " (id=" << data_info->tensor_id << ") "
-          //                    << " with output index " << output_index << ": "
-          //                    << parameters_data[i]->shape()
-          //                    //<< " (id=" << tensor_id << ") "
-          //                    << std::endl << std::flush;
         } else {
           // TODO: need to put this in alias map as well
           std::cerr << "Aliased param wrong shape or more than one?" << std::endl << std::flush;
         }
-      } else {
-        //        std::cout << "Input parameter " << i
-        //                  << " (id=" << data_info->tensor_id << ") and shape:
-        //                  "
-        //                  << parameters_data[i]->shape()
-        //                  << std::endl << std::flush;
       }
     }
   }
@@ -1697,9 +1670,6 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(
 
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
-//    if (state.abort_proxy_) {
-//        break;
-//    }
   } while (Sentinel::GetSentinel()->OnHashingComplete(state, tensors, coll));
   return std::move(po_data);
 }
@@ -1726,15 +1696,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::SyncTensorsGraphInternal(
   TF_VLOG(4) << "Parameter sequence graph hash "
              << xla::util::HexHash(coll.hash);
 
-  static int hidden_step_count = 0;
-  // xla::sys_util::GetEnvInt("XLA_HIDDEN_STEP_COUNT", 0);
-
-  if (!hidden_step_count) {
-    std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
-    if (async != nullptr) {
-      return async;
-    }
-  } else {
+  std::shared_ptr<Async> async = TryRunCachedSync(tensors, &coll, &po_data);
+  if (async != nullptr) {
+    return async;
   }
 
   CompilationResult compile_result = Compile(*tensors, devices, coll, &po_data);

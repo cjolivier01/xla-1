@@ -1,1 +1,0 @@
-../../../../pt_wse/ptwse/csrc/ptwse_scope.hh

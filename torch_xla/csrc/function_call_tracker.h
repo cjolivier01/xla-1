@@ -1,13 +1,10 @@
 #pragma once
 
-#include "torch_xla/csrc/ptwse_scope.hh"
-
 namespace torch_xla {
 namespace fn_tracker {
 
 #define XLA_FN_TRACK(level) \
-  torch_xla::fn_tracker::TrackFunction(__FUNCTION__, level); \
-  /*DECLARE_PARTITION()*/
+  torch_xla::fn_tracker::TrackFunction(__FUNCTION__, level)
 
 void TrackFunction(const char* tag, int level);
 

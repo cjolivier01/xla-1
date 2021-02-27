@@ -754,16 +754,6 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::vector<at::Tensor>& tensors) -> std::string {
           return GetTensorsHloGraph(tensors);
         });
-//  m.def(
-//      "_xla_set_outputs",
-//      [](const std::vector<at::Tensor>& output_tensors, bool append) {
-//        SetOutputs(output_tensors, append);
-//      },
-//      py::arg("output_tensors"), py::arg("append") = false);
-//  m.def("_xla_was_previous_mark_step_on_proxy", [](){
-//    // TODO: move to ptwse
-//      return Sentinel::GetSentinel()->WasMarkStepOnProxy();
-//  });
   m.def("_xla_tensors_from_aten", [](const std::vector<at::Tensor>& tensors,
                                      const std::vector<std::string>& devices) {
     std::vector<at::Tensor> result;
@@ -911,54 +901,43 @@ void InitXlaModuleBindings(py::module m) {
     return SetCurrentThreadDevice(device);
   });
   m.def("_xla_get_default_device", []() { return GetCurrentThreadDevice(); });
-  m.def(
-      "_xla_set_rng_seed",
-      [](xla::uint64 seed, const std::string& device) {
-        SetRngSeed(seed, device);
-      },
-      py::arg("seed") = 101, py::arg("device") = "");
-  m.def(
-      "_xla_get_rng_seed",
-      [](const std::string& device) { return GetRngSeed(device); },
-      py::arg("device") = "");
-  m.def(
-      "_xla_sync_multi",
-      [](const std::vector<at::Tensor>& tensors,
-         const std::vector<std::string>& devices, bool wait,
-         bool sync_xla_data) {
-        NoGilSection nogil;
-        SyncTensors(tensors, devices, wait, sync_xla_data);
-      },
-      py::arg("tensors"), py::arg("devices"), py::arg("wait") = true,
-      py::arg("sync_xla_data") = true);
-  m.def(
-      "_xla_sync_live_tensors",
-      [](const std::string& device, const std::vector<std::string>& devices,
-         bool wait) {
-        NoGilSection nogil;
-        SyncLiveTensors(device, devices, wait);
-      },
-      py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
-//  m.def("_xla_is_initialized", []() {
-//    // TODO: move to ptwse
-//    NoGilSection nogil;
-//    return Sentinel::GetSentinel()->IsInitialized();
-//  });
-  m.def(
-      "_xla_step_marker",
-      [](const std::string& device, const std::vector<std::string>& devices,
-         bool wait) {
-        NoGilSection nogil;
-        StepMarker(device, devices, wait);
-      },
-      py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
-  m.def(
-      "_xla_wait_device_ops",
-      [](const std::vector<std::string>& devices) {
-        NoGilSection nogil;
-        XLATensor::WaitDeviceOps(devices);
-      },
-      py::arg("devices"));
+  m.def("_xla_set_rng_seed",
+        [](xla::uint64 seed, const std::string& device) {
+          SetRngSeed(seed, device);
+        },
+        py::arg("seed") = 101, py::arg("device") = "");
+  m.def("_xla_get_rng_seed",
+        [](const std::string& device) { return GetRngSeed(device); },
+        py::arg("device") = "");
+  m.def("_xla_sync_multi",
+        [](const std::vector<at::Tensor>& tensors,
+           const std::vector<std::string>& devices, bool wait,
+           bool sync_xla_data) {
+          NoGilSection nogil;
+          SyncTensors(tensors, devices, wait, sync_xla_data);
+        },
+        py::arg("tensors"), py::arg("devices"), py::arg("wait") = true,
+        py::arg("sync_xla_data") = true);
+  m.def("_xla_sync_live_tensors",
+        [](const std::string& device, const std::vector<std::string>& devices,
+           bool wait) {
+          NoGilSection nogil;
+          SyncLiveTensors(device, devices, wait);
+        },
+        py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
+  m.def("_xla_step_marker",
+        [](const std::string& device, const std::vector<std::string>& devices,
+           bool wait) {
+          NoGilSection nogil;
+          StepMarker(device, devices, wait);
+        },
+        py::arg("device") = "", py::arg("devices"), py::arg("wait") = true);
+  m.def("_xla_wait_device_ops",
+        [](const std::vector<std::string>& devices) {
+          NoGilSection nogil;
+          XLATensor::WaitDeviceOps(devices);
+        },
+        py::arg("devices"));
   m.def("_xla_counter_names", []() { return xla::metrics::GetCounterNames(); });
   m.def("_xla_counter_value", [](const std::string& name) -> py::object {
     xla::metrics::CounterData* data = xla::metrics::GetCounter(name);
@@ -1053,6 +1032,7 @@ void InitXlaModuleBindings(py::module m) {
     NoGilSection nogil;
     RemoveTfFile(path);
   });
+
   py::class_<xla::XlaBuilder, op_builder::BuilderPtr>(m, "XlaBuilder");
   py::class_<op_builder::Op, op_builder::OpPtr>(m, "XlaOp");
   py::class_<Computation, ComputationPtr>(m, "XlaComputation");

@@ -11,7 +11,7 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
-#include "torch_xla/csrc/ptwse_scope.hh"
+#include "ATen/pytorch_scope.h"
 
 namespace torch_xla {
 namespace ir {

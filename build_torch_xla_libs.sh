@@ -73,6 +73,7 @@ else
     --cxxopt=-Dgrpc_impl=ptxla_grpc_impl \
     --copt=-Dgoogle=ptxla_google --cxxopt=-Dgoogle=ptxla_google \
     --cxxopt=-Dllvm=ptxla_llvm \
+    --cxxopt=-Dmlir=ptxla_mlir \
     --strip=never \
     //tensorflow/compiler/xla/xla_client:libxla_computation_client.so
   popd

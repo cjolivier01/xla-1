@@ -9,11 +9,8 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "torch_xla/csrc/lowering_context.h"
-#include "torch_xla/csrc/ptwse_scope.hh"
 
-#ifdef PTWSE_INSTANTIATE_PARTITIONS
-PTWSE_INSTANTIATE_PARTITIONS()
-#endif
+#include "ATen/pytorch_scope.h"
 
 namespace torch_xla {
 namespace ir {
@@ -156,9 +153,8 @@ Node::Node(OpKind op, OpList operands, xla::Shape shape, size_t num_outputs,
       is_autograd_(pytorch_ptwse::FrontendAttributePusher::IsAutogradThread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
-  metadata_.frontend_attributes =
-      pytorch_ptwse::FrontendAttributePusher::GetFrontendAttributes();
-  for (auto &operand : operands) {
+  init_ir_scope();
+  for (auto& operand : operands) {
     AddOperand(operand.node, operand.index);
     hash_ = xla::util::HashCombine(hash_, operand.hash());
   }
@@ -183,8 +179,19 @@ Node::Node(OpKind op, xla::Shape shape, size_t num_outputs,
       is_autograd_(pytorch_ptwse::FrontendAttributePusher::IsAutogradThread()) {
   metadata_.scope = GetCurrentScope();
   metadata_.frame_info = GetFrameInfo();
+  init_ir_scope();
+}
+
+void Node::init_ir_scope() {
   metadata_.frontend_attributes =
       pytorch_ptwse::FrontendAttributePusher::GetFrontendAttributes();
+  if (!pytorch_ptwse::FrontendAttributePusher::GetNodeSequenceNumber(
+      &metadata_.pytorch_node_seq_nr
+  )) {
+    metadata_.pytorch_node_seq_nr = std::numeric_limits<
+        pytorch_ptwse::FrontendAttributePusher::FrontendAttributeContext::seq_nr_t
+    >::max();
+  }
 }
 
 Node::~Node() {
