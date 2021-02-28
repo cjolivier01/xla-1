@@ -901,6 +901,7 @@ void InitXlaModuleBindings(py::module m) {
     return SetCurrentThreadDevice(device);
   });
   m.def("_xla_get_default_device", []() { return GetCurrentThreadDevice(); });
+  m.def("_xla_trap", []() { raise(SIGTRAP); });
   m.def("_xla_set_rng_seed",
         [](xla::uint64 seed, const std::string& device) {
           SetRngSeed(seed, device);
