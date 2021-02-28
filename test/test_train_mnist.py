@@ -1,3 +1,6 @@
+import os
+os.environ['PYTORCH_PTWSE_FORCE_ENABLE_FATTR'] = '1'
+
 import args_parse
 
 FLAGS = args_parse.parse_common_options(
@@ -8,7 +11,6 @@ FLAGS = args_parse.parse_common_options(
     target_accuracy=98.0,
     num_epochs=18)
 
-import os
 from statistics import mean
 import shutil
 import time
@@ -24,8 +26,6 @@ import torch_xla.utils.utils as xu
 import torch_xla.core.xla_model as xm
 import torch_xla.test.test_utils as test_utils
 import unittest
-
-import torch_xla._XLAC
 
 class MNIST(nn.Module):
 
@@ -126,8 +126,6 @@ def train_mnist():
     model.train()
     for x, (data, target) in enumerate(loader):
       optimizer.zero_grad()
-      if x == 1:
-        torch_xla._XLAC._xla_trap()
       output = model(data)
       loss = loss_fn(output, target)
       loss.backward()

@@ -83,8 +83,22 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
     : builder_(name),
       device_(std::move(device)),
       emit_status_(std::move(emit_status)) {
+  LinkAutogradNodes(post_order);
   for (auto node : post_order) {
     LowerNode(node);
+  }
+}
+
+void LoweringContext::LinkAutogradNodes(absl::Span<const Node* const> post_order) {
+  autograd_nodes_.clear();
+  fwd_nodes_.clear();
+  int64_t pytorch_grad_fn_seq_nr;
+  for (auto node : post_order) {
+    if (!node->IsAutograd(&pytorch_grad_fn_seq_nr)) {
+      autograd_nodes_[pytorch_grad_fn_seq_nr].emplace(node);
+    } else {
+      fwd_nodes_[pytorch_grad_fn_seq_nr].emplace(node);
+    }
   }
 }
 
@@ -147,6 +161,7 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
   auto it = emitted_outputs_.find(output);
   if (it == emitted_outputs_.end()) {
     auto post_order = Util::ComputePostOrder(output.node, &emit_status_);
+    LinkAutogradNodes(post_order);
     for (auto node : post_order) {
       LowerNode(node);
     }
@@ -159,12 +174,92 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
   return it->second;
 }
 
+static bool replace(std::string& str, const std::string& from, const std::string& to) {
+  size_t start_pos = str.find(from);
+  if(start_pos == std::string::npos)
+    return false;
+  str.replace(start_pos, from.length(), to);
+  return true;
+}
+
+static void SetAsBackwardNodeOf(
+    std::unordered_map<std::string, std::string>& bwd_fattr,
+    const std::string& this_node_key,
+    const Node& fwd_node
+) {
+  const auto& fwd_fattr = fwd_node.metadata().frontend_attributes;
+  std::size_t count = 0;
+  for (const auto& item : fwd_fattr) {
+    const std::string& fwd_key = item.first;
+    auto found_pos = fwd_key.find(std::string(pytorch_ptwse::PartitionScope::MATCHED_OP));
+    if (found_pos != std::string::npos) {
+      ++count;
+
+      std::string rev_ref_key = fwd_key;
+      if (replace(rev_ref_key, pytorch_ptwse::PartitionScope::MATCHED_OP, pytorch_ptwse::PartitionScope::REVERSE_OF_OP)) {
+        //assert(bwd_fattr.count(rev_ref_key) == 0);
+        if (bwd_fattr.count(rev_ref_key)) {
+          // Ugh what to do here
+          bwd_fattr[rev_ref_key] += "," + fwd_key;
+        } else {
+          bwd_fattr.emplace(std::move(rev_ref_key), fwd_key);
+        }
+      }
+    }
+  }
+}
+
 XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
     HloMetadataSetter meta_setter(this, node);
+
+    // Attempt to linke backward nodes to their forward nodes
+    std::unordered_map<std::string, std::string> extra_attributes;
+    int64_t seq_nr;
+    if (node->IsAutograd(&seq_nr) && seq_nr >= 0) {
+      // Get list of nodes this is bwd for
+      auto found_fwd_nodes_iter = fwd_nodes_.find(seq_nr);
+      if (found_fwd_nodes_iter != fwd_nodes_.end()) {
+        for (const Node *fwd : found_fwd_nodes_iter->second) {
+          // We want the highest scope, right?
+
+          for (const auto& bwd_fattr : node->metadata().frontend_attributes) {
+            const std::string& bwd_match_op_key = bwd_fattr.first;
+            auto found_pos = bwd_match_op_key.find(std::string(pytorch_ptwse::PartitionScope::MATCHED_OP));
+            if (found_pos != std::string::npos) {
+              SetAsBackwardNodeOf(extra_attributes, bwd_match_op_key, *fwd);
+            }
+          }
+
+          // SetAsBackwardNodeOf(extra_attributes, this_node_key, *fwd, *node);
+
+//          std::map<int, std::string> scope_keys;
+//          for (const auto& item : fwd->metadata().frontend_attributes) {
+//            const std::string& fwd_key = item.first;
+//            if (strstr(fwd_key.c_str(), ".MATCHED_OP.")) {
+//              auto parts = absl::StrSplit(fwd_key, '.');
+//              const uint64_t scope = std::atol(std::string(*parts.begin()).c_str());
+//              // Should be no way they got merged
+//              assert(!scope_keys.count(scope));
+//              scope_keys.emplace(scope, item.second);
+//            }
+//          }
+//          if (!scope_keys.empty()) {
+//            const std::string& fwd_key = scope_keys.rbegin()->second;
+//            assert(!fwd_key.empty());
+//            std::string new_key = fwd_key;
+//            const std::string to_replace = "MATCHED_OP";
+//            new_key.replace(new_key.find(to_replace.c_str()), to_replace.length(), "REVERSE_OF_OP");
+//            // This is wrong but lets debug
+//            extra_attributes.emplace(new_key, scope_keys.rbegin()->second);
+//          }
+        }
+      }
+    }
+
     pytorch_ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(
-        builder(), node->metadata().frontend_attributes);
+        builder(), node->metadata().frontend_attributes, std::move(extra_attributes));
     result_ops = node->Lower(this);
   } catch (const std::exception& ex) {
     ReportBuilderError(node, ex.what());

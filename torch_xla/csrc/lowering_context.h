@@ -81,6 +81,8 @@ class LoweringContext {
     size_t index = 0;
   };
 
+  void LinkAutogradNodes(absl::Span<const Node* const> post_order);
+
   // Reports an XLA builder error for the given node.
   TF_ATTRIBUTE_NORETURN void ReportBuilderError(const Node* node,
                                                 const char* error_msg);
@@ -94,6 +96,9 @@ class LoweringContext {
   std::vector<xla::XlaOp> root_tuple_;
   OutputMap<xla::XlaOp> emitted_outputs_;
   Util::EmissionMap emit_status_;
+
+  std::unordered_map<int64_t, std::unordered_set<const Node *>> autograd_nodes_;
+  std::unordered_map<int64_t, std::unordered_set<const Node *>> fwd_nodes_;
 };
 
 }  // namespace ir

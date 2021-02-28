@@ -236,7 +236,12 @@ class Node {
   XlaOpVector ReturnOps(absl::Span<const xla::XlaOp> ops,
                         LoweringContext* loctx) const;
 
-  bool IsAutograd() const { return is_autograd_; }
+  bool IsAutograd(int64_t *pytorch_grad_fn_seq_nr_ptr = nullptr) const {
+    if (pytorch_grad_fn_seq_nr_ptr) {
+      *pytorch_grad_fn_seq_nr_ptr = pytorch_grad_fn_seq_nr;
+    }
+    return is_autograd_;
+  }
 
  private:
   // Adds node's index output number as operand.
@@ -277,6 +282,8 @@ class Node {
   std::shared_ptr<UserMetaData> user_metadata_;
   // Is this an autograd node (i.e. backward pass)?
   const bool is_autograd_;
+  // Autograd pytorch Function Node id (not this Node class)
+  int64_t pytorch_grad_fn_seq_nr{0};
 };
 
 // RAII data structure to be used a stack variable to enter a new IR scope. IR
