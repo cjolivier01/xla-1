@@ -72,10 +72,28 @@ class HloMetadataSetter {
   LoweringContext* loctx_ = nullptr;
 };
 
+//mlir::OpBuilder get_mlir_op_builder() {
+//  //builder, mlir::Location loc
+//
+//}
+//
+//mlir::Location get_mlir_location() {
+//  mlir::Location loc;
+//  return loc;
+//}
+
 }  // namespace
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
-    : builder_(name), device_(std::move(device)) {}
+    :
+#ifdef MLIR_LOWERING
+    mlir_op_builder_(get_mlir_op_builder()),
+
+    builder_(name, mlir_op_builder_, loc_),
+#else
+    builder_(name),
+#endif
+      device_(std::move(device)) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,
@@ -92,7 +110,7 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
 void LoweringContext::LinkAutogradNodes(absl::Span<const Node* const> post_order) {
   autograd_nodes_.clear();
   fwd_nodes_.clear();
-  int64_t pytorch_grad_fn_seq_nr;
+  int64_t pytorch_grad_fn_seq_nr = -1;
   for (auto node : post_order) {
     if (!node->IsAutograd(&pytorch_grad_fn_seq_nr)) {
       autograd_nodes_[pytorch_grad_fn_seq_nr].emplace(node);

@@ -15,6 +15,12 @@
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/ir_util.h"
 
+//#define MLIR_LOWERING
+
+#ifdef MLIR_LOWERING
+#include "tensorflow/compiler/mlir/xla/ir/mlir_hlo_builder.h"
+#endif
+
 namespace torch_xla {
 namespace ir {
 
@@ -86,8 +92,13 @@ class LoweringContext {
   // Reports an XLA builder error for the given node.
   TF_ATTRIBUTE_NORETURN void ReportBuilderError(const Node* node,
                                                 const char* error_msg);
-
+#ifdef MLIR_LOWERING
+  mlir::OpBuilder mlir_op_builder_;
+  mlir::Location loc_;
+  xla::MlirHloBuilder builder_;
+#else
   xla::XlaBuilder builder_;
+#endif
   Device device_;
   std::vector<xla::ComputationClient::DataPtr> parameters_;
   std::unordered_map<xla::ComputationClient::Data::OpaqueHandle, Parameter>
