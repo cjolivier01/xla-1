@@ -231,9 +231,9 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
     HloMetadataSetter meta_setter(this, node);
-
     // Attempt to linke backward nodes to their forward nodes
     std::unordered_map<std::string, std::string> extra_attributes;
+#if 0
     int64_t seq_nr;
     if (node->IsAutograd(&seq_nr) && seq_nr >= 0) {
       // Get list of nodes this is bwd for
@@ -275,7 +275,7 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
         }
       }
     }
-
+#endif
     pytorch_ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(
         builder(), node->metadata().frontend_attributes, std::move(extra_attributes));
     result_ops = node->Lower(this);
