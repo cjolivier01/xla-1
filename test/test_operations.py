@@ -42,7 +42,6 @@ import torch_xla.core.xla_model as xm
 import torch_xla.core.functions as xf
 import torchvision
 import unittest
-
 DeviceSupport = collections.namedtuple('DeviceSupport', ['num_devices'])
 
 
@@ -2041,6 +2040,9 @@ if __name__ == '__main__':
   torch.manual_seed(42)
   torch_xla._XLAC._xla_set_use_full_mat_mul_precision(
       use_full_mat_mul_precision=True)
+
+  TestOpBuilder().test_while()
+
   test = unittest.main(verbosity=FLAGS.verbosity, exit=False)
   if xu.getenv_as('METRICS_DEBUG', bool, defval=False):
     print(met.metrics_report())

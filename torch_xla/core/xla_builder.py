@@ -174,8 +174,24 @@ class Op(object):
   def __le__(self, rhs):
     return mkop('Le', (self.op, rhs.op))
 
+  def normalize(self, var):
+      # TODO: dominating types
+    if isinstance(var, int):
+        return Op.scalar(
+            self.builder(),
+            var,
+            dtype=Type.S32,
+        )
+    elif isinstance(var, float):
+        return Op.scalar(
+            self.builder(),
+            var,
+            dtype=Type.F32
+        )
+    return var
+
   def __lt__(self, rhs):
-    return mkop('Lt', (self.op, rhs.op))
+    return mkop('Lt', (self.op, self.normalize(rhs).op))
 
   def __ge__(self, rhs):
     return mkop('Ge', (self.op, rhs.op))
@@ -802,3 +818,8 @@ def computation_from_module_proto(name, proto):
 
 def get_computation_hlo(computation):
   return torch_xla._XLAC._xla_computation_text(computation)
+
+
+if __name__ == '__main__':
+
+    print('Done.')
