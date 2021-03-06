@@ -65,6 +65,8 @@ class LoweringContext {
   // corresponding XLA operation returned.
   xla::XlaOp GetOutputOp(const Output& output);
 
+  xla::XlaOp GetOutputOp(const Output& output, const std::vector<ir::Value>& boundaries);
+
   // Build the XLA computation capturing all the operations created with the
   // embedded XLA builder (returned by the builder() API).
   xla::StatusOr<xla::XlaComputation> Build();

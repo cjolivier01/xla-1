@@ -96,6 +96,30 @@ std::string GetTensorsDump(
   return coverter(nodes);
 }
 
+xla::XlaComputation GetBoundedComputation(
+  const std::string& opname,
+  const std::vector<at::Tensor>& inputs,
+  const std::vector<at::Tensor>& outputs) {
+  NoGilSection nogil;
+  // Get the HLO graph...
+  assert(!inputs.empty());
+  std::vector<ir::Value> boundaries;
+  boundaries.reserve(inputs.size());
+  for (const auto& input_tensor : inputs) {
+    XLATensor input_xtensor = bridge::GetXlaTensor(input_tensor);
+    boundaries.emplace_back(input_xtensor.GetIrValue());
+  }
+  ir::LoweringContext lowering_ctx(opname, *GetDefaultDevice());
+  for (auto& tensor : outputs) {
+    XLATensor xtensor = bridge::GetXlaTensor(tensor);
+    xla::XlaOp root =
+        lowering_ctx.GetOutputOp(xtensor.GetIrValue(), boundaries);
+    lowering_ctx.AddResult(root);
+  }
+  xla::StatusOr<xla::XlaComputation> computation = lowering_ctx.Build();
+  return computation.ConsumeValueOrDie();
+}
+
 std::string SetCurrentThreadDevice(const std::string& device_str) {
   c10::Device prev_device = bridge::SetCurrentDevice(c10::Device(device_str));
   std::stringstream ss;
@@ -749,6 +773,13 @@ void InitXlaModuleBindings(py::module m) {
             return ir::DumpUtil::ToText(nodes);
           };
           return GetTensorsDump(tensors, coverter);
+        });
+  m.def("_get_xla_bounded_computation",
+        [](const std::string& opname,
+           const std::vector<at::Tensor>& inputs,
+           const std::vector<at::Tensor>& outputs) {
+          //NoGilSection nogil;
+          return GetBoundedComputation(opname, inputs, outputs);
         });
   m.def("_get_xla_tensors_hlo",
         [](const std::vector<at::Tensor>& tensors) -> std::string {

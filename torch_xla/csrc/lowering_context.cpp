@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -192,6 +193,29 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
   return it->second;
 }
 
+
+xla::XlaOp LoweringContext::GetOutputOp(
+    const Output& output, const std::vector<ir::Value>& boundaries) {
+  std::unordered_set<const ir::Node*> boundary_set;
+  std::for_each(boundaries.begin(), boundaries.end(), [&boundary_set](auto& p){
+    boundary_set.emplace(p.node.get());
+  });
+  auto it = emitted_outputs_.find(output);
+  if (it == emitted_outputs_.end()) {
+    auto post_order = Util::ComputePostOrder(output.node, &emit_status_);
+    LinkAutogradNodes(post_order);
+    for (auto node : post_order) {
+      LowerNode(node);
+    }
+    // At this point the outpout better be present, otherwise there is an issue
+    // with the lowering code.
+    it = emitted_outputs_.find(output);
+    XLA_CHECK(it != emitted_outputs_.end())
+        << "No XLA operation emitted for output: " << output;
+  }
+  return it->second;
+}
+
 static bool replace(std::string& str, const std::string& from, const std::string& to) {
   size_t start_pos = str.find(from);
   if(start_pos == std::string::npos)
@@ -200,7 +224,7 @@ static bool replace(std::string& str, const std::string& from, const std::string
   return true;
 }
 
-static void SetAsBackwardNodeOf(
+/*static*/ void SetAsBackwardNodeOf(
     std::unordered_map<std::string, std::string>& bwd_fattr,
     const std::string& this_node_key,
     const Node& fwd_node
