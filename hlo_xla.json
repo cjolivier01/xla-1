@@ -1,0 +1,5140 @@
+{
+ "name": "SyncTensorsGraph.170",
+ "entryComputationName": "SyncTensorsGraph.170",
+ "computations": [
+  {
+   "name": "MaxComputation.24",
+   "instructions": [
+    {
+     "name": "x.25",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "25",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.26",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "26",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "maximum.27",
+     "opcode": "maximum",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "27",
+     "operandIds": [
+      "25",
+      "26"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.25",
+     "y.26"
+    ]
+   },
+   "id": "24",
+   "rootId": "27"
+  },
+  {
+   "name": "AddComputation.33",
+   "instructions": [
+    {
+     "name": "x.34",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "34",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.35",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "35",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.36",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "36",
+     "operandIds": [
+      "34",
+      "35"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.34",
+     "y.35"
+    ]
+   },
+   "id": "33",
+   "rootId": "36"
+  },
+  {
+   "name": "AddComputation.66",
+   "instructions": [
+    {
+     "name": "x.67",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "67",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.68",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "68",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.69",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "69",
+     "operandIds": [
+      "67",
+      "68"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.67",
+     "y.68"
+    ]
+   },
+   "id": "66",
+   "rootId": "69"
+  },
+  {
+   "name": "AddComputation.77",
+   "instructions": [
+    {
+     "name": "x.78",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "78",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.79",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "79",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.80",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "80",
+     "operandIds": [
+      "78",
+      "79"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.78",
+     "y.79"
+    ]
+   },
+   "id": "77",
+   "rootId": "80"
+  },
+  {
+   "name": "AddComputation.117",
+   "instructions": [
+    {
+     "name": "x.118",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "118",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.119",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "119",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.120",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "120",
+     "operandIds": [
+      "118",
+      "119"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.118",
+     "y.119"
+    ]
+   },
+   "id": "117",
+   "rootId": "120"
+  },
+  {
+   "name": "AddComputation.155",
+   "instructions": [
+    {
+     "name": "x.156",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "156",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.157",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "157",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.158",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "158",
+     "operandIds": [
+      "156",
+      "157"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.156",
+     "y.157"
+    ]
+   },
+   "id": "155",
+   "rootId": "158"
+  },
+  {
+   "name": "AddComputation.163",
+   "instructions": [
+    {
+     "name": "x.164",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "164",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.165",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "parameterNumber": "1",
+     "id": "165",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.166",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {},
+     "id": "166",
+     "operandIds": [
+      "164",
+      "165"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.164",
+     "y.165"
+    ]
+   },
+   "id": "163",
+   "rootId": "166"
+  },
+  {
+   "name": "SyncTensorsGraph.170",
+   "instructions": [
+    {
+     "name": "constant.116",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "S32",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::sum",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "S32",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "s32s": [
+       1
+      ]
+     },
+     "id": "116",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "p1.12",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla::device_data",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "parameterNumber": "1",
+     "id": "12",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.97",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "97",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.98",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "id": "98",
+     "operandIds": [
+      "97"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.99",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "99",
+     "operandIds": [
+      "98"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.100",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "id": "100",
+     "operandIds": [
+      "99"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.101",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "id": "101",
+     "operandIds": [
+      "100"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "p2.14",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "2",
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla::device_data",
+      "opName": "model_forward.1/top_view.1",
+      "sourceFile": "forward@test_train_mnist_1_5.py",
+      "sourceLine": 95
+     },
+     "parameterNumber": "2",
+     "id": "14",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.92",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::view",
+      "opName": "@autograd"
+     },
+     "id": "92",
+     "operandIds": [
+      "14"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "transpose.93",
+     "opcode": "transpose",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "784",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::permute",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "1",
+      "0"
+     ],
+     "id": "93",
+     "operandIds": [
+      "92"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.15",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::view",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "id": "15",
+     "operandIds": [
+      "14"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "transpose.13",
+     "opcode": "transpose",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "784",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::permute",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "dimensions": [
+      "1",
+      "0"
+     ],
+     "id": "13",
+     "operandIds": [
+      "12"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "dot.16",
+     "opcode": "dot",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::addmm",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "dotDimensionNumbers": {
+      "lhsContractingDimensions": [
+       "1"
+      ],
+      "rhsContractingDimensions": [
+       "0"
+      ]
+     },
+     "id": "16",
+     "operandIds": [
+      "15",
+      "13"
+     ],
+     "precisionConfig": {
+      "operandPrecision": [
+       "DEFAULT",
+       "DEFAULT"
+      ]
+     },
+     "frontendAttributes": {}
+    },
+    {
+     "name": "p0.11",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla::device_data",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "id": "11",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.17",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::addmm",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "id": "17",
+     "operandIds": [
+      "11"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.18",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::addmm",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "18",
+     "operandIds": [
+      "17"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.19",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::addmm",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1665
+     },
+     "id": "19",
+     "operandIds": [
+      "16",
+      "18"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.86",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::threshold_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "86",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.89",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::threshold_backward",
+      "opName": "@autograd"
+     },
+     "id": "89",
+     "operandIds": [
+      "86"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.90",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::threshold_backward",
+      "opName": "@autograd"
+     },
+     "id": "90",
+     "operandIds": [
+      "19",
+      "89"
+     ],
+     "comparisonDirection": "GT",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "p3.41",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla::device_data",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "parameterNumber": "3",
+     "id": "41",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.46",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "46",
+     "operandIds": [
+      "41"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "iota.45",
+     "opcode": "iota",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "45",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.47",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "47",
+     "operandIds": [
+      "46",
+      "45"
+     ],
+     "comparisonDirection": "EQ",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "constant.44",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "44",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.49",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "49",
+     "operandIds": [
+      "44"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.43",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "43",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.48",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "48",
+     "operandIds": [
+      "43"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.50",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "50",
+     "operandIds": [
+      "47",
+      "49",
+      "48"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "negate.51",
+     "opcode": "negate",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "51",
+     "operandIds": [
+      "50"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.42",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "opName": "loss_backward.3",
+      "sourceFile": "_make_grads@__init__.py",
+      "sourceLine": 51
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "42",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.52",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "52",
+     "operandIds": [
+      "42"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.53",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "53",
+     "operandIds": [
+      "51",
+      "52"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.54",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "S32",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "S32",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "s32s": [
+       -100
+      ]
+     },
+     "id": "54",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.55",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "55",
+     "operandIds": [
+      "54"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.56",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "56",
+     "operandIds": [
+      "41",
+      "55"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "broadcast.61",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "61",
+     "operandIds": [
+      "56"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.57",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "57",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.58",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "58",
+     "operandIds": [
+      "57"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.59",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "59",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.60",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "60",
+     "operandIds": [
+      "59"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.62",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "62",
+     "operandIds": [
+      "61",
+      "58",
+      "60"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.63",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "63",
+     "operandIds": [
+      "62",
+      "50"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.73",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "73",
+     "operandIds": [
+      "53",
+      "63"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.64",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "64",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.70",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "70",
+     "operandIds": [
+      "63",
+      "64"
+     ],
+     "calledComputationIds": [
+      "66"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.71",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "71",
+     "operandIds": [
+      "70",
+      "64"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "constant.65",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "65",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.72",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "72",
+     "operandIds": [
+      "71",
+      "70",
+      "65"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.74",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "74",
+     "operandIds": [
+      "72"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "divide.75",
+     "opcode": "divide",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss_backward",
+      "opName": "@autograd"
+     },
+     "id": "75",
+     "operandIds": [
+      "73",
+      "74"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.20",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::relu",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "relu@functional.py",
+      "sourceLine": 1111
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "20",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.21",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::relu",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "relu@functional.py",
+      "sourceLine": 1111
+     },
+     "id": "21",
+     "operandIds": [
+      "20"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "maximum.22",
+     "opcode": "maximum",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::relu",
+      "opName": "model_forward.1/first_fc.2",
+      "sourceFile": "relu@functional.py",
+      "sourceLine": 1111
+     },
+     "id": "22",
+     "operandIds": [
+      "19",
+      "21"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.23",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "APw="
+     },
+     "id": "23",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.28",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "28",
+     "operandIds": [
+      "22",
+      "23"
+     ],
+     "calledComputationIds": [
+      "24"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.29",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "29",
+     "operandIds": [
+      "28"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "subtract.30",
+     "opcode": "subtract",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "id": "30",
+     "operandIds": [
+      "22",
+      "29"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "exponential.31",
+     "opcode": "exponential",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "id": "31",
+     "operandIds": [
+      "30"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.32",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "32",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.37",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "37",
+     "operandIds": [
+      "31",
+      "32"
+     ],
+     "calledComputationIds": [
+      "33"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "log.38",
+     "opcode": "log",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "id": "38",
+     "operandIds": [
+      "37"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.39",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "39",
+     "operandIds": [
+      "38"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "subtract.40",
+     "opcode": "subtract",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::log_softmax",
+      "opName": "model_forward.1/forward_log_softmax.3",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1580
+     },
+     "id": "40",
+     "operandIds": [
+      "30",
+      "39"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "exponential.82",
+     "opcode": "exponential",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::_log_softmax_backward_data",
+      "opName": "@autograd"
+     },
+     "id": "82",
+     "operandIds": [
+      "40"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.76",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::_log_softmax_backward_data",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "76",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.81",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::_log_softmax_backward_data",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "81",
+     "operandIds": [
+      "75",
+      "76"
+     ],
+     "calledComputationIds": [
+      "77"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.83",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::_log_softmax_backward_data",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "83",
+     "operandIds": [
+      "81"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.84",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::_log_softmax_backward_data",
+      "opName": "@autograd"
+     },
+     "id": "84",
+     "operandIds": [
+      "82",
+      "83"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "subtract.85",
+     "opcode": "subtract",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::_log_softmax_backward_data",
+      "opName": "@autograd"
+     },
+     "id": "85",
+     "operandIds": [
+      "75",
+      "84"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.87",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::threshold_backward",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "87",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.88",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::threshold_backward",
+      "opName": "@autograd"
+     },
+     "id": "88",
+     "operandIds": [
+      "87"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.91",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::threshold_backward",
+      "opName": "@autograd"
+     },
+     "id": "91",
+     "operandIds": [
+      "90",
+      "85",
+      "88"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "dot.94",
+     "opcode": "dot",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "784",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::mm",
+      "opName": "@autograd"
+     },
+     "dotDimensionNumbers": {
+      "lhsContractingDimensions": [
+       "1"
+      ],
+      "rhsContractingDimensions": [
+       "0"
+      ]
+     },
+     "id": "94",
+     "operandIds": [
+      "93",
+      "91"
+     ],
+     "precisionConfig": {
+      "operandPrecision": [
+       "DEFAULT",
+       "DEFAULT"
+      ]
+     },
+     "frontendAttributes": {}
+    },
+    {
+     "name": "transpose.95",
+     "opcode": "transpose",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::permute",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "1",
+      "0"
+     ],
+     "id": "95",
+     "operandIds": [
+      "94"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.6",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "6",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.7",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "id": "7",
+     "operandIds": [
+      "6"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.8",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "8",
+     "operandIds": [
+      "7"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.9",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "id": "9",
+     "operandIds": [
+      "8"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.10",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "id": "10",
+     "operandIds": [
+      "9"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.96",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::mul",
+      "opName": "@autograd"
+     },
+     "id": "96",
+     "operandIds": [
+      "95",
+      "10"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.102",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::add",
+      "opName": "@autograd"
+     },
+     "id": "102",
+     "operandIds": [
+      "101",
+      "96"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.1",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "GZQ="
+     },
+     "id": "1",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.2",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "2",
+     "operandIds": [
+      "1"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.3",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "3",
+     "operandIds": [
+      "2"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.4",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "4",
+     "operandIds": [
+      "3"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.5",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "5",
+     "operandIds": [
+      "4"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.103",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::mul",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "103",
+     "operandIds": [
+      "102",
+      "5"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.104",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::add",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "104",
+     "operandIds": [
+      "12",
+      "103"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.125",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "125",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.126",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "id": "126",
+     "operandIds": [
+      "125"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.127",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "127",
+     "operandIds": [
+      "126"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.128",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "id": "128",
+     "operandIds": [
+      "127"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.129",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 192
+     },
+     "id": "129",
+     "operandIds": [
+      "128"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.115",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::sum",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "115",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.121",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::sum",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "121",
+     "operandIds": [
+      "91",
+      "115"
+     ],
+     "calledComputationIds": [
+      "117"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.122",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::sum",
+      "opName": "@autograd"
+     },
+     "id": "122",
+     "operandIds": [
+      "121"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.123",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::view",
+      "opName": "@autograd"
+     },
+     "id": "123",
+     "operandIds": [
+      "122"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.110",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "opName": "@autograd"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "110",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.111",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "id": "111",
+     "operandIds": [
+      "110"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.112",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "112",
+     "operandIds": [
+      "111"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.113",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "id": "113",
+     "operandIds": [
+      "112"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.114",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "@autograd"
+     },
+     "id": "114",
+     "operandIds": [
+      "113"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.124",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::mul",
+      "opName": "@autograd"
+     },
+     "id": "124",
+     "operandIds": [
+      "123",
+      "114"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.130",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::add",
+      "opName": "@autograd"
+     },
+     "id": "130",
+     "operandIds": [
+      "129",
+      "124"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.105",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim::Constant",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "GZQ="
+     },
+     "id": "105",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.106",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "106",
+     "operandIds": [
+      "105"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.107",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "107",
+     "operandIds": [
+      "106"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reshape.108",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "108",
+     "operandIds": [
+      "107"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.109",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::expand",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "109",
+     "operandIds": [
+      "108"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.131",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::mul",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "131",
+     "operandIds": [
+      "130",
+      "109"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.132",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::add",
+      "opName": "optimizer_step.4",
+      "sourceFile": "step@sgd.py",
+      "sourceLine": 112
+     },
+     "id": "132",
+     "operandIds": [
+      "11",
+      "131"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.136",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "136",
+     "operandIds": [
+      "41"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "iota.135",
+     "opcode": "iota",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "135",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.137",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "137",
+     "operandIds": [
+      "136",
+      "135"
+     ],
+     "comparisonDirection": "EQ",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "constant.134",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "134",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.139",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "139",
+     "operandIds": [
+      "134"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.133",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "133",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.138",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "138",
+     "operandIds": [
+      "133"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.140",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "140",
+     "operandIds": [
+      "137",
+      "139",
+      "138"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "negate.141",
+     "opcode": "negate",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "141",
+     "operandIds": [
+      "140"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.142",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "142",
+     "operandIds": [
+      "141",
+      "40"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.143",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "S32",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "S32",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "s32s": [
+       -100
+      ]
+     },
+     "id": "143",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.144",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "144",
+     "operandIds": [
+      "143"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.145",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "145",
+     "operandIds": [
+      "41",
+      "144"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "broadcast.150",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "150",
+     "operandIds": [
+      "145"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.146",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "146",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.147",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "147",
+     "operandIds": [
+      "146"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.148",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "148",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "broadcast.149",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "149",
+     "operandIds": [
+      "148"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.151",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "151",
+     "operandIds": [
+      "150",
+      "147",
+      "149"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.152",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "152",
+     "operandIds": [
+      "151",
+      "140"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "multiply.162",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "162",
+     "operandIds": [
+      "142",
+      "152"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.167",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "167",
+     "operandIds": [
+      "162",
+      "133"
+     ],
+     "calledComputationIds": [
+      "163"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "constant.153",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "153",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "reduce.159",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "159",
+     "operandIds": [
+      "152",
+      "153"
+     ],
+     "calledComputationIds": [
+      "155"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "compare.160",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "160",
+     "operandIds": [
+      "159",
+      "153"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {},
+     "comparisonType": "UNSIGNED"
+    },
+    {
+     "name": "constant.154",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "154",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "select.161",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "161",
+     "operandIds": [
+      "160",
+      "159",
+      "154"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "divide.168",
+     "opcode": "divide",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten::nll_loss",
+      "opName": "loss_fn.2",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2235
+     },
+     "id": "168",
+     "operandIds": [
+      "167",
+      "161"
+     ],
+     "frontendAttributes": {}
+    },
+    {
+     "name": "tuple.169",
+     "opcode": "tuple",
+     "shape": {
+      "elementType": "TUPLE",
+      "tupleShapes": [
+       {
+        "elementType": "F16",
+        "dimensions": [
+         "10",
+         "784"
+        ],
+        "layout": {
+         "minorToMajor": [
+          "1",
+          "0"
+         ],
+         "format": "DENSE"
+        },
+        "isDynamicDimension": [
+         false,
+         false
+        ]
+       },
+       {
+        "elementType": "F16",
+        "dimensions": [
+         "10"
+        ],
+        "layout": {
+         "minorToMajor": [
+          "0"
+         ],
+         "format": "DENSE"
+        },
+        "isDynamicDimension": [
+         false
+        ]
+       },
+       {
+        "elementType": "F16",
+        "layout": {
+         "format": "DENSE"
+        }
+       }
+      ]
+     },
+     "metadata": {},
+     "id": "169",
+     "operandIds": [
+      "104",
+      "132",
+      "168"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "PROXY_DEVICE": "WSE:0"
+      }
+     }
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "2",
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false,
+       false
+      ]
+     },
+     {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     }
+    ],
+    "result": {
+     "elementType": "TUPLE",
+     "tupleShapes": [
+      {
+       "elementType": "F16",
+       "dimensions": [
+        "10",
+        "784"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "1",
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false,
+        false
+       ]
+      },
+      {
+       "elementType": "F16",
+       "dimensions": [
+        "10"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false
+       ]
+      },
+      {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      }
+     ]
+    },
+    "parameterNames": [
+     "p0.11",
+     "p1.12",
+     "p2.14",
+     "p3.41"
+    ]
+   },
+   "id": "170",
+   "rootId": "169"
+  }
+ ],
+ "hostProgramShape": {
+  "parameters": [
+   {
+    "elementType": "F16",
+    "dimensions": [
+     "10"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false
+    ]
+   },
+   {
+    "elementType": "F16",
+    "dimensions": [
+     "10",
+     "784"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "1",
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false,
+     false
+    ]
+   },
+   {
+    "elementType": "F16",
+    "dimensions": [
+     "1",
+     "1",
+     "784"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "2",
+      "1",
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false,
+     false,
+     false
+    ]
+   },
+   {
+    "elementType": "S32",
+    "dimensions": [
+     "1"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false
+    ]
+   }
+  ],
+  "result": {
+   "elementType": "TUPLE",
+   "tupleShapes": [
+    {
+     "elementType": "F16",
+     "dimensions": [
+      "10",
+      "784"
+     ],
+     "layout": {
+      "minorToMajor": [
+       "1",
+       "0"
+      ],
+      "format": "DENSE"
+     },
+     "isDynamicDimension": [
+      false,
+      false
+     ]
+    },
+    {
+     "elementType": "F16",
+     "dimensions": [
+      "10"
+     ],
+     "layout": {
+      "minorToMajor": [
+       "0"
+      ],
+      "format": "DENSE"
+     },
+     "isDynamicDimension": [
+      false
+     ]
+    },
+    {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    }
+   ]
+  },
+  "parameterNames": [
+   "p0",
+   "p1",
+   "p2",
+   "p3"
+  ]
+ },
+ "id": "4",
+ "entryComputationId": "170",
+ "inputOutputAlias": {
+  "entries": [
+   {
+    "outputShapeIndex": [
+     "0"
+    ],
+    "parameterNumber": "1",
+    "kind": "MAY_ALIAS"
+   },
+   {
+    "outputShapeIndex": [
+     "1"
+    ],
+    "kind": "MAY_ALIAS"
+   }
+  ]
+ },
+ "dynamicParameterBinding": {}
+}

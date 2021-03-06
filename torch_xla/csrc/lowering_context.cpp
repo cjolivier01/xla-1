@@ -184,7 +184,7 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
     for (auto node : post_order) {
       LowerNode(node);
     }
-    // At this point the outpout better be present, otherwise there is an issue
+    // At this point the output better be present, otherwise there is an issue
     // with the lowering code.
     it = emitted_outputs_.find(output);
     XLA_CHECK(it != emitted_outputs_.end())

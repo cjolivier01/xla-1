@@ -24,16 +24,15 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
 
-
 namespace ptwse {
 class XLASentinel;
 class WSETensor;
-}
+}  // namespace ptwse
 
 namespace torch_xla {
 
 class XLATensor {
-protected:
+ protected:
   class DeviceContextArena;
   struct Data;
   friend class ptwse::XLASentinel;

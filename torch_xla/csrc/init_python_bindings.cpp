@@ -96,30 +96,6 @@ std::string GetTensorsDump(
   return coverter(nodes);
 }
 
-xla::XlaComputation GetBoundedComputation(
-  const std::string& opname,
-  const std::vector<at::Tensor>& inputs,
-  const std::vector<at::Tensor>& outputs) {
-  NoGilSection nogil;
-  // Get the HLO graph...
-  assert(!inputs.empty());
-  std::vector<ir::Value> boundaries;
-  boundaries.reserve(inputs.size());
-  for (const auto& input_tensor : inputs) {
-    XLATensor input_xtensor = bridge::GetXlaTensor(input_tensor);
-    boundaries.emplace_back(input_xtensor.GetIrValue());
-  }
-  ir::LoweringContext lowering_ctx(opname, *GetDefaultDevice());
-  for (auto& tensor : outputs) {
-    XLATensor xtensor = bridge::GetXlaTensor(tensor);
-    xla::XlaOp root =
-        lowering_ctx.GetOutputOp(xtensor.GetIrValue(), boundaries);
-    lowering_ctx.AddResult(root);
-  }
-  xla::StatusOr<xla::XlaComputation> computation = lowering_ctx.Build();
-  return computation.ConsumeValueOrDie();
-}
-
 std::string SetCurrentThreadDevice(const std::string& device_str) {
   c10::Device prev_device = bridge::SetCurrentDevice(c10::Device(device_str));
   std::stringstream ss;
@@ -585,6 +561,17 @@ py::object ListTfFs(const std::string& pattern) {
   return py_files;
 }
 
+xla::Shape GetTensorShape(const at::Tensor& tensor,
+                          const std::string& device_str) {
+  auto xtensor = bridge::TryGetXlaTensor(tensor);
+  if (xtensor) {
+    return xtensor->shape();
+  }
+  Device device = GetDeviceOrCurrent(device_str);
+  return CreateComputationShapeFromTensor(tensor, &device);
+}
+
+
 void RemoveTfFile(const std::string& path) {
   tensorflow::Env* env = tensorflow::Env::Default();
   XLA_CHECK_OK(env->DeleteFile(path));
@@ -609,7 +596,7 @@ py::object XlaNms(const at::Tensor& boxes, const at::Tensor& scores,
       torch::autograd::make_variable(selected_indices, /*requires_grad=*/false);
   result_tuple[1] =
       torch::autograd::make_variable(num_valid, /*requires_grad=*/false);
-  return result_tuple;
+  return std::move(result_tuple);
 }
 
 std::vector<at::Tensor> XlaUserComputation(
@@ -627,6 +614,50 @@ std::vector<at::Tensor> XlaUserComputation(
   return results;
 }
 
+std::shared_ptr<Computation> GetBoundedComputation(
+  const std::string& opname,
+  const std::vector<at::Tensor>& inputs,
+  const std::vector<at::Tensor>& outputs) {
+  // Get the HLO graph...
+  assert(!inputs.empty());
+  std::vector<ir::Value> boundaries;
+  boundaries.reserve(inputs.size());
+
+  const auto& device = *GetDefaultDevice();
+  ir::LoweringContext lowering_ctx(opname, device);
+
+  const std::string device_str = device.ToString();
+
+  xla::Shape input_shape;
+  for (const auto& inp : inputs) {
+    *input_shape.add_tuple_shapes() = GetTensorShape(inp, device_str);
+  }
+
+  xla::Shape output_shape;
+  for (const auto& outp : outputs) {
+    *output_shape.add_tuple_shapes() = GetTensorShape(outp, device_str);
+  }
+
+//  xla::XlaOp param = xla::Parameter(builder.get(), param_no, shape,
+//                                      absl::StrCat("p", param_no));
+
+  //xla::XlaOp input_tuple = lowering_ctx.builder()->Tuple()
+
+  for (const auto& input_tensor : inputs) {
+    XLATensor input_xtensor = bridge::GetXlaTensor(input_tensor);
+    boundaries.emplace_back(input_xtensor.GetIrValue());
+  }
+  for (auto& tensor : outputs) {
+    XLATensor xtensor = bridge::GetXlaTensor(tensor);
+    xla::XlaOp root =
+        lowering_ctx.GetOutputOp(xtensor.GetIrValue(), boundaries);
+    lowering_ctx.AddResult(root);
+  }
+  xla::StatusOr<xla::XlaComputation> computation = lowering_ctx.Build();
+  return std::make_shared<Computation>(opname, computation.ConsumeValueOrDie());
+}
+
+
 ComputationPtr CreateComputation(const std::string& name, xla::XlaOp root) {
   xla::XlaComputation computation = ConsumeValue(root.builder()->Build(root));
   return std::make_shared<Computation>(name, std::move(computation));
@@ -638,16 +669,6 @@ ComputationPtr CreateComputationFromProto(const std::string& name,
   proto.ParseFromString(module_proto);
   xla::XlaComputation computation(std::move(proto));
   return std::make_shared<Computation>(name, std::move(computation));
-}
-
-xla::Shape GetTensorShape(const at::Tensor& tensor,
-                          const std::string& device_str) {
-  auto xtensor = bridge::TryGetXlaTensor(tensor);
-  if (xtensor) {
-    return xtensor->shape();
-  }
-  Device device = GetDeviceOrCurrent(device_str);
-  return CreateComputationShapeFromTensor(tensor, &device);
 }
 
 py::dict GetMemoryInfo(const std::string& device_str) {
@@ -758,6 +779,7 @@ void InitXlaModuleBindings(py::module m) {
             NoGilSection nogil;
             results = XlaUserComputation(opname, inputs, computation);
           }
+          std::cout << "Returning number of results: " << results.size();
           return results;
         });
   m.def("_get_xla_tensors_dot",
@@ -778,7 +800,7 @@ void InitXlaModuleBindings(py::module m) {
         [](const std::string& opname,
            const std::vector<at::Tensor>& inputs,
            const std::vector<at::Tensor>& outputs) {
-          //NoGilSection nogil;
+          NoGilSection nogil;
           return GetBoundedComputation(opname, inputs, outputs);
         });
   m.def("_get_xla_tensors_hlo",

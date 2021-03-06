@@ -539,6 +539,12 @@ class Op(object):
   def get_tuple_element(self, index):
     return mkop('GetTupleElement', (self.op,), index=index)
 
+  def get_tuple_elements(self, count):
+      results = []
+      for i in range(count):
+          results.append(mkop('GetTupleElement', (self.op,), index=i))
+      return results
+
   def conditional(self, true_operand, false_operand, true_computation,
                   false_computation):
     true_computation = Op.make_computation('CondTrue', true_computation,
@@ -589,11 +595,23 @@ class Op(object):
         condition_computation=condition_computation,
         body_computation=body_computation)
 
+  def while_loop_x(self, condition_computation, body_computation):
+      return mkop(
+          'While', (self.op,),
+          condition_computation=condition_computation,
+          body_computation=body_computation)
+
   @classmethod
   def mkwhile(self, ops, condition_fn, body_fn, **kwargs):
     input_tuple = Op.tuple(ops)
     return input_tuple.while_loop(
         condition_computation=condition_fn, body_computation=body_fn)
+
+  @classmethod
+  def mkwhile_x(self, ops, condition_comp, body_comp, **kwargs):
+      input_tuple = Op.tuple(ops)
+      return input_tuple.while_loop_x(
+          condition_computation=condition_comp, body_computation=body_comp)
 
   def get_dimension_size(self, dimension):
     return mkop('GetDimensionSize', (self.op,), dimension=dimension)

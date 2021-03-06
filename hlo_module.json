@@ -1,0 +1,6102 @@
+{
+ "name": "SyncTensorsGraph.173",
+ "entryComputationName": "SyncTensorsGraph.173",
+ "computations": [
+  {
+   "name": "MaxComputation.24",
+   "instructions": [
+    {
+     "name": "x.25",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "25",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.26",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "26",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "maximum.27",
+     "opcode": "maximum",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "27",
+     "operandIds": [
+      "25",
+      "26"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.25",
+     "y.26"
+    ]
+   },
+   "id": "24",
+   "rootId": "27"
+  },
+  {
+   "name": "AddComputation.33",
+   "instructions": [
+    {
+     "name": "x.34",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "34",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.35",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "35",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.36",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "36",
+     "operandIds": [
+      "34",
+      "35"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.34",
+     "y.35"
+    ]
+   },
+   "id": "33",
+   "rootId": "36"
+  },
+  {
+   "name": "AddComputation.66",
+   "instructions": [
+    {
+     "name": "x.67",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "67",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.68",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "68",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.69",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "69",
+     "operandIds": [
+      "67",
+      "68"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.67",
+     "y.68"
+    ]
+   },
+   "id": "66",
+   "rootId": "69"
+  },
+  {
+   "name": "AddComputation.77",
+   "instructions": [
+    {
+     "name": "x.78",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "78",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.79",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "79",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.80",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "80",
+     "operandIds": [
+      "78",
+      "79"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.78",
+     "y.79"
+    ]
+   },
+   "id": "77",
+   "rootId": "80"
+  },
+  {
+   "name": "AddComputation.117",
+   "instructions": [
+    {
+     "name": "x.118",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "118",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.119",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "119",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.120",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "120",
+     "operandIds": [
+      "118",
+      "119"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.118",
+     "y.119"
+    ]
+   },
+   "id": "117",
+   "rootId": "120"
+  },
+  {
+   "name": "AddComputation.158",
+   "instructions": [
+    {
+     "name": "x.159",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "159",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.160",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "160",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.161",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "161",
+     "operandIds": [
+      "159",
+      "160"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.159",
+     "y.160"
+    ]
+   },
+   "id": "158",
+   "rootId": "161"
+  },
+  {
+   "name": "AddComputation.166",
+   "instructions": [
+    {
+     "name": "x.167",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "167",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "y.168",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "168",
+     "frontendAttributes": {}
+    },
+    {
+     "name": "add.169",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "169",
+     "operandIds": [
+      "167",
+      "168"
+     ],
+     "frontendAttributes": {}
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     }
+    ],
+    "result": {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    },
+    "parameterNames": [
+     "x.167",
+     "y.168"
+    ]
+   },
+   "id": "166",
+   "rootId": "169"
+  },
+  {
+   "name": "SyncTensorsGraph.173",
+   "instructions": [
+    {
+     "name": "p1.12",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla__device_data",
+      "opName": "xla__device_data",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "parameterNumber": "1",
+     "id": "12",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.18": "aten_t",
+       "0.MATCHED_OP.FWD.16": "aten_linear",
+       "1.MATCHED_OP.FWD.17": "aten_t"
+      }
+     }
+    },
+    {
+     "name": "constant",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "4"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "dimensions": [
+        "1",
+        "1"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "1",
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false,
+        false
+       ]
+      },
+      "f16s": "AAA="
+     },
+     "id": "174",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.9": "aten_zero_",
+       "1.MATCHED_OP.FWD.10": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.99",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "99",
+     "operandIds": [
+      "174"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.9": "aten_zero_",
+       "1.MATCHED_OP.FWD.10": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "reshape.100",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "1"
+     },
+     "id": "100",
+     "operandIds": [
+      "99"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.9": "aten_zero_",
+       "1.MATCHED_OP.FWD.10": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.101",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "1"
+     },
+     "id": "101",
+     "operandIds": [
+      "100"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.9": "aten_zero_",
+       "1.MATCHED_OP.FWD.10": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "p2.14",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "2",
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla__device_data",
+      "opName": "xla__device_data",
+      "sourceFile": "forward@test_train_while.py",
+      "sourceLine": 100,
+      "creationPassId": "1"
+     },
+     "parameterNumber": "2",
+     "id": "14",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.14": "aten_view",
+       "1.MATCHED_OP.FWD.15": "aten_view"
+      }
+     }
+    },
+    {
+     "name": "reshape.92",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__view",
+      "opName": "aten__view",
+      "creationPassId": "1"
+     },
+     "id": "92",
+     "operandIds": [
+      "14"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.80": "aten_mm",
+       "0.MATCHED_OP.BWD.79": "aten_mm"
+      }
+     }
+    },
+    {
+     "name": "transpose.93",
+     "opcode": "transpose",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "784",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__permute",
+      "opName": "aten__permute",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1",
+      "0"
+     ],
+     "id": "93",
+     "operandIds": [
+      "92"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.80": "aten_mm",
+       "0.MATCHED_OP.BWD.79": "aten_mm"
+      }
+     }
+    },
+    {
+     "name": "reshape.15",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__view",
+      "opName": "aten__view",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "id": "15",
+     "operandIds": [
+      "14"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.26": "aten_addmm",
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear"
+      }
+     }
+    },
+    {
+     "name": "transpose.13",
+     "opcode": "transpose",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "784",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__permute",
+      "opName": "aten__permute",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1",
+      "0"
+     ],
+     "id": "13",
+     "operandIds": [
+      "12"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.26": "aten_addmm",
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear"
+      }
+     }
+    },
+    {
+     "name": "dot.16",
+     "opcode": "dot",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__addmm",
+      "opName": "aten__addmm",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "dotDimensionNumbers": {
+      "lhsContractingDimensions": [
+       "1"
+      ],
+      "rhsContractingDimensions": [
+       "0"
+      ]
+     },
+     "id": "16",
+     "operandIds": [
+      "15",
+      "13"
+     ],
+     "precisionConfig": {
+      "operandPrecision": [
+       "DEFAULT",
+       "DEFAULT"
+      ]
+     },
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.26": "aten_addmm",
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear"
+      }
+     }
+    },
+    {
+     "name": "p0.11",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla__device_data",
+      "opName": "xla__device_data",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "id": "11",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.26": "aten_addmm",
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear"
+      }
+     }
+    },
+    {
+     "name": "reshape.17",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__addmm",
+      "opName": "aten__addmm",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "id": "17",
+     "operandIds": [
+      "11"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear",
+       "2.MATCHED_OP.FWD.26": "aten_addmm"
+      }
+     }
+    },
+    {
+     "name": "broadcast.18",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__addmm",
+      "opName": "aten__addmm",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "18",
+     "operandIds": [
+      "17"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.26": "aten_addmm",
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear"
+      }
+     }
+    },
+    {
+     "name": "add.19",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__addmm",
+      "opName": "aten__addmm",
+      "sourceFile": "linear@functional.py",
+      "sourceLine": 1753,
+      "creationPassId": "1"
+     },
+     "id": "19",
+     "operandIds": [
+      "16",
+      "18"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.26": "aten_addmm",
+       "1.MATCHED_OP.FWD.20": "aten_addmm",
+       "0.MATCHED_OP.FWD.16": "aten_linear"
+      }
+     }
+    },
+    {
+     "name": "constant.86",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__threshold_backward",
+      "opName": "aten__threshold_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "86",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.74": "aten_threshold_backward",
+       "1.MATCHED_OP.BWD.75": "aten_threshold_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.89",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__threshold_backward",
+      "opName": "aten__threshold_backward",
+      "creationPassId": "1"
+     },
+     "id": "89",
+     "operandIds": [
+      "86"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.74": "aten_threshold_backward",
+       "1.MATCHED_OP.BWD.75": "aten_threshold_backward"
+      }
+     }
+    },
+    {
+     "name": "compare.90",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__threshold_backward",
+      "opName": "aten__threshold_backward",
+      "creationPassId": "1"
+     },
+     "id": "90",
+     "operandIds": [
+      "19",
+      "89"
+     ],
+     "comparisonDirection": "GT",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.74": "aten_threshold_backward",
+       "1.MATCHED_OP.BWD.75": "aten_threshold_backward"
+      }
+     },
+     "comparisonType": "FLOAT"
+    },
+    {
+     "name": "p3.41",
+     "opcode": "parameter",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "xla__device_data",
+      "opName": "xla__device_data",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "parameterNumber": "3",
+     "id": "41",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.46",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "46",
+     "operandIds": [
+      "41"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "iota.45",
+     "opcode": "iota",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "45",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "compare.47",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "47",
+     "operandIds": [
+      "46",
+      "45"
+     ],
+     "comparisonDirection": "EQ",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     },
+     "comparisonType": "SIGNED"
+    },
+    {
+     "name": "constant.44",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "44",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.49",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "49",
+     "operandIds": [
+      "44"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.43",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "43",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.48",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "48",
+     "operandIds": [
+      "43"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "select.50",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "50",
+     "operandIds": [
+      "47",
+      "49",
+      "48"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "negate.51",
+     "opcode": "negate",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "51",
+     "operandIds": [
+      "50"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.42",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "prim__Constant",
+      "opName": "prim__Constant",
+      "sourceFile": "_make_grads@__init__.py",
+      "sourceLine": 51,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "42",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.60": "aten_fill_",
+       "0.MATCHED_OP.FWD.56": "aten_ones_like"
+      }
+     }
+    },
+    {
+     "name": "broadcast.52",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "52",
+     "operandIds": [
+      "42"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "multiply.53",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "53",
+     "operandIds": [
+      "51",
+      "52"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.54",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "S32",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "S32",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "s32s": [
+       -100
+      ]
+     },
+     "id": "54",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.55",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "55",
+     "operandIds": [
+      "54"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "compare.56",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "56",
+     "operandIds": [
+      "41",
+      "55"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     },
+     "comparisonType": "SIGNED"
+    },
+    {
+     "name": "broadcast.61",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "61",
+     "operandIds": [
+      "56"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.57",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "57",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.58",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "58",
+     "operandIds": [
+      "57"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.59",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "59",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.60",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "60",
+     "operandIds": [
+      "59"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "select.62",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "62",
+     "operandIds": [
+      "61",
+      "58",
+      "60"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "multiply.63",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "63",
+     "operandIds": [
+      "62",
+      "50"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "multiply.73",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "73",
+     "operandIds": [
+      "53",
+      "63"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.64",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "64",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "reduce.70",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "70",
+     "operandIds": [
+      "63",
+      "64"
+     ],
+     "calledComputationIds": [
+      "66"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "compare.71",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "71",
+     "operandIds": [
+      "70",
+      "64"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     },
+     "comparisonType": "FLOAT"
+    },
+    {
+     "name": "constant.65",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "65",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "select.72",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "72",
+     "operandIds": [
+      "71",
+      "70",
+      "65"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward",
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.74",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "74",
+     "operandIds": [
+      "72"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "divide.75",
+     "opcode": "divide",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss_backward",
+      "opName": "aten__nll_loss_backward",
+      "creationPassId": "1"
+     },
+     "id": "75",
+     "operandIds": [
+      "73",
+      "74"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.70": "aten_nll_loss_backward",
+       "1.MATCHED_OP.BWD.71": "aten_nll_loss_backward"
+      }
+     }
+    },
+    {
+     "name": "constant.20",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__relu",
+      "opName": "aten__relu",
+      "sourceFile": "relu@functional.py",
+      "sourceLine": 1206,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "20",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.27": "aten_relu",
+       "1.MATCHED_OP.FWD.32": "aten_relu"
+      }
+     }
+    },
+    {
+     "name": "broadcast.21",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__relu",
+      "opName": "aten__relu",
+      "sourceFile": "relu@functional.py",
+      "sourceLine": 1206,
+      "creationPassId": "1"
+     },
+     "id": "21",
+     "operandIds": [
+      "20"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.27": "aten_relu",
+       "1.MATCHED_OP.FWD.32": "aten_relu"
+      }
+     }
+    },
+    {
+     "name": "maximum.22",
+     "opcode": "maximum",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__relu",
+      "opName": "aten__relu",
+      "sourceFile": "relu@functional.py",
+      "sourceLine": 1206,
+      "creationPassId": "1"
+     },
+     "id": "22",
+     "operandIds": [
+      "19",
+      "21"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.27": "aten_relu",
+       "1.MATCHED_OP.FWD.32": "aten_relu"
+      }
+     }
+    },
+    {
+     "name": "constant.23",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "APw="
+     },
+     "id": "23",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "reduce.28",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "28",
+     "operandIds": [
+      "22",
+      "23"
+     ],
+     "calledComputationIds": [
+      "24"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "broadcast.29",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "29",
+     "operandIds": [
+      "28"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "subtract.30",
+     "opcode": "subtract",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "id": "30",
+     "operandIds": [
+      "22",
+      "29"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "exponential.31",
+     "opcode": "exponential",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "id": "31",
+     "operandIds": [
+      "30"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax",
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax"
+      }
+     }
+    },
+    {
+     "name": "constant.32",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "32",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "reduce.37",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "37",
+     "operandIds": [
+      "31",
+      "32"
+     ],
+     "calledComputationIds": [
+      "33"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "log.38",
+     "opcode": "log",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "id": "38",
+     "operandIds": [
+      "37"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "broadcast.39",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "39",
+     "operandIds": [
+      "38"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax",
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax"
+      }
+     }
+    },
+    {
+     "name": "subtract.40",
+     "opcode": "subtract",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__log_softmax",
+      "opName": "aten__log_softmax",
+      "sourceFile": "log_softmax@functional.py",
+      "sourceLine": 1672,
+      "creationPassId": "1"
+     },
+     "id": "40",
+     "operandIds": [
+      "30",
+      "39"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.39": "aten__log_softmax",
+       "0.MATCHED_OP.FWD.33": "aten_log_softmax",
+       "1.MATCHED_OP.FWD.34": "aten__log_softmax"
+      }
+     }
+    },
+    {
+     "name": "exponential.82",
+     "opcode": "exponential",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten___log_softmax_backward_data",
+      "opName": "aten___log_softmax_backward_data",
+      "creationPassId": "1"
+     },
+     "id": "82",
+     "operandIds": [
+      "40"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.72": "aten__log_softmax_backward_data",
+       "1.MATCHED_OP.BWD.73": "aten__log_softmax_backward_data"
+      }
+     }
+    },
+    {
+     "name": "constant.76",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten___log_softmax_backward_data",
+      "opName": "aten___log_softmax_backward_data",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "76",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.72": "aten__log_softmax_backward_data",
+       "1.MATCHED_OP.BWD.73": "aten__log_softmax_backward_data"
+      }
+     }
+    },
+    {
+     "name": "reduce.81",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten___log_softmax_backward_data",
+      "opName": "aten___log_softmax_backward_data",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "81",
+     "operandIds": [
+      "75",
+      "76"
+     ],
+     "calledComputationIds": [
+      "77"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.72": "aten__log_softmax_backward_data",
+       "1.MATCHED_OP.BWD.73": "aten__log_softmax_backward_data"
+      }
+     }
+    },
+    {
+     "name": "broadcast.83",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten___log_softmax_backward_data",
+      "opName": "aten___log_softmax_backward_data",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "83",
+     "operandIds": [
+      "81"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.72": "aten__log_softmax_backward_data",
+       "1.MATCHED_OP.BWD.73": "aten__log_softmax_backward_data"
+      }
+     }
+    },
+    {
+     "name": "multiply.84",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten___log_softmax_backward_data",
+      "opName": "aten___log_softmax_backward_data",
+      "creationPassId": "1"
+     },
+     "id": "84",
+     "operandIds": [
+      "82",
+      "83"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.72": "aten__log_softmax_backward_data",
+       "1.MATCHED_OP.BWD.73": "aten__log_softmax_backward_data"
+      }
+     }
+    },
+    {
+     "name": "subtract.85",
+     "opcode": "subtract",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten___log_softmax_backward_data",
+      "opName": "aten___log_softmax_backward_data",
+      "creationPassId": "1"
+     },
+     "id": "85",
+     "operandIds": [
+      "75",
+      "84"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.72": "aten__log_softmax_backward_data",
+       "1.MATCHED_OP.BWD.73": "aten__log_softmax_backward_data"
+      }
+     }
+    },
+    {
+     "name": "constant.87",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__threshold_backward",
+      "opName": "aten__threshold_backward",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "87",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.74": "aten_threshold_backward",
+       "1.MATCHED_OP.BWD.75": "aten_threshold_backward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.88",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__threshold_backward",
+      "opName": "aten__threshold_backward",
+      "creationPassId": "1"
+     },
+     "id": "88",
+     "operandIds": [
+      "87"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.74": "aten_threshold_backward",
+       "1.MATCHED_OP.BWD.75": "aten_threshold_backward"
+      }
+     }
+    },
+    {
+     "name": "select.91",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__threshold_backward",
+      "opName": "aten__threshold_backward",
+      "creationPassId": "1"
+     },
+     "id": "91",
+     "operandIds": [
+      "90",
+      "85",
+      "88"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.74": "aten_threshold_backward",
+       "1.MATCHED_OP.BWD.75": "aten_threshold_backward"
+      }
+     }
+    },
+    {
+     "name": "dot.94",
+     "opcode": "dot",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "784",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__mm",
+      "opName": "aten__mm",
+      "creationPassId": "1"
+     },
+     "dotDimensionNumbers": {
+      "lhsContractingDimensions": [
+       "1"
+      ],
+      "rhsContractingDimensions": [
+       "0"
+      ]
+     },
+     "id": "94",
+     "operandIds": [
+      "93",
+      "91"
+     ],
+     "precisionConfig": {
+      "operandPrecision": [
+       "DEFAULT",
+       "DEFAULT"
+      ]
+     },
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.80": "aten_mm",
+       "0.MATCHED_OP.BWD.79": "aten_mm"
+      }
+     }
+    },
+    {
+     "name": "transpose.95",
+     "opcode": "transpose",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__permute",
+      "opName": "aten__permute",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1",
+      "0"
+     ],
+     "id": "95",
+     "operandIds": [
+      "94"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.92": "aten_add_",
+       "0.MATCHED_OP.BWD.91": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "constant.2",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "4"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "dimensions": [
+        "1",
+        "1"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "1",
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false,
+        false
+       ]
+      },
+      "f16s": "ADw="
+     },
+     "id": "175",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.91": "aten_add_",
+       "1.MATCHED_OP.BWD.92": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.8",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "8",
+     "operandIds": [
+      "175"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.92": "aten_add_",
+       "0.MATCHED_OP.BWD.91": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "reshape.9",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "1"
+     },
+     "id": "9",
+     "operandIds": [
+      "8"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.91": "aten_add_",
+       "1.MATCHED_OP.BWD.92": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.10",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "1"
+     },
+     "id": "10",
+     "operandIds": [
+      "9"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.91": "aten_add_",
+       "1.MATCHED_OP.BWD.92": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "multiply.96",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0",
+        "1"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__mul",
+      "opName": "aten__mul",
+      "creationPassId": "1"
+     },
+     "id": "96",
+     "operandIds": [
+      "95",
+      "10"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.92": "aten_add_",
+       "0.MATCHED_OP.BWD.91": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "add.102",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__add",
+      "opName": "aten__add",
+      "creationPassId": "1"
+     },
+     "id": "102",
+     "operandIds": [
+      "101",
+      "96"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.91": "aten_add_",
+       "1.MATCHED_OP.BWD.92": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "constant.3",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "4"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "dimensions": [
+        "1",
+        "1"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "1",
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false,
+        false
+       ]
+      },
+      "f16s": "GZQ="
+     },
+     "id": "176",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.69": "aten_add_",
+       "1.MATCHED_OP.FWD.70": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.3",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "3",
+     "operandIds": [
+      "176"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.69": "aten_add_",
+       "1.MATCHED_OP.FWD.70": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "reshape.4",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "4",
+     "operandIds": [
+      "3"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.69": "aten_add_",
+       "1.MATCHED_OP.FWD.70": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.5",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "5",
+     "operandIds": [
+      "4"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.69": "aten_add_",
+       "1.MATCHED_OP.FWD.70": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "multiply.103",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__mul",
+      "opName": "aten__mul",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "103",
+     "operandIds": [
+      "102",
+      "5"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.70": "aten_add_",
+       "0.MATCHED_OP.FWD.69": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "add.104",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__add",
+      "opName": "aten__add",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "104",
+     "operandIds": [
+      "12",
+      "103"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.70": "aten_add_",
+       "0.MATCHED_OP.FWD.69": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "constant.4",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "4"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "dimensions": [
+        "1"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false
+       ]
+      },
+      "f16s": "AAA="
+     },
+     "id": "177",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.12": "aten_zero_",
+       "1.MATCHED_OP.FWD.13": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.127",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "127",
+     "operandIds": [
+      "177"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.12": "aten_zero_",
+       "1.MATCHED_OP.FWD.13": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "reshape.128",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "1"
+     },
+     "id": "128",
+     "operandIds": [
+      "127"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.12": "aten_zero_",
+       "1.MATCHED_OP.FWD.13": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.129",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "zero_grad@optimizer.py",
+      "sourceLine": 216,
+      "creationPassId": "1"
+     },
+     "id": "129",
+     "operandIds": [
+      "128"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.13": "aten_zero_",
+       "0.MATCHED_OP.FWD.12": "aten_zero_"
+      }
+     }
+    },
+    {
+     "name": "constant.115",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__sum",
+      "opName": "aten__sum",
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "115",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.81": "aten_sum",
+       "1.MATCHED_OP.BWD.82": "aten_sum"
+      }
+     }
+    },
+    {
+     "name": "reduce.121",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__sum",
+      "opName": "aten__sum",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "121",
+     "operandIds": [
+      "91",
+      "115"
+     ],
+     "calledComputationIds": [
+      "117"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.81": "aten_sum",
+       "1.MATCHED_OP.BWD.82": "aten_sum"
+      }
+     }
+    },
+    {
+     "name": "reshape.122",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__sum",
+      "opName": "aten__sum",
+      "creationPassId": "1"
+     },
+     "id": "122",
+     "operandIds": [
+      "121"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.81": "aten_sum",
+       "1.MATCHED_OP.BWD.82": "aten_sum"
+      }
+     }
+    },
+    {
+     "name": "reshape.123",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__view",
+      "opName": "aten__view",
+      "creationPassId": "1"
+     },
+     "id": "123",
+     "operandIds": [
+      "122"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.85": "aten_add_",
+       "1.MATCHED_OP.BWD.86": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "constant.5",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "4"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "dimensions": [
+        "1"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false
+       ]
+      },
+      "f16s": "ADw="
+     },
+     "id": "178",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.85": "aten_add_",
+       "1.MATCHED_OP.BWD.86": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.112",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "112",
+     "operandIds": [
+      "178"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.86": "aten_add_",
+       "0.MATCHED_OP.BWD.85": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "reshape.113",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "1"
+     },
+     "id": "113",
+     "operandIds": [
+      "112"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.85": "aten_add_",
+       "1.MATCHED_OP.BWD.86": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.114",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "creationPassId": "1"
+     },
+     "id": "114",
+     "operandIds": [
+      "113"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.85": "aten_add_",
+       "1.MATCHED_OP.BWD.86": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "multiply.124",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__mul",
+      "opName": "aten__mul",
+      "creationPassId": "1"
+     },
+     "id": "124",
+     "operandIds": [
+      "123",
+      "114"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.BWD.86": "aten_add_",
+       "0.MATCHED_OP.BWD.85": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "add.130",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__add",
+      "opName": "aten__add",
+      "creationPassId": "1"
+     },
+     "id": "130",
+     "operandIds": [
+      "129",
+      "124"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.BWD.85": "aten_add_",
+       "1.MATCHED_OP.BWD.86": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "constant.7",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "4"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "dimensions": [
+        "1"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false
+       ]
+      },
+      "f16s": "GZQ="
+     },
+     "id": "179",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.73": "aten_add_",
+       "1.MATCHED_OP.FWD.74": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.107",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "107",
+     "operandIds": [
+      "179"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.73": "aten_add_",
+       "1.MATCHED_OP.FWD.74": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "reshape.108",
+     "opcode": "reshape",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "108",
+     "operandIds": [
+      "107"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.74": "aten_add_",
+       "0.MATCHED_OP.FWD.73": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.109",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__expand",
+      "opName": "aten__expand",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "109",
+     "operandIds": [
+      "108"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.73": "aten_add_",
+       "1.MATCHED_OP.FWD.74": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "multiply.131",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__mul",
+      "opName": "aten__mul",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "131",
+     "operandIds": [
+      "130",
+      "109"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.73": "aten_add_",
+       "1.MATCHED_OP.FWD.74": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "add.132",
+     "opcode": "add",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__add",
+      "opName": "aten__add",
+      "sourceFile": "sgd@_functional.py",
+      "sourceLine": 176,
+      "creationPassId": "1"
+     },
+     "id": "132",
+     "operandIds": [
+      "11",
+      "131"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.73": "aten_add_",
+       "1.MATCHED_OP.FWD.74": "aten_add_"
+      }
+     }
+    },
+    {
+     "name": "broadcast.136",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "136",
+     "operandIds": [
+      "41"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     }
+    },
+    {
+     "name": "iota.135",
+     "opcode": "iota",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "1"
+     ],
+     "id": "135",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "compare.137",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "137",
+     "operandIds": [
+      "136",
+      "135"
+     ],
+     "comparisonDirection": "EQ",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     },
+     "comparisonType": "SIGNED"
+    },
+    {
+     "name": "constant.134",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "134",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.139",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "139",
+     "operandIds": [
+      "134"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "constant.133",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "133",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.138",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "138",
+     "operandIds": [
+      "133"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "select.140",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "140",
+     "operandIds": [
+      "137",
+      "139",
+      "138"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "negate.141",
+     "opcode": "negate",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "141",
+     "operandIds": [
+      "140"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "multiply.142",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "142",
+     "operandIds": [
+      "141",
+      "40"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     }
+    },
+    {
+     "name": "compare.144",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "144",
+     "operandIds": [
+      "142",
+      "142"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     },
+     "comparisonType": "FLOAT"
+    },
+    {
+     "name": "broadcast.143",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "143",
+     "operandIds": [
+      "133"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "select.145",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "145",
+     "operandIds": [
+      "144",
+      "143",
+      "142"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "constant.146",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "S32",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "S32",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "s32s": [
+       -100
+      ]
+     },
+     "id": "146",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.147",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "147",
+     "operandIds": [
+      "146"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "compare.148",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "148",
+     "operandIds": [
+      "41",
+      "147"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     },
+     "comparisonType": "SIGNED"
+    },
+    {
+     "name": "broadcast.153",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "PRED",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0"
+     ],
+     "id": "153",
+     "operandIds": [
+      "148"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     }
+    },
+    {
+     "name": "constant.149",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "149",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     }
+    },
+    {
+     "name": "broadcast.150",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "150",
+     "operandIds": [
+      "149"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "constant.151",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "151",
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "broadcast.152",
+     "opcode": "broadcast",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "152",
+     "operandIds": [
+      "151"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "select.154",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "154",
+     "operandIds": [
+      "153",
+      "150",
+      "152"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "multiply.155",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "155",
+     "operandIds": [
+      "154",
+      "140"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     }
+    },
+    {
+     "name": "multiply.165",
+     "opcode": "multiply",
+     "shape": {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "165",
+     "operandIds": [
+      "145",
+      "155"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "reduce.170",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "170",
+     "operandIds": [
+      "165",
+      "133"
+     ],
+     "calledComputationIds": [
+      "166"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "constant.156",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "AAA="
+     },
+     "id": "156",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     }
+    },
+    {
+     "name": "reduce.162",
+     "opcode": "reduce",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "dimensions": [
+      "0",
+      "1"
+     ],
+     "id": "162",
+     "operandIds": [
+      "155",
+      "156"
+     ],
+     "calledComputationIds": [
+      "158"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "compare.163",
+     "opcode": "compare",
+     "shape": {
+      "elementType": "PRED",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "163",
+     "operandIds": [
+      "162",
+      "156"
+     ],
+     "comparisonDirection": "NE",
+     "frontendAttributes": {
+      "map": {
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss"
+      }
+     },
+     "comparisonType": "FLOAT"
+    },
+    {
+     "name": "constant.157",
+     "opcode": "constant",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "literal": {
+      "shape": {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      },
+      "f16s": "ADw="
+     },
+     "id": "157",
+     "frontendAttributes": {
+      "map": {
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward",
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "select.164",
+     "opcode": "select",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "164",
+     "operandIds": [
+      "163",
+      "162",
+      "157"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "divide.171",
+     "opcode": "divide",
+     "shape": {
+      "elementType": "F16",
+      "layout": {
+       "format": "DENSE"
+      }
+     },
+     "metadata": {
+      "opType": "aten__nll_loss",
+      "opName": "aten__nll_loss",
+      "sourceFile": "nll_loss@functional.py",
+      "sourceLine": 2385,
+      "creationPassId": "1"
+     },
+     "id": "171",
+     "operandIds": [
+      "170",
+      "164"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "2.MATCHED_OP.FWD.52": "aten_nll_loss_forward",
+       "0.MATCHED_OP.FWD.43": "aten_nll_loss",
+       "1.MATCHED_OP.FWD.44": "aten_nll_loss_forward"
+      }
+     }
+    },
+    {
+     "name": "tuple.172",
+     "opcode": "tuple",
+     "shape": {
+      "elementType": "TUPLE",
+      "tupleShapes": [
+       {
+        "elementType": "F16",
+        "dimensions": [
+         "10",
+         "784"
+        ],
+        "layout": {
+         "minorToMajor": [
+          "1",
+          "0"
+         ],
+         "format": "DENSE"
+        },
+        "isDynamicDimension": [
+         false,
+         false
+        ]
+       },
+       {
+        "elementType": "F16",
+        "dimensions": [
+         "10"
+        ],
+        "layout": {
+         "minorToMajor": [
+          "0"
+         ],
+         "format": "DENSE"
+        },
+        "isDynamicDimension": [
+         false
+        ]
+       },
+       {
+        "elementType": "F16",
+        "layout": {
+         "format": "DENSE"
+        }
+       }
+      ]
+     },
+     "metadata": {
+      "opName": "DUMMY_1",
+      "creationPassId": "1"
+     },
+     "id": "172",
+     "operandIds": [
+      "104",
+      "132",
+      "171"
+     ],
+     "frontendAttributes": {
+      "map": {
+       "PROXY_DEVICE": "WSE:0",
+       "framework_platform": "pytorch",
+       "PROXY_NO_OPTIMIZE": "1"
+      }
+     }
+    }
+   ],
+   "programShape": {
+    "parameters": [
+     {
+      "elementType": "F16",
+      "dimensions": [
+       "10"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     },
+     {
+      "elementType": "F16",
+      "dimensions": [
+       "10",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false
+      ]
+     },
+     {
+      "elementType": "F16",
+      "dimensions": [
+       "1",
+       "1",
+       "784"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "2",
+        "1",
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false,
+       false,
+       false
+      ]
+     },
+     {
+      "elementType": "S32",
+      "dimensions": [
+       "1"
+      ],
+      "layout": {
+       "minorToMajor": [
+        "0"
+       ],
+       "format": "DENSE"
+      },
+      "isDynamicDimension": [
+       false
+      ]
+     }
+    ],
+    "result": {
+     "elementType": "TUPLE",
+     "tupleShapes": [
+      {
+       "elementType": "F16",
+       "dimensions": [
+        "10",
+        "784"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "1",
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false,
+        false
+       ]
+      },
+      {
+       "elementType": "F16",
+       "dimensions": [
+        "10"
+       ],
+       "layout": {
+        "minorToMajor": [
+         "0"
+        ],
+        "format": "DENSE"
+       },
+       "isDynamicDimension": [
+        false
+       ]
+      },
+      {
+       "elementType": "F16",
+       "layout": {
+        "format": "DENSE"
+       }
+      }
+     ]
+    },
+    "parameterNames": [
+     "p0.11",
+     "p1.12",
+     "p2.14",
+     "p3.41"
+    ]
+   },
+   "id": "173",
+   "rootId": "172"
+  }
+ ],
+ "hostProgramShape": {
+  "parameters": [
+   {
+    "elementType": "F16",
+    "dimensions": [
+     "10"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false
+    ]
+   },
+   {
+    "elementType": "F16",
+    "dimensions": [
+     "10",
+     "784"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "1",
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false,
+     false
+    ]
+   },
+   {
+    "elementType": "F16",
+    "dimensions": [
+     "1",
+     "1",
+     "784"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "2",
+      "1",
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false,
+     false,
+     false
+    ]
+   },
+   {
+    "elementType": "S32",
+    "dimensions": [
+     "1"
+    ],
+    "layout": {
+     "minorToMajor": [
+      "0"
+     ],
+     "format": "DENSE"
+    },
+    "isDynamicDimension": [
+     false
+    ]
+   }
+  ],
+  "result": {
+   "elementType": "TUPLE",
+   "tupleShapes": [
+    {
+     "elementType": "F16",
+     "dimensions": [
+      "10",
+      "784"
+     ],
+     "layout": {
+      "minorToMajor": [
+       "1",
+       "0"
+      ],
+      "format": "DENSE"
+     },
+     "isDynamicDimension": [
+      false,
+      false
+     ]
+    },
+    {
+     "elementType": "F16",
+     "dimensions": [
+      "10"
+     ],
+     "layout": {
+      "minorToMajor": [
+       "0"
+      ],
+      "format": "DENSE"
+     },
+     "isDynamicDimension": [
+      false
+     ]
+    },
+    {
+     "elementType": "F16",
+     "layout": {
+      "format": "DENSE"
+     }
+    }
+   ]
+  },
+  "parameterNames": [
+   "p0",
+   "p1",
+   "p2",
+   "p3"
+  ]
+ },
+ "id": "4",
+ "entryComputationId": "173",
+ "inputOutputAlias": {
+  "entries": [
+   {
+    "outputShapeIndex": [
+     "0"
+    ],
+    "parameterNumber": "1",
+    "kind": "MAY_ALIAS"
+   },
+   {
+    "outputShapeIndex": [
+     "1"
+    ],
+    "kind": "MAY_ALIAS"
+   }
+  ]
+ },
+ "dynamicParameterBinding": {}
+}

@@ -18,19 +18,6 @@ struct HashingState {
   const xla::hash_t start_hash_;
 };
 
-// TODO: move to ptwse
-struct WseHashingState : public HashingState {
-  explicit WseHashingState(const xla::hash_t& start_hash)
-      : HashingState(start_hash) {};
-  std::vector<size_t> original_indices_;
-  xla::hash_t pre_prune_hash_ = 0;
-  std::size_t pass_ = 0;
-  bool fabric_run_ = false;
-  bool known_executable_ =
-      false;  // optimization when we know this executable already exists
-};
-
-
 class Sentinel {
  public:
   /**
