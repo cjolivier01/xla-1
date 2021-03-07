@@ -10,6 +10,7 @@ load(
     "tf_cc_binary",
     "tf_cc_shared_object",
     "tf_cc_test",
+    "if_with_tpu_support",
 )
 load(
     "//tensorflow/core/platform/default:build_config.bzl",
@@ -176,6 +177,9 @@ cc_library(
     ] + if_cuda_is_configured([
         "@local_config_nccl//:nccl",
         "//tensorflow/compiler/jit:xla_gpu_device",
+    ]) + if_with_tpu_support([
+        "//tensorflow/compiler/jit:xla_tpu_device",
+        "//tensorflow/compiler/jit:xla_tpu_jit",
     ]),
     visibility = [
         "//visibility:public",

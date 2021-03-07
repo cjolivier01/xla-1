@@ -1641,28 +1641,20 @@ XLATensor::CompilationResult XLATensor::Compile(
 
 XLATensor::PostOrderData XLATensor::GetPostOrderData(
     std::vector<XLATensor>* tensors, SyncTensorCollection& coll) {
-  HashingState state(coll.hash);
+  auto state = Sentinel::GetSentinel()->CreateHashingState(coll.hash);
 
   PostOrderData po_data;
   std::size_t prev_indicess_size = 0;
   do {
     if (prev_indicess_size && coll.indices.empty()) {
-      // In the case that everything was pruned, drop out of the loop
-      // This would be the case, for example, that we're setting
-      // up a prune before a second mark-step call by the loader
-      // after we've dropped out of the training loop or did
-      // a minibatch execution.
-      // Outputs would need to be explicitly restricted before that
-      // step marker, or nothing will be pruned, since the otuput
-      // pruning is reset for every step.
+      // In the case that a graph rewrite resulted in no nodes,
+      // simply drop out of the loop.
       break;
     }
-    Sentinel::GetSentinel()->PostmarkHash(state, tensors, coll);
-
     po_data = std::move(RunPostOrder(*tensors, coll.indices));
 
     if (prev_indicess_size) {
-      // should have changed, right?  otherwise, what's the point?
+      // should have changed, right?  Otherwise, what's the point?
       TF_CHECK_NE(prev_indicess_size, coll.indices.size());
     }
     prev_indicess_size = coll.indices.size();
@@ -1670,7 +1662,7 @@ XLATensor::PostOrderData XLATensor::GetPostOrderData(
 
     coll.hash = xla::util::HashCombine(
         coll.hash, xla::util::Hash(po_data.parameter_sequence));
-  } while (Sentinel::GetSentinel()->OnHashingComplete(state, tensors, coll));
+  } while (Sentinel::GetSentinel()->OnHashingComplete(*state, tensors, coll));
   return std::move(po_data);
 }
 
