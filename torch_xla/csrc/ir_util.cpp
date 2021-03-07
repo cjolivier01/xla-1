@@ -45,46 +45,6 @@ std::vector<const Node*> Util::ComputePostOrder(
   return post_order;
 }
 
-// std::vector<const Node*> Util::ComputePostOrder(
-//    const Node* node, EmissionMap* emap,
-//    const std::unordered_set<const ir::Node*>* boundary_set_ptr) {
-//  std::vector<const Node*> post_order;
-//  std::vector<const Node*> queue;
-//  queue.push_back(node);
-//  while (!queue.empty()) {
-//    node = queue.back();
-//    auto it = emap->find(node);
-//    if (it == emap->end()) {
-//      (*emap)[node] = kEmitting;
-//      if (!boundary_set_ptr || !boundary_set_ptr->count(node)) {
-//        for (auto& output : node->operands()) {
-//          auto oit = emap->find(output.node);
-//          if (oit == emap->end()) {
-//            queue.push_back(output.node);
-//          } else if (oit->second == kEmitting) {
-//            XLA_ERROR() << "Graph loop found at " << *output.node;
-//          }
-//        }
-//      }
-//    } else if (it->second == kEmitting) {
-//      if (!boundary_set_ptr || !boundary_set_ptr->count(node)) {
-//        for (auto& output : node->operands()) {
-//          auto oit = emap->find(output.node);
-//          XLA_CHECK(oit != emap->end() && oit->second == kEmitted)
-//              << "Graph loop found at " << *output.node;
-//        }
-//      }
-//      (*emap)[node] = kEmitted;
-//      post_order.push_back(node);
-//      queue.pop_back();
-//    } else {
-//      XLA_CHECK_EQ(it->second, kEmitted);
-//      queue.pop_back();
-//    }
-//  }
-//  return post_order;
-//}
-
 std::vector<const Node*> Util::ComputePostOrder(
     absl::Span<const Node* const> nodes, EmissionMap* emap) {
   std::vector<const Node*> post_order;

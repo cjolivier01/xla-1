@@ -73,28 +73,10 @@ class HloMetadataSetter {
   LoweringContext* loctx_ = nullptr;
 };
 
-//mlir::OpBuilder get_mlir_op_builder() {
-//  //builder, mlir::Location loc
-//
-//}
-//
-//mlir::Location get_mlir_location() {
-//  mlir::Location loc;
-//  return loc;
-//}
-
 }  // namespace
 
 LoweringContext::LoweringContext(const std::string& name, Device device)
-    :
-#ifdef MLIR_LOWERING
-    mlir_op_builder_(get_mlir_op_builder()),
-
-    builder_(name, mlir_op_builder_, loc_),
-#else
-    builder_(name),
-#endif
-      device_(std::move(device)) {}
+    : builder_(name), device_(std::move(device)) {}
 
 LoweringContext::LoweringContext(const std::string& name, Device device,
                                  absl::Span<const Node* const> post_order,

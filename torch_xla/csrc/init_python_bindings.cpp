@@ -561,17 +561,6 @@ py::object ListTfFs(const std::string& pattern) {
   return py_files;
 }
 
-xla::Shape GetTensorShape(const at::Tensor& tensor,
-                          const std::string& device_str) {
-  auto xtensor = bridge::TryGetXlaTensor(tensor);
-  if (xtensor) {
-    return xtensor->shape();
-  }
-  Device device = GetDeviceOrCurrent(device_str);
-  return CreateComputationShapeFromTensor(tensor, &device);
-}
-
-
 void RemoveTfFile(const std::string& path) {
   tensorflow::Env* env = tensorflow::Env::Default();
   XLA_CHECK_OK(env->DeleteFile(path));
@@ -596,7 +585,7 @@ py::object XlaNms(const at::Tensor& boxes, const at::Tensor& scores,
       torch::autograd::make_variable(selected_indices, /*requires_grad=*/false);
   result_tuple[1] =
       torch::autograd::make_variable(num_valid, /*requires_grad=*/false);
-  return std::move(result_tuple);
+  return result_tuple;
 }
 
 std::vector<at::Tensor> XlaUserComputation(
@@ -612,6 +601,29 @@ std::vector<at::Tensor> XlaUserComputation(
         torch::autograd::make_variable(tensor, /*requires_grad=*/false));
   }
   return results;
+}
+
+ComputationPtr CreateComputation(const std::string& name, xla::XlaOp root) {
+  xla::XlaComputation computation = ConsumeValue(root.builder()->Build(root));
+  return std::make_shared<Computation>(name, std::move(computation));
+}
+
+ComputationPtr CreateComputationFromProto(const std::string& name,
+                                          const std::string& module_proto) {
+  xla::HloModuleProto proto;
+  proto.ParseFromString(module_proto);
+  xla::XlaComputation computation(std::move(proto));
+  return std::make_shared<Computation>(name, std::move(computation));
+}
+
+xla::Shape GetTensorShape(const at::Tensor& tensor,
+                          const std::string& device_str) {
+  auto xtensor = bridge::TryGetXlaTensor(tensor);
+  if (xtensor) {
+    return xtensor->shape();
+  }
+  Device device = GetDeviceOrCurrent(device_str);
+  return CreateComputationShapeFromTensor(tensor, &device);
 }
 
 std::shared_ptr<Computation> GetBoundedComputation(
@@ -657,19 +669,6 @@ std::shared_ptr<Computation> GetBoundedComputation(
   return std::make_shared<Computation>(opname, computation.ConsumeValueOrDie());
 }
 
-
-ComputationPtr CreateComputation(const std::string& name, xla::XlaOp root) {
-  xla::XlaComputation computation = ConsumeValue(root.builder()->Build(root));
-  return std::make_shared<Computation>(name, std::move(computation));
-}
-
-ComputationPtr CreateComputationFromProto(const std::string& name,
-                                          const std::string& module_proto) {
-  xla::HloModuleProto proto;
-  proto.ParseFromString(module_proto);
-  xla::XlaComputation computation(std::move(proto));
-  return std::make_shared<Computation>(name, std::move(computation));
-}
 
 py::dict GetMemoryInfo(const std::string& device_str) {
   xla::ComputationClient::MemoryInfo mem_info;
@@ -779,7 +778,6 @@ void InitXlaModuleBindings(py::module m) {
             NoGilSection nogil;
             results = XlaUserComputation(opname, inputs, computation);
           }
-          std::cout << "Returning number of results: " << results.size();
           return results;
         });
   m.def("_get_xla_tensors_dot",

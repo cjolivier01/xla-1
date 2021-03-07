@@ -30,10 +30,6 @@ class Util {
       const Node* node, EmissionMap* emap,
       const std::unordered_set<const ir::Node*>* boundary_set_ptr = nullptr);
 
-//  static std::vector<const Node*> ComputePostOrder(
-//      const Node* node, EmissionMap* emap,
-//      const std::unordered_set<const ir::Node*>* boundary_set_ptr);
-
   static std::vector<const Node*> ComputePostOrder(
       absl::Span<const Node* const> nodes, EmissionMap* emap);
 
