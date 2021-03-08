@@ -1328,13 +1328,9 @@ std::shared_ptr<XLATensor::Async> XLATensor::ScheduleSyncTensorsGraph(
       coll, std::move(parameters_data), std::move(tensors_data),
       std::move(cached_computation));
 
-  auto syncfn = [async, hash = coll->hash,
-                 requesting_tid = coll->requesting_tid]() {
+  auto syncfn = [async, hash = coll->hash]() {
     xla::ComputationClient::ExecuteComputationOptions options;
     try {
-      Sentinel::GetSentinel()->NotifyExecute(
-          *async->cached_computation->computation, async->device, hash,
-          requesting_tid);
       TF_VLOG(3) << "Executing IR graph hash " << xla::util::HexHash(hash)
                  << " on device " << async->device << " ...";
       auto results = xla::ComputationClient::Get()->ExecuteComputation(
@@ -1616,9 +1612,6 @@ XLATensor::CompilationResult XLATensor::Compile(
                        xla::ComputationClient::Get()->GetCompilationDevices(
                            coll.device.ToString(), devices),
                        &shape});
-
-  Sentinel::GetSentinel()->NotifyCompile(instances, coll.hash,
-                                         coll.requesting_tid);
 
   TF_VLOG(3) << "Compiling IR graph hash " << xla::util::HexHash(coll.hash)
              << " on device " << coll.device << " ...";
