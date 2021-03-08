@@ -42,6 +42,8 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 
+#define USE_PTWSE_SENTINEL  /* Use plugin sentinel */
+
 #ifndef USE_PTWSE_SENTINEL
 #include "torch_xla/csrc/tensor_analyze.h"
 #endif
