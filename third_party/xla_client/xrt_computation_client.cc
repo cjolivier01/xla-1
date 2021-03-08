@@ -1309,7 +1309,7 @@ XrtComputationClient::GetWorkerForXrtDevice(
     for (const auto& item : options_.workers_map) {
       std::cout << "\t" << item.first.ToString() << " -> " << item.second
                 << std::endl;
-   ` }
+    }
   }
   XLA_CHECK(worker_hostport != options_.workers_map.end()) << xrt_device;
   return std::pair<Worker, std::string>(worker_hostport->first,
