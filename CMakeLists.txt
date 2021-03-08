@@ -183,7 +183,9 @@ else()
           -lstdc++
           -latomic
   )
+if (BUILD_PYTORCH)
   add_dependencies(${XLAC_EXTENSION_TARGET} ${OTHER_TORCH_DEPS})
+endif()
 endif(BUILD_PTXLA_LIB)
 
 set_target_properties(

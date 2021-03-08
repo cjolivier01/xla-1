@@ -281,10 +281,10 @@ XrtComputationClient::XrtComputationClient(
     std::cout << "COULD NOT FIND DEVICE: \""
               << options_.default_device
               << "\" from global_device_map:"
-              << std::endl << std::flush;
+              << std::std::endl;
     for (const auto& item : options_.global_device_map) {
       std::cout << "\t" << item.first << " -> " << item.second
-                << std::endl << std::flush;
+                << std::std::endl;
     }
   }
 
@@ -348,7 +348,6 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
     absl::Span<const TensorSource> tensors) {
 
   if (verbose || verbose_transfers) {
-    ColorScope clr(Color::FG_BLUE);
     std::cout << /*getpid() <<*/ " XrtComputationClient::TransferToServer( ";
     size_t i = 0;
     for (const TensorSource& t : tensors) {
@@ -357,7 +356,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
       }
       std::cout << t.shape /*<< "@" << DeviceSummary(t.device)*/;
     }
-    std::cout << ")" << std::endl << std::flush;
+    std::cout << ")" << std::std::endl;
   }
 
   auto partitions = PartitionTransferToServer(tensors);
@@ -482,7 +481,6 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
     absl::Span<const DataPtr> handles) {
 
   if (verbose || verbose_pull) {
-      ColorScope clr(Color::FG_MAGENTA);
       std::cout /*<< getpid()*/ << " XrtComputationClient::TransferFromServer( ";
       size_t i = 0;
       for (const DataPtr& dp : handles) {
@@ -491,7 +489,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
           }
           std::cout << dp->shape() << "@" << dp->device() << " ";
       }
-      std::cout << " )" << std::endl << std::flush;
+      std::cout << " )" << std::std::endl;
   }
 
   metrics::TimedSection timed(TransferFromServerMetric());
@@ -1043,7 +1041,7 @@ static void report_once(const std::string msg) {
   static std::set<std::string> myset;
   std::lock_guard<std::mutex> lk(mtx);
   if (myset.insert(msg).second) {
-    std::cout << msg << std::endl << std::flush;
+    std::cout << msg << std::std::endl;
   }
 }
 
@@ -1307,10 +1305,10 @@ XrtComputationClient::GetWorkerForXrtDevice(
     std::cout << "COULD NOT FIND WORKER FOR DEVICE: "
               << parsed_device.job << ":" << parsed_device.task
               << " from current map of workers:"
-              << std::endl;
+              << std::std::endl;
     for (const auto& item : options_.workers_map) {
       std::cout << "\t" << item.first.ToString() << " -> " << item.second
-                << std::endl << std::flush;
+                << std::std::endl;
     }
   }
   XLA_CHECK(worker_hostport != options_.workers_map.end()) << xrt_device;
@@ -1418,17 +1416,17 @@ void XrtComputationClient::InitializeDevices(
     // mesh coordinates are usually [x, y, z, c] ('x', 'y' and 'z' being the
     // spatial chip coordinated and 'c' the core number).
     int64 base_index = parsed_device.task *
-                       topology_proto->num_tpu_devices_per_task() *
-                       topology_proto->mesh_shape_size() +
+                           topology_proto->num_tpu_devices_per_task() *
+                           topology_proto->mesh_shape_size() +
                        parsed_device.id * topology_proto->mesh_shape_size();
     if (verbose) {
-      std::cout << dev_target.first << ENDL;
+      std::cout << dev_target.first << std::endl;
       std::cout << dev_target.first << "-> " << "topology_proto->num_tpu_devices_per_task()="
-                << topology_proto->num_tpu_devices_per_task() << ENDL;
+                << topology_proto->num_tpu_devices_per_task() << std::endl;
       std::cout << dev_target.first << "-> " << "topology_proto->mesh_shape_size()="
-                << topology_proto->mesh_shape_size() << ENDL;
-      std::cout << dev_target.first << "-> " << "parsed_device.id=" << parsed_device.id << ENDL;
-      std::cout << dev_target.first << "-> " << "base_index = " << base_index << ENDL;
+                << topology_proto->mesh_shape_size() << std::endl;
+      std::cout << dev_target.first << "-> " << "parsed_device.id=" << parsed_device.id << std::endl;
+      std::cout << dev_target.first << "-> " << "base_index = " << base_index << std::endl;
     }
     std::vector<int> device_mesh_coords(topology_proto->mesh_shape_size());
     for (int i = 0; i < topology_proto->mesh_shape_size(); ++i) {
