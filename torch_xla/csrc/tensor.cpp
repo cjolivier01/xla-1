@@ -57,8 +57,6 @@ std::shared_ptr<Sentinel> Sentinel::sentinel_ = std::make_shared<XLASentinel>();
 #endif
 namespace {
 
-bool verbose_alias = false;
-
 struct TlsData {
   void Reset() { trim_counter = 0; }
 
