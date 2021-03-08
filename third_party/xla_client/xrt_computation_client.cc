@@ -281,10 +281,10 @@ XrtComputationClient::XrtComputationClient(
     std::cout << "COULD NOT FIND DEVICE: \""
               << options_.default_device
               << "\" from global_device_map:"
-              << std::std::endl;
+              << std::endl;
     for (const auto& item : options_.global_device_map) {
       std::cout << "\t" << item.first << " -> " << item.second
-                << std::std::endl;
+                << std::endl;
     }
   }
 
@@ -356,7 +356,7 @@ std::vector<ComputationClient::DataPtr> XrtComputationClient::TransferToServer(
       }
       std::cout << t.shape /*<< "@" << DeviceSummary(t.device)*/;
     }
-    std::cout << ")" << std::std::endl;
+    std::cout << ")" << std::endl;
   }
 
   auto partitions = PartitionTransferToServer(tensors);
@@ -489,7 +489,7 @@ std::vector<Literal> XrtComputationClient::TransferFromServer(
           }
           std::cout << dp->shape() << "@" << dp->device() << " ";
       }
-      std::cout << " )" << std::std::endl;
+      std::cout << " )" << std::endl;
   }
 
   metrics::TimedSection timed(TransferFromServerMetric());
@@ -1041,7 +1041,7 @@ static void report_once(const std::string msg) {
   static std::set<std::string> myset;
   std::lock_guard<std::mutex> lk(mtx);
   if (myset.insert(msg).second) {
-    std::cout << msg << std::std::endl;
+    std::cout << msg << std::endl;
   }
 }
 
@@ -1305,11 +1305,11 @@ XrtComputationClient::GetWorkerForXrtDevice(
     std::cout << "COULD NOT FIND WORKER FOR DEVICE: "
               << parsed_device.job << ":" << parsed_device.task
               << " from current map of workers:"
-              << std::std::endl;
+              << std::endl;
     for (const auto& item : options_.workers_map) {
       std::cout << "\t" << item.first.ToString() << " -> " << item.second
-                << std::std::endl;
-    }
+                << std::endl;
+   ` }
   }
   XLA_CHECK(worker_hostport != options_.workers_map.end()) << xrt_device;
   return std::pair<Worker, std::string>(worker_hostport->first,
