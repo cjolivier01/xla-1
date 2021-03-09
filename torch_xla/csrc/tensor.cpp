@@ -162,18 +162,6 @@ void DeviceBarrier(const Device& device) {
   locker->Barrier();
 }
 
-// Use a set to impose an order on the device locking sequence (ABBA
-// prevention).
-std::vector<xla::util::ExceptionCleanup> LockDevices(
-    const std::set<Device>& devices) {
-  std::vector<xla::util::ExceptionCleanup> unlocker;
-  unlocker.reserve(devices.size());
-  for (auto& device : devices) {
-    unlocker.emplace_back(LockDevice(device));
-  }
-  return unlocker;
-}
-
 class XlaDataCacheArena {
  public:
   struct TensorHasher {
@@ -454,6 +442,18 @@ void XLATensor::Async::Wait() {
   if (status != nullptr) {
     std::rethrow_exception(status);
   }
+}
+
+// Use a set to impose an order on the device locking sequence (ABBA
+// prevention).
+std::vector<xla::util::ExceptionCleanup> XLATensor::LockDevices(
+      const std::set<Device>& devices) {
+  std::vector<xla::util::ExceptionCleanup> unlocker;
+  unlocker.reserve(devices.size());
+  for (auto& device : devices) {
+    unlocker.emplace_back(LockDevice(device));
+  }
+  return unlocker;
 }
 
 XLATensor XLATensor::Create(const at::Tensor& tensor, const Device& device) {
@@ -1503,14 +1503,10 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
   for (size_t i = 0; i < indices.size(); ++i) {
     size_t tensor_index = indices[i];
     xla::int64 tensor_id = tensors[tensor_index].GetUniqueId();
-    if (output_tensor_id_map.count(tensor_id) != 0) {
-      throw std::runtime_error("More than one alias for tensor");
-    }
     output_tensor_id_map[tensor_id] = i;
   }
   const std::vector<xla::ComputationClient::DataPtr>& parameters_data =
       lowering_ctx->GetParametersData();
-
   std::vector<ssize_t> alias_map(indices.size(), -1);
   for (size_t i = 0; i < parameters_data.size(); ++i) {
     DeviceDataInfo* data_info =
@@ -1521,28 +1517,14 @@ void XLATensor::BuildInputOutputAliases(const std::vector<XLATensor>& tensors,
         size_t output_index = it->second;
         xla::XlaOp root = lowering_ctx->GetResult(output_index);
         const xla::Shape& root_shape = XlaHelpers::ShapeOfXlaOp(root);
-        if (parameters_data[i]->shape() != root_shape) {
-          static bool reported = false;
-          if (!reported) {
-            reported = true;
-            std::cout << "Alias not same shape..." << std::endl << std::flush;
-          }
-        } else if (alias_map[output_index] >= 0) {
-          std::cout << "Found duplicate aliases." << std::endl << std::flush;
-        }
         if (parameters_data[i]->shape() == root_shape &&
             alias_map[output_index] < 0) {
           lowering_ctx->builder()->SetUpAlias(
               {static_cast<xla::int64>(output_index)}, i, {});
           alias_map[output_index] = i;
 
-          TF_VLOG(6) << "Aliased parameter " << i << " with output "
+          TF_VLOG(6) << "Aliased paramter " << i << " with output "
                      << output_index << ": " << parameters_data[i]->shape();
-        } else {
-          // TODO: need to put this in alias map as well
-          std::cerr << "Aliased param wrong shape or more than one?"
-                    << std::endl
-                    << std::flush;
         }
       }
     }
