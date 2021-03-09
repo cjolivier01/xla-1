@@ -315,6 +315,4 @@ class ComputationClient {
 
 }  // namespace xla
 
-#define PIDSTR "[PID=" << getpid() << "] "
-
 #endif  // XLA_CLIENT_COMPUTATION_CLIENT_H_

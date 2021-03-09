@@ -237,7 +237,7 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
   XlaOpVector result_ops;
   try {
     HloMetadataSetter meta_setter(this, node);
-    // Attempt to linke backward nodes to their forward nodes
+    // Attempt to link backward nodes to their forward nodes
     std::unordered_map<std::string, std::string> extra_attributes;
 #if 0
     int64_t seq_nr;

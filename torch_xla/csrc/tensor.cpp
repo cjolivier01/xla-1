@@ -162,6 +162,18 @@ void DeviceBarrier(const Device& device) {
   locker->Barrier();
 }
 
+// Use a set to impose an order on the device locking sequence (ABBA
+// prevention).
+std::vector<xla::util::ExceptionCleanup> LockDevices(
+    const std::set<Device>& devices) {
+  std::vector<xla::util::ExceptionCleanup> unlocker;
+  unlocker.reserve(devices.size());
+  for (auto& device : devices) {
+    unlocker.emplace_back(LockDevice(device));
+  }
+  return unlocker;
+}
+
 class XlaDataCacheArena {
  public:
   struct TensorHasher {
@@ -267,18 +279,6 @@ bool ShouldSyncIrValue(const ir::Value& ir_value) {
 }
 
 }  // namespace
-
-// Use a set to impose an order on the device locking sequence (ABBA
-// prevention).
-std::vector<xla::util::ExceptionCleanup> XLATensor::LockDevices(
-    const std::set<Device>& devices) {
-  std::vector<xla::util::ExceptionCleanup> unlocker;
-  unlocker.reserve(devices.size());
-  for (auto& device : devices) {
-    unlocker.emplace_back(LockDevice(device));
-  }
-  return unlocker;
-}
 
 // The DeviceContextArena holds per device live information and statistics,
 // among which the XLA tensors which are currently alive in the system. This is

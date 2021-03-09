@@ -276,18 +276,6 @@ XrtComputationClient::XrtComputationClient(
 
   auto default_device_target =
       options_.global_device_map.find(options_.default_device);
-
-  if (default_device_target == options_.global_device_map.end()) {
-    std::cout << "COULD NOT FIND DEVICE: \""
-              << options_.default_device
-              << "\" from global_device_map:"
-              << std::endl;
-    for (const auto& item : options_.global_device_map) {
-      std::cout << "\t" << item.first << " -> " << item.second
-                << std::endl;
-    }
-  }
-
   XLA_CHECK(default_device_target != options_.global_device_map.end())
       << options_.default_device;
   for (auto& device : options_.devices) {
