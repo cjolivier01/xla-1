@@ -38,7 +38,7 @@ namespace xla {
 class XrtComputationClientFactory;
 
 class XrtComputationClient : public ComputationClient {
-  friend class XlaComputationProxy;
+  friend class ProxyComputationClient;
   struct DeviceHandle {
     std::string device;
     int64 handle;
