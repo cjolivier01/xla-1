@@ -2,7 +2,7 @@ licenses(["notice"])  # Apache 2.0
 
 package(default_visibility = [
     "//tensorflow:internal",
-    #"//tensorflow/compiler/xla/wse_client:wse_computation_client_impl",
+    #"//tensorflow/compiler/xla/proxy_client:proxy_computation_client_impl",
 ])
 
 load(
@@ -66,7 +66,7 @@ tf_cc_shared_object(
         "//tensorflow/compiler/xla/rpc:grpc_stub",
         "//tensorflow/compiler/xla/xla_client:tf_exported_symbols.lds",
         "//tensorflow/compiler/xla/xla_client:tf_version_script.lds",
-        "//tensorflow/compiler/xla/wse_client:wse_computation_client_impl",
+        "//tensorflow/compiler/xla/proxy_client:proxy_computation_client_impl",
         "//tensorflow/core:lib",
         "//tensorflow/core/platform/cloud:gcs_file_system",
         "//tensorflow/python/profiler/internal:profiler_pywrap_impl",
@@ -183,7 +183,7 @@ cc_library(
     ]),
     visibility = [
         "//visibility:public",
-        #"//tensorflow/compiler/xla/wse_client:wse_computation_client_impl"
+        #"//tensorflow/compiler/xla/proxy_client:proxy_computation_client_impl"
     ],
     alwayslink = 1,
 )

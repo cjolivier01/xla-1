@@ -24,19 +24,17 @@
 #include "torch_xla/csrc/lowering_context.h"
 #include "torch_xla/csrc/view.h"
 
-namespace ptwse {
-class XLASentinel;
-class WSETensor;
-}  // namespace ptwse
-
 namespace torch_xla {
+
+class LazySentinel;
+class TensorEx;
 
 class XLATensor {
  protected:
   class DeviceContextArena;
   struct Data;
-  friend class ptwse::XLASentinel;
-  friend class ptwse::WSETensor;
+  friend class LazySentinel;
+  friend class TensorEx;
   struct CachedComputation;
 
  public:
@@ -1174,7 +1172,6 @@ class XLATensor {
                          const XLATensor& other);
 
  protected:
-  friend class Sentinel;
   struct SyncTensorsConfig {
     // Whether we want to force XLA data on the target tensors (hence trimming
     // the IR graph above them).
@@ -1184,6 +1181,7 @@ class XLATensor {
     bool sync_xla_data = true;
   };
 
+ public:  // used by the Sentinels
   struct SyncTensorCollection {
     SyncTensorCollection() : hash(0) {}
 
@@ -1196,6 +1194,7 @@ class XLATensor {
     Device device;
   };
 
+ protected:
   struct PostOrderData {
     std::vector<const ir::Node*> post_order;
     ir::Util::EmissionMap emission_map;
@@ -1291,8 +1290,9 @@ class XLATensor {
       std::shared_ptr<View> view, const Device& device,
       c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
 
+ public: // temporary access for illustrative purposes
   Data* data() const;
-
+ protected:
   std::shared_ptr<Data> data_ptr() const { return data_; }
 
   void SetXlaData(xla::ComputationClient::DataPtr xla_data, bool sync);
