@@ -39,10 +39,6 @@ class XrtComputationClientFactory;
 
 class XrtComputationClient : public ComputationClient {
   friend class ProxyComputationClient;
-  struct DeviceHandle {
-    std::string device;
-    int64 handle;
-  };
 
   struct XrtHandle {
     XrtHandle(int64 handle, std::function<void()> releaser)
@@ -56,6 +52,10 @@ class XrtComputationClient : public ComputationClient {
 
   using XrtHandlePtr = std::shared_ptr<XrtHandle>;
 public:
+  struct DeviceHandle {
+    std::string device;
+    int64 handle;
+  };
   struct XrtData : public Data {
     XrtData(std::string device, Shape device_shape)
         : Data(std::move(device), std::move(device_shape)) {}

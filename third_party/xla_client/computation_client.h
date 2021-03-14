@@ -268,10 +268,7 @@ class ComputationClient {
 
   virtual void PrepareToExit() = 0;
 
-  virtual void ReleaseDataByHandle(const std::string& device, int64 handle) {
-    // Due to XrtData
-    assert(false);
-  }
+  virtual void ReleaseDataByHandle(const std::string& device, int64 handle) = 0;
 
   // Utility API around the vector based Compile() API to compile a single
   // computation.
