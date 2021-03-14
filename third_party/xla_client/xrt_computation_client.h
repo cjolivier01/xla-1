@@ -55,26 +55,26 @@ class XrtComputationClient : public ComputationClient {
   };
 
   using XrtHandlePtr = std::shared_ptr<XrtHandle>;
-
+public:
   struct XrtData : public Data {
     XrtData(std::string device, Shape device_shape)
         : Data(std::move(device), std::move(device_shape)) {}
-    XrtData(XrtComputationClient* self, std::string device, Shape device_shape,
+    XrtData(ComputationClient* self, std::string device, Shape device_shape,
             int64 handle)
         : Data(std::move(device), std::move(device_shape)),
           handle_ptr(std::make_shared<XrtHandle>(
               handle, [self, device = this->device(), handle]() {
-                self->ReleaseXrtData(device, handle);
+                self->ReleaseDataByHandle(device, handle);
               })) {}
 
     // memory on proxy device
-    XrtData(XrtComputationClient* self, std::string device,
+    XrtData(ComputationClient* self, std::string device,
             std::string proxy_device, Shape device_shape, int64 handle)
         : Data(std::move(device), std::move(device_shape)),
           proxy_device_(std::move(proxy_device)),
           handle_ptr(std::make_shared<XrtHandle>(
               handle, [self, device = this->device(), handle]() {
-                self->ReleaseXrtData(device, handle);
+                self->ReleaseDataByHandle(device, handle);
               })) {}
 
     int64 get_handle() const { return handle_ptr->handle; }
@@ -92,7 +92,7 @@ class XrtComputationClient : public ComputationClient {
     std::string proxy_device_;
     XrtHandlePtr handle_ptr;
   };
-
+private:
   struct XrtComputation : public Computation {
     XrtComputation(XrtComputationClient* self, XlaComputation computation,
                    ProgramShape program_shape, std::vector<std::string> devices,
@@ -331,6 +331,10 @@ class XrtComputationClient : public ComputationClient {
                      std::vector<DeviceHandle>* handles);
 
   virtual void ReleaseXrtData(const std::string& device, int64 handle);
+
+  virtual void ReleaseDataByHandle(const std::string& device, int64 handle) {
+    ReleaseXrtData(device, handle);
+  }
 
   void ReleaseXrtComputation(const std::string& compilation_device,
                              int64 handle);
