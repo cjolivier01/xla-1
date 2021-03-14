@@ -556,6 +556,8 @@ class ComputationClientFactory {
       std::unique_ptr<tensorflow::tpu::TopologyProto> topology_proto,
       XrtLocalService* service) = 0;
 
+  virtual std::unique_ptr<ComputationClient> Create() = 0;
+
   virtual tensorflow::tpu::TopologyProto InitializeAndFetchTopology(
       const std::string& job, int task_no, const std::string& worker_host_port,
       const tensorflow::ConfigProto& config) = 0;
@@ -571,6 +573,8 @@ class TComputationClientFactory : public ComputationClientFactory {
     return std::make_unique<COMPUTATION_CLIENT_TYPE>(
         std::move(options), std::move(topology_proto), service);
   }
+
+  virtual std::unique_ptr<ComputationClient> Create() { return nullptr; }
 
   tensorflow::tpu::TopologyProto InitializeAndFetchTopology(
       const std::string& job, int task_no, const std::string& worker_host_port,
