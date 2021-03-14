@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#include "ATen/pytorch_scope.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_replace.h"
@@ -12,7 +13,6 @@
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "torch_xla/csrc/ir.h"
 #include "torch_xla/csrc/python_util.h"
-#include "ATen/pytorch_scope.h"
 
 namespace torch_xla {
 namespace ir {
@@ -90,7 +90,8 @@ LoweringContext::LoweringContext(const std::string& name, Device device,
   }
 }
 
-void LoweringContext::LinkAutogradNodes(absl::Span<const Node* const> post_order) {
+void LoweringContext::LinkAutogradNodes(
+    absl::Span<const Node* const> post_order) {
   autograd_nodes_.clear();
   fwd_nodes_.clear();
   int64_t pytorch_grad_fn_seq_nr = -1;
@@ -175,11 +176,10 @@ xla::XlaOp LoweringContext::GetOutputOp(const Output& output) {
   return it->second;
 }
 
-
 xla::XlaOp LoweringContext::GetOutputOp(
     const Output& output, const std::vector<ir::Value>& boundaries) {
   std::unordered_set<const ir::Node*> boundary_set;
-  std::for_each(boundaries.begin(), boundaries.end(), [&boundary_set](auto& p){
+  std::for_each(boundaries.begin(), boundaries.end(), [&boundary_set](auto& p) {
     boundary_set.emplace(p.node.get());
   });
   auto it = emitted_outputs_.find(output);
@@ -198,30 +198,30 @@ xla::XlaOp LoweringContext::GetOutputOp(
   return it->second;
 }
 
-static bool replace(std::string& str, const std::string& from, const std::string& to) {
+static bool replace(std::string& str, const std::string& from,
+                    const std::string& to) {
   size_t start_pos = str.find(from);
-  if(start_pos == std::string::npos)
-    return false;
+  if (start_pos == std::string::npos) return false;
   str.replace(start_pos, from.length(), to);
   return true;
 }
 
 /*static*/ void SetAsBackwardNodeOf(
     std::unordered_map<std::string, std::string>& bwd_fattr,
-    const std::string& this_node_key,
-    const Node& fwd_node
-) {
+    const std::string& this_node_key, const Node& fwd_node) {
   const auto& fwd_fattr = fwd_node.metadata().frontend_attributes;
   std::size_t count = 0;
   for (const auto& item : fwd_fattr) {
     const std::string& fwd_key = item.first;
-    auto found_pos = fwd_key.find(std::string(pytorch_ptwse::PartitionScope::MATCHED_OP));
+    auto found_pos =
+        fwd_key.find(std::string(pytorch_ptwse::PartitionScope::MATCHED_OP));
     if (found_pos != std::string::npos) {
       ++count;
 
       std::string rev_ref_key = fwd_key;
-      if (replace(rev_ref_key, pytorch_ptwse::PartitionScope::MATCHED_OP, pytorch_ptwse::PartitionScope::REVERSE_OF_OP)) {
-        //assert(bwd_fattr.count(rev_ref_key) == 0);
+      if (replace(rev_ref_key, pytorch_ptwse::PartitionScope::MATCHED_OP,
+                  pytorch_ptwse::PartitionScope::REVERSE_OF_OP)) {
+        // assert(bwd_fattr.count(rev_ref_key) == 0);
         if (bwd_fattr.count(rev_ref_key)) {
           // Ugh what to do here
           bwd_fattr[rev_ref_key] += "," + fwd_key;
@@ -283,7 +283,8 @@ XlaOpVector LoweringContext::LowerNode(const Node* node) {
     }
 #endif
     pytorch_ptwse::FrontendAttributeSetter<ir::Node> frontend_attribute_scope_(
-        builder(), node->metadata().frontend_attributes, std::move(extra_attributes));
+        builder(), node->metadata().frontend_attributes,
+        std::move(extra_attributes));
     result_ops = node->Lower(this);
   } catch (const std::exception& ex) {
     ReportBuilderError(node, ex.what());

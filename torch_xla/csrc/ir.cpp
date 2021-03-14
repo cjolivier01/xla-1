@@ -3,14 +3,13 @@
 #include <functional>
 #include <sstream>
 
+#include "ATen/pytorch_scope.h"
 #include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/xla_client/cache.h"
 #include "tensorflow/compiler/xla/xla_client/debug_macros.h"
 #include "tensorflow/compiler/xla/xla_client/sys_util.h"
 #include "tensorflow/compiler/xla/xla_client/util.h"
 #include "torch_xla/csrc/lowering_context.h"
-
-#include "ATen/pytorch_scope.h"
 
 namespace torch_xla {
 namespace ir {
@@ -186,11 +185,10 @@ void Node::init_ir_scope() {
   metadata_.frontend_attributes =
       pytorch_ptwse::FrontendAttributePusher::GetFrontendAttributes();
   if (!pytorch_ptwse::FrontendAttributePusher::GetNodeSequenceNumber(
-      &metadata_.pytorch_node_seq_nr
-  )) {
-    metadata_.pytorch_node_seq_nr = std::numeric_limits<
-        pytorch_ptwse::FrontendAttributePusher::FrontendAttributeContext::seq_nr_t
-    >::max();
+          &metadata_.pytorch_node_seq_nr)) {
+    metadata_.pytorch_node_seq_nr =
+        std::numeric_limits<pytorch_ptwse::FrontendAttributePusher::
+                                FrontendAttributeContext::seq_nr_t>::max();
   }
 }
 
@@ -311,4 +309,3 @@ void PythonPopScope() { ir::PopScope(); }
 
 }  // namespace ir
 }  // namespace torch_xla
-

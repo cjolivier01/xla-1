@@ -236,7 +236,7 @@ class Node {
   XlaOpVector ReturnOps(absl::Span<const xla::XlaOp> ops,
                         LoweringContext* loctx) const;
 
-  bool IsAutograd(int64_t *pytorch_grad_fn_seq_nr_ptr = nullptr) const {
+  bool IsAutograd(int64_t* pytorch_grad_fn_seq_nr_ptr = nullptr) const {
     if (pytorch_grad_fn_seq_nr_ptr) {
       *pytorch_grad_fn_seq_nr_ptr = pytorch_grad_fn_seq_nr;
     }

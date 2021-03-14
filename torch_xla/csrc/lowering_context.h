@@ -65,7 +65,8 @@ class LoweringContext {
   // corresponding XLA operation returned.
   xla::XlaOp GetOutputOp(const Output& output);
 
-  xla::XlaOp GetOutputOp(const Output& output, const std::vector<ir::Value>& boundaries);
+  xla::XlaOp GetOutputOp(const Output& output,
+                         const std::vector<ir::Value>& boundaries);
 
   // Build the XLA computation capturing all the operations created with the
   // embedded XLA builder (returned by the builder() API).
@@ -110,8 +111,8 @@ class LoweringContext {
   OutputMap<xla::XlaOp> emitted_outputs_;
   Util::EmissionMap emit_status_;
 
-  std::unordered_map<int64_t, std::unordered_set<const Node *>> autograd_nodes_;
-  std::unordered_map<int64_t, std::unordered_set<const Node *>> fwd_nodes_;
+  std::unordered_map<int64_t, std::unordered_set<const Node*>> autograd_nodes_;
+  std::unordered_map<int64_t, std::unordered_set<const Node*>> fwd_nodes_;
 };
 
 }  // namespace ir

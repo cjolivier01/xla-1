@@ -627,9 +627,8 @@ xla::Shape GetTensorShape(const at::Tensor& tensor,
 }
 
 std::shared_ptr<Computation> GetBoundedComputation(
-  const std::string& opname,
-  const std::vector<at::Tensor>& inputs,
-  const std::vector<at::Tensor>& outputs) {
+    const std::string& opname, const std::vector<at::Tensor>& inputs,
+    const std::vector<at::Tensor>& outputs) {
   // Get the HLO graph...
   assert(!inputs.empty());
   std::vector<ir::Value> boundaries;
@@ -650,10 +649,10 @@ std::shared_ptr<Computation> GetBoundedComputation(
     *output_shape.add_tuple_shapes() = GetTensorShape(outp, device_str);
   }
 
-//  xla::XlaOp param = xla::Parameter(builder.get(), param_no, shape,
-//                                      absl::StrCat("p", param_no));
+  //  xla::XlaOp param = xla::Parameter(builder.get(), param_no, shape,
+  //                                      absl::StrCat("p", param_no));
 
-  //xla::XlaOp input_tuple = lowering_ctx.builder()->Tuple()
+  // xla::XlaOp input_tuple = lowering_ctx.builder()->Tuple()
 
   for (const auto& input_tensor : inputs) {
     XLATensor input_xtensor = bridge::GetXlaTensor(input_tensor);
@@ -668,7 +667,6 @@ std::shared_ptr<Computation> GetBoundedComputation(
   xla::StatusOr<xla::XlaComputation> computation = lowering_ctx.Build();
   return std::make_shared<Computation>(opname, computation.ConsumeValueOrDie());
 }
-
 
 py::dict GetMemoryInfo(const std::string& device_str) {
   xla::ComputationClient::MemoryInfo mem_info;
@@ -795,8 +793,7 @@ void InitXlaModuleBindings(py::module m) {
           return GetTensorsDump(tensors, coverter);
         });
   m.def("_get_xla_bounded_computation",
-        [](const std::string& opname,
-           const std::vector<at::Tensor>& inputs,
+        [](const std::string& opname, const std::vector<at::Tensor>& inputs,
            const std::vector<at::Tensor>& outputs) {
           NoGilSection nogil;
           return GetBoundedComputation(opname, inputs, outputs);
@@ -1139,7 +1136,7 @@ void InitXlaModuleBindings(py::module m) {
         [](op_builder::BuilderPtr builder, const std::string& opname,
            const std::vector<op_builder::OpPtr>& operands, py::dict args) {
           return op_builder::CreateOp(builder, opname, operands, args);
-  });
+        });
 
   BuildProfilerSubmodule(&m);
 }

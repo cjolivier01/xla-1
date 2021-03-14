@@ -42,7 +42,7 @@
 #include "torch_xla/csrc/tensor_util.h"
 #include "torch_xla/csrc/torch_util.h"
 
-#define USE_PTWSE_SENTINEL  /* Use plugin sentinel */
+#define USE_PTWSE_SENTINEL /* Use plugin sentinel */
 
 #ifndef USE_PTWSE_SENTINEL
 #include "torch_xla/csrc/tensor_analyze.h"
@@ -447,7 +447,7 @@ void XLATensor::Async::Wait() {
 // Use a set to impose an order on the device locking sequence (ABBA
 // prevention).
 std::vector<xla::util::ExceptionCleanup> XLATensor::LockDevices(
-      const std::set<Device>& devices) {
+    const std::set<Device>& devices) {
   std::vector<xla::util::ExceptionCleanup> unlocker;
   unlocker.reserve(devices.size());
   for (auto& device : devices) {

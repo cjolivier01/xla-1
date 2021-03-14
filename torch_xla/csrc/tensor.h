@@ -1290,8 +1290,9 @@ class XLATensor {
       std::shared_ptr<View> view, const Device& device,
       c10::optional<at::ScalarType> logical_element_type = c10::nullopt);
 
- public: // temporary access for illustrative purposes
+ public:  // temporary access for illustrative purposes
   Data* data() const;
+
  protected:
   std::shared_ptr<Data> data_ptr() const { return data_; }
 
