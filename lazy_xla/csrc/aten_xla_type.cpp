@@ -410,12 +410,6 @@ at::Tensor _copy_from(const at::Tensor& self, const at::Tensor& dst,
   return dst;
 }
 
-at::Tensor& _index_put_impl_(
-    at::Tensor& self, const c10::List<c10::optional<at::Tensor>>& indices,
-    const at::Tensor& values, bool accumulate, bool /* unsafe */) {
-  LTC_FN_COUNTER("xla::");
-  return torch_lazy_tensors::index_put_(self, indices, values, accumulate);
-}
 
 at::Tensor _copy_from_and_resize(const at::Tensor& self,
                                  const at::Tensor& dst) {
@@ -505,6 +499,8 @@ at::Tensor _trilinear(const at::Tensor& i1, const at::Tensor& i2,
                                                     expand2, expand3, sumdim,
                                                     unroll_dim);
 }
+
+at::Tensor view(const at::Tensor& self, at::IntArrayRef size);
 
 at::Tensor _unsafe_view(const at::Tensor& self, at::IntArrayRef size) {
   LazyTensor self_tensor = bridge::GetLtcTensor(self);
@@ -1189,7 +1185,7 @@ at::Tensor diagonal(const at::Tensor& self, int64_t offset, int64_t dim1,
 }
 
 at::Tensor div(const at::Tensor& self, const at::Tensor& other) {
-  return torch_lazy_tensors::div(self, other, /*rounding_mode=*/c10::nullopt);
+  return torch_lazy_tensors::div(self, other);
 }
 
 at::Tensor div(const at::Tensor& self, const at::Tensor& other,
@@ -1631,6 +1627,14 @@ at::Tensor& index_put_(at::Tensor& self,
   return self;
 }
 
+
+at::Tensor& _index_put_impl_(
+    at::Tensor& self, const c10::List<c10::optional<at::Tensor>>& indices,
+    const at::Tensor& values, bool accumulate, bool /* unsafe */) {
+  LTC_FN_COUNTER("xla::");
+  return torch_lazy_tensors::index_put_(self, indices, values, accumulate);
+}
+
 at::Tensor index_select(const at::Tensor& self, int64_t dim,
                         const at::Tensor& index) {
   LTC_FN_COUNTER("xla::");
@@ -1718,7 +1722,7 @@ at::Tensor leaky_relu_backward(const at::Tensor& grad_output,
     LTC_CHECK(!self_is_result || negative_slope.to<double>() > 0.0);
     return bridge::AtenFromLtcTensor(LazyTensor::leaky_relu_backward(
         bridge::GetLtcTensor(grad_output), bridge::GetLtcTensor(self),
-        negative_slope.to<double>()));
+        negative_slope.to<double>(), self_is_result));
   }
   return at::native::call_fallback_fn<
       &xla_cpu_fallback, ATEN_OP(leaky_relu_backward)>::call(grad_output, self,
