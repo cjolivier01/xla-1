@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-project(pytorch_xla CXX C)
+project(lazy_xla CXX C)
 #set(CMAKE_CXX_STANDARD 17)
 
-option(BUILD_PTXLA_LIB "Build ptxla lib and link _XLAC to it as private, rather than making _XLAC one big library" OFF)
+option(BUILD_PTXLA_LIB "Build ptxla lib and link _LAZYXLAC to it as private, rather than making _LAZYXLAC one big library" OFF)
 
 set(CMAKE_BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
@@ -21,21 +21,21 @@ message(STATUS "CPYTHON_STR=${CPYTHON_STR}")
 
 file(GLOB
         XLA_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/version.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/ops/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/csrc/version.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/csrc/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/csrc/compiler/*.cpp
 )
 
 file(GLOB
         XLA_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/ops/*.h)
+        ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/csrc/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/csrc/compiler/*.h)
 
 if(NOT TORCH_PATH)
     message(ERROR "TORCH_DIR needs to point to the pytorch source directory")
 endif()
 message(STATUS "TORCH_PATH: ${TORCH_PATH}")
-
+message(${XLA_SOURCES})
 #add_compile_definitions(XLA_CUDA=1)
 
 include_directories(${TORCH_PATH})
@@ -48,7 +48,7 @@ if (NOT BUILD_PYTORCH)
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/../build)
 endif(NOT BUILD_PYTORCH)
 
-#include_directories(${TORCH_PATH}/torch/lib/tmp_install/include)
+include_directories(${TORCH_PATH}/lazy_tensor_core)
 include_directories(${TORCH_PATH}/torch/include)
 include_directories(${TORCH_PATH}/torch/include/TH)
 
@@ -80,7 +80,7 @@ add_compile_options(-O0)
 add_compile_options(-ggdb3)
 add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=1)
 add_compile_options(-DTORCH_API_INCLUDE_EXTENSION_H)
-add_compile_options(-DTORCH_EXTENSION_NAME=_XLAC)
+add_compile_options(-DTORCH_EXTENSION_NAME=_LAZYXLAC)
 add_compile_options(-D_LARGEFILE_SOURCE)
 add_compile_options(-D_LARGEFILE64_SOURCE)
 add_compile_options(-D_FILE_OFFSET_BITS=64)
@@ -109,28 +109,17 @@ else()
     set(CMAKE_CXX_FLAGS "-Wignored-qualifiers ${CMAKE_CXX_FLAGS}")
 endif()
 set(CMAKE_CXX_FLAGS "-DTORCH_API_INCLUDE_EXTENSION_H ${CMAKE_CXX_FLAGS}")
-set(CMAKE_CXX_FLAGS "-DTORCH_EXTENSION_NAME=_XLAC ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-DTORCH_EXTENSION_NAME=_LAZYXLAC ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=1 ${CMAKE_CXX_FLAGS}")
 
-#add_compile_options(-fvisibility=hidden)
-#add_link_options(-fvisibility=hidden)
 add_compile_options(-Wno-ignored-qualifiers)
 
 
 set(BUILD_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build/${ARCH_BUILD_DIR_NAME})
 
-# MESSAGE("PYTHON_LIBRARY=${PYTHON_LIBRARY}")
-# if ("${PYTHON_LIBRARY}" STREQUAL "PYTHON_LIBRARY-NOTFOUND")
-# #if (NOT PYTHON_LIBRARY)
-#   set(LINK_PYTHON_LIBRARY -lpython${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}m)
-# else()
-#   set(LINK_PYTHON_LIBRARY ${PYTHON_LIBRARY})
-# endif()
-
 #
 # ptxla library
 #
-
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 endif()
@@ -138,7 +127,9 @@ endif()
 link_directories(${CMAKE_BINARY_DIR}/lib)
 link_directories(${TORCH_PATH}/torch/lib)
 
-set(XLAC_EXTENSION_TARGET _XLAC.${CPYTHON_STR})
+set(XLAC_EXTENSION_TARGET _LAZYXLAC.${CPYTHON_STR})
+set(_LAZYC_EXTENSION "_LAZYC.${CPYTHON_STR}.so")
+link_directories(${CMAKE_CURRENT_LIST_DIR}/../lazy_tensor_core/)
 
 # torch_global_deps
 set(USE_TORCH_LIBRARIES torch torch_python shm torch_cpu c10)
@@ -152,6 +143,7 @@ if (BUILD_PTXLA_LIB)
           -Wl,--unresolved-symbols=ignore-in-shared-libs
           "${USE_TORCH_LIBRARIES}"
           "${PYTHON_LIBRARY}"
+          -l:${_LAZYC_EXTENSION}
           #${LINK_PYTHON_LIBRARY}
           -lutil
           -pthread
@@ -166,23 +158,23 @@ if (BUILD_PTXLA_LIB)
           ptxla
           PROPERTIES
           LIBRARY_OUTPUT_DIRECTORY
-          ${BUILD_OUTPUT_DIR}/torch_xla/lib
+          ${BUILD_OUTPUT_DIR}/lazy_xla/lib
   )
   
   # Link into develop dir position
   add_custom_command(
           TARGET ptxla POST_BUILD
           COMMAND mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/build/lib.linux-x86_64-3.7
-          COMMAND mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib
-          COMMAND ln -sf $<TARGET_FILE:ptxla> ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/
+          COMMAND mkdir -p ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/lib
+          COMMAND ln -sf $<TARGET_FILE:ptxla> ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/lib/
   )
 
   #
-  # _XLAC Python Extension Library
+  # _LAZYXLAC Python Extension Library
   #
   add_library(
           ${XLAC_EXTENSION_TARGET}
-          ${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/csrc/stub.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/csrc/stub.cpp
   )
 
   target_link_libraries(
@@ -201,6 +193,7 @@ else()
           -Wl,--unresolved-symbols=ignore-in-shared-libs
           "${USE_TORCH_LIBRARIES}"
           "${PYTHON_LIBRARY}"
+          -l:${_LAZYC_EXTENSION}
           -lutil
           -pthread
           -lstdc++
@@ -224,7 +217,7 @@ set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES BUILD_RPATH "$ORIGIN")
 set_target_properties(${XLAC_EXTENSION_TARGET} PROPERTIES BUILD_RPATH "$ORIGIN/lib")
 
 #
-# _XLAC extension
+# _LAZYXLAC extension
 #
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -250,21 +243,21 @@ if (BUILD_TENSORFLOW)
     set(LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME ${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME})
     list(APPEND TENSORFLOW_TARGETS "//tensorflow/compiler/xla/xla_client:${LIBXLA_COMPUTATION_CLIENT_LIB_FILE_NAME}" PARENT_SCOPE)
 
-    set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
+    set(LIBXLA_COMPUTATION_CLIENT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
     message(STATUS "LIBXLA_COMPUTATION_CLIENT_LIB: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 
     target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ${LIBXLA_COMPUTATION_CLIENT_LIB})
     target_link_libraries(${XLAC_EXTENSION_TARGET} PRIVATE ${FRAMEWORK_LIBS})
 
     set(TF_SOURCE_FILE "${TF_DIRECTORY}/bazel-bin/tensorflow/compiler/xla/xla_client/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
-    set(TF_DEST_FILE "${CMAKE_CURRENT_LIST_DIR}/torch_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
+    set(TF_DEST_FILE "${CMAKE_CURRENT_LIST_DIR}/lazy_xla/lib/${LIBXLA_COMPUTATION_CLIENT_LIB_ACTUAL_FILE_NAME}")
 
     message(STATUS "TO LINK: ${TF_SOURCE_FILE} -> ${TF_DEST_FILE}")
 
     add_custom_target(
             libxla_computation_client_mkdir
             COMMAND "mkdir" "-p"
-            "${CMAKE_CURRENT_SOURCE_DIR}/torch_xla/lib"
+            "${CMAKE_CURRENT_SOURCE_DIR}/lazy_xla/lib"
             DEPENDS libxla_computation_client_build
     )
 
@@ -289,7 +282,6 @@ if (BUILD_TENSORFLOW)
     )
 
     add_dependencies(${XLAC_EXTENSION_TARGET} libxla_computation_client)
-    message(ERROR foo)
 else()
     message(STATUS "Not building TensorFlow -- assuming the library exists: ${LIBXLA_COMPUTATION_CLIENT_LIB}")
 endif()

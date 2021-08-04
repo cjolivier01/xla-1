@@ -2,6 +2,10 @@ import torch
 import lazy_xla
 import lazy_tensor_core.debug.metrics as metrics
 
+os.environ['XLA_USE_XRT'] = '=1'
+os.environ['XRT_DEVICE_MAP'] = "CPU:0;/job:localservice/replica:0/task:0/device:XLA_CPU:0"
+os.environ['XRT_WORKERS'] = "localservice:0;grpc://localhost:40935"
+
 torch.manual_seed(42)
 
 device = 'lazy'
