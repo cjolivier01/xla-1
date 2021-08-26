@@ -9,7 +9,7 @@ os.environ['XRT_WORKERS'] = "localservice:0;grpc://localhost:40935"
 
 torch.manual_seed(42)
 
-device = 'xla'
+device = 'lazy'
 dtype = torch.float32
 
 x = torch.randn(2, 3, 4, device=device, dtype=dtype)
