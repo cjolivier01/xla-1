@@ -127,7 +127,7 @@ target_link_libraries(
   "${PTXLA_LIBDIR}/torch_xla/lib/libxla_computation_client.so"
   "${PTPY_LIB}"
   "${BINARY_DIR}/lib/${CMAKE_FIND_LIBRARY_PREFIXES}gtest.a"
-  "${PYTHON_LIBRARY}"
+  #"${PYTHON_LIBRARY}"
   -lutil
   -pthread
   -lstdc++
