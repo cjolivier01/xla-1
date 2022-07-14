@@ -1,0 +1,2 @@
+#!/bin/bash
+./benv.sh python setup.py develop

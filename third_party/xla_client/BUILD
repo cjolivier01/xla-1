@@ -44,6 +44,7 @@ tf_cc_shared_object(
     linkopts = select({
         "//tensorflow:windows": [],
         "//conditions:default": [
+            "-g",
             "-z defs",
             "-Wl,--version-script",  #  This line must be directly followed by the version_script.lds file
             "$(location //tensorflow/compiler/xla/xla_client:tf_version_script.lds)",
@@ -118,6 +119,7 @@ cc_library(
         "xrt_session.h",
         "xrt_session_cache.h",
     ],
+    copts = ["-g", "-O0"],
     deps = [
         ":mesh_service_proto_cc",
         "//tensorflow:grpc",
